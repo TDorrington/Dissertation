@@ -1,4 +1,4 @@
-structure Subsitution : SUBSTITUTION =
+structure Substitution : SUBSTITUTION =
 	struct
 
 		datatype (''a, 'b) t = Substitution of (''a * 'b) list;
