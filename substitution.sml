@@ -13,4 +13,9 @@ structure Subsitution : SUBSTITUTION =
 		    case map of [] => raise SubException
 		    	| (y,z)::l => if x=y then z else get(x,Substitution(l));
 
+		
+		fun contains(x, Substitution(map)) = 
+		     case map of [] => false
+			| (y,z)::l => if x=y then true else contains(x,Substitution(l));
+
 	end
