@@ -49,7 +49,7 @@ narrow(v, t, sigma, theta) = case v of
 	(* When v a hole, check in given sigma first if hole already instantiated
 	   and if so, return existing instantiation *)
 	| Hole(a) =>
-		if inDomain(Hole(a), sigma) then
+		if Substitution.(Hole(a), sigma) then
 			let val v = sigma(Hole(a)); 
 			    val (theta, success) = unify( [a, t, typeof(v)], theta) in
 				if(success) then (v,sigma,theta')
