@@ -1,21 +1,21 @@
 structure Substitution : SUBSTITUTION =
 	struct
 
-		datatype (''a, 'b) t = Map of (''a * 'b) list;
+		type (''a, 'b) map = (''a * 'b) list;
 
 		exception SubException;
 
-		fun union (Map(map), x, y) =
-		    case map of [] => Map([(x,y)])
-		    	       | l => Map((x,y)::l);
+		fun union (m, x, y) =
+		    case m of [] => [(x,y)]
+		    	     | l => (x,y)::l;
 	
-		fun get (x, Map(map)) =
-		    case map of [] => raise SubException
-		    	| (y,z)::l => if x=y then z else get(x,Map(l));
+		fun get (x, m) =
+		    case m of [] => raise SubException
+		    	| (y,z)::l => if x=y then z else get(x,l);
 
 		
-		fun contains(x, Map(map)) = 
-		     case map of [] => false
-			| (y,z)::l => if x=y then true else contains(x,Map(l));
+		fun contains(x, m) = 
+		     case m of [] => false
+				 | (y,z)::l => if x=y then true else contains(x,l);
 
 	end
