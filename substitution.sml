@@ -18,4 +18,4 @@ structure Substitution : SUBSTITUTION =
 		     case m of [] => false
 				 | (y,z)::l => if x=y then true else contains(x,l);
 
-	end
+	end;
