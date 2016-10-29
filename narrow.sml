@@ -1,4 +1,4 @@
-(* datatypes *) -------------------------------------------------------
+(* datatypes  ------------------------------------------------------- *)
 	 
 (* type variables datatype *)
 datatype typeVar = Alpha1 | Alpha2 | Alpha3 | Alpha4 | Alpha5 | Alpha6;
@@ -47,7 +47,7 @@ type valSub  = (valHole,  v) Substitution.map;
 type typeSub = (typeHole, t) Substitution.map;
 
 (* configuration datatype *)
-type config = expression * valSub * typeSub;
+datatype config = Config of expression * valSub * typeSub;
 
 (* typeof function ------------------------------------------------------- *)
 (* typeof returns dynamic type of a value *)
