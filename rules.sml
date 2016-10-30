@@ -1,16 +1,18 @@
 (* -------------------------------------------------------------------------------- *)
+(* For now, only accept operators v * v -> int, or v * v -> bool
+   where output wrapped in value datatype N(n) or B(b), respsectively *)
+   
 (* rules E-OP-ARITH-BOOL-GOOD, -BAD1, -BAD2 *)
-
-fun elabPhraseArithBool ( N(v1), N(v2), sigma, theta, oper) : config = 
+fun elabPhraseArithBool (v1, v2, sigma, theta, oper) : config = 
 	
-	case narrow(N(v1),Int,sigma,theta) of
+	case narrow(v1,Int,sigma,theta) of
 		
 		  (* rule E-OP-ARITH-BOOL-BAD1 *)
 		  c1 as Config(Stuck,sigma1,theta1) => c1
 
 		| Config(Expression(Value(N(n1))),sigma1,theta1) =>
 			
-			case narrow(N(v2),Int,sigma,theta) of
+			case narrow(v2,Int,sigma,theta) of
 				
 				(* rule E-OP-ARITH-BOOL-BAD2 *)
 				 c2 as Config(Stuck,sigma2,theta2) => c2
@@ -21,42 +23,60 @@ fun elabPhraseArithBool ( N(v1), N(v2), sigma, theta, oper) : config =
 					(* get value using type & value substitutions from n1 *)
 					let 
 						val Config(Expression(Value(N(n3))),sigma3,theta3) = 
-							narrow(N(v2),Int,sigma1,theta1);
+							narrow(v2,Int,sigma1,theta1);
 						val n = oper(n1,n3)
 					in
-						Config(Expression(Value(N(n))),sigma3,theta3)
-					
+						case n of
+						
+							  (* Arithmetic operations +,-,* *)
+							  N(i) => Config(Expression(Value(N(i))),sigma3,theta3)
+							  
+							  (* Boolean operations *)
+							| B(b) => Config(Expression(Value(B(b))),sigma3,theta3)
 					end;
 
 (* -------------------------------------------------------------------------------- *)
+(* Curried functions: Take operator 'a * 'a -> 'b,
+   and turn into function 'a * 'a => Value('b), i.e. wrap into value datatype *)	
+
+(* Function that wraps output of n+n, n-n, or n*n in value datatype *)
+val arithInt = fn oper => fn (n1, n2) => 
+	let val n = oper(n1,n2) in N(n) end;
+	
+(* Function that wraps output of n<n, n<=n, etc. in value datatype *)
+val arithBool = fn oper => fn (n1, n2) =>
+	let val b = oper(n1,n2) in B(b) end;
+
+	
+(* -------------------------------------------------------------------------------- *)
 (* Arithmetic operations: +,-,* *)
-					
-fun elabPhrasePlus (Config(Expression(Plus(Value(N(v1)),Value(N(v2)))),sigma,theta))
-	= elabPhraseArithBool(N(v1),N(v2),sigma,theta,op+);
+
+fun elabPhrasePlus (Config(Expression(Plus(Value(v1),Value(v2))),sigma,theta))
+	= elabPhraseArithBool(v1,v2,sigma,theta, arithInt(op+));
 	
-fun elabPhraseSub (c as Config(Expression(Subtract(Value(N(v1)),Value(N(v2)))),sigma,theta))
-	= elabPhraseArithBool(N(v1),N(v2),sigma,theta,op-);
+fun elabPhraseSubtract (Config(Expression(Subtract(Value(v1),Value(v2))),sigma,theta))
+	= elabPhraseArithBool(v1,v2,sigma,theta, arithInt(op-));
 	
-fun elabPhraseTimes (c as Config(Expression(Times(Value(N(v1)),Value(N(v2)))),sigma,theta))
-	= elabPhraseArithBool(N(v1),N(v2),sigma,theta,op*);
-	
+fun elabPhraseTimes (Config(Expression(Times(Value(v1),Value(v2))),sigma,theta))
+	= elabPhraseArithBool(v1,v2,sigma,theta, arithInt(op*));
+
 (* -------------------------------------------------------------------------------- *)
 (* Boolean operations: <, <=, >=, >, = *)
 
-fun elabPhraseLessThan (c as Config(Expression(LessThan(Value(N(v1)),Value(N(v2)))),sigma,theta))
-	= elabPhraseArithBool(N(v1),N(v2),sigma,theta,op<);
+fun elabPhraseLessThan (Config(Expression(LessThan(Value(v1),Value(v2))),sigma,theta))
+	= elabPhraseArithBool(v1,v2,sigma,theta, arithBool(op<) );
 
-fun elabPhraseMoreThan (c as Config(Expression(MoreThan(Value(N(v1)),Value(N(v2)))),sigma,theta))
-	= elabPhraseArithBool(N(v1),N(v2),sigma,theta,op>);
+fun elabPhraseMoreThan (c as Config(Expression(MoreThan(Value(v1),Value(v2))),sigma,theta))
+	= elabPhraseArithBool(v1,v2,sigma,theta, arithBool(op>));
 
-fun elabPhraseLessThanEqual (c as Config(Expression(LessThanEqual(Value(N(v1)),Value(N(v2)))),sigma,theta))
-	= elabPhraseArithBool(N(v1),N(v2),sigma,theta,op<=);
+fun elabPhraseLessThanEqual (c as Config(Expression(LessThanEqual(Value(v1),Value(v2))),sigma,theta))
+	= elabPhraseArithBool(v1,v2,sigma,theta, arithBool(op<=));
 
-fun elabPhraseMoreThanEqual (c as Config(Expression(MoreThanEqual(Value(N(v1)),Value(N(v2)))),sigma,theta))
-	= elabPhraseArithBool(N(v1),N(v2),sigma,theta,op>=);
+fun elabPhraseMoreThanEqual (c as Config(Expression(MoreThanEqual(Value(v1),Value(v2))),sigma,theta))
+	= elabPhraseArithBool(v1,v2,sigma,theta, arithBool(op>=));
 
-fun elabPhraseEqual	(c as Config(Expression(Equal(Value(N(v1)),Value(N(v2)))),sigma,theta))
-	= elabPhraseArithBool(N(v1),N(v2),sigma,theta,op=);
+fun elabPhraseEqual	(c as Config(Expression(Equal(Value(v1),Value(v2))),sigma,theta))
+	= elabPhraseArithBool(v1,v2,sigma,theta, arithBool(op=));
 
 (* -------------------------------------------------------------------------------- *)
 	
@@ -76,4 +96,3 @@ fun elabPhraseCond (Config(Expression(Condition(Value(B(b)),e1,e2)),sigma,theta)
 				
 				(* rule E-IF-GOOD2 *)
 				else Config(Expression(e2),sigma2,theta2);
-				

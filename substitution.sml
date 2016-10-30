@@ -7,7 +7,7 @@ structure Substitution : SUBSTITUTION =
 
 		fun union (m, x, y) =
 		    case m of [] => [(x,y)]
-		    	     | l => (x,y)::l;
+		    	     | l => if Substitution.contains(x,m) then l else (x,y)::l;
 	
 		fun get (x, m) =
 		    case m of [] => raise SubException
