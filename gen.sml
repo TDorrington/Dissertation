@@ -8,7 +8,7 @@ fun gen (t, theta:typeSub) = case t of
 	(* For base types, returns arbitrary value of that type *)	
 	  Bool => B(true)
 	| Int => N(1)
-	| Real => R(1.0)
+  (*| Real => R(1.0)*)
 	
 	(* For unconstrained types, yields fresh hole constrained to that type *)
 	| THole(TypeHole(a)) => if Substitution.contains(TypeHole(a),theta) 

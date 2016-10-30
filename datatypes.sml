@@ -1,5 +1,8 @@
 (* type variables datatype *)
-datatype typeVar = Alpha1 | Alpha2 | Alpha3 | Alpha4 | Alpha5 | Alpha6;
+(* Each line a subset of one above *)
+datatype typeVar = TypeVar of string			(* Type Variables *)
+				 | EqualityTypeVar of string	(* Equality Type Variables *)
+				 (* | ArithTypeVar of string;  	   New Type Variable: int or real *)
 
 (* type hole datatype *)
 datatype typeHole = TypeHole of typeVar;
@@ -8,7 +11,7 @@ datatype typeHole = TypeHole of typeVar;
 datatype t =
 	   Bool					(* boolean *)
 	 | Int 					(* integer *)
-	 | Real					(* real    *)
+   (*| Real					   real    *)
 	 | THole of typeHole;	(* type variable *)
 
 (* value hole datatype *)
@@ -18,11 +21,11 @@ datatype valHole = ValueHole of typeVar;
 datatype v =
 	   N of int					(* integer *)
   	 | B of bool				(* boolean *)
-	 | R of real				(* real    *)
+   (*| R of real				   real    *)
 	 | VHole of valHole; 		(* unconstrained value replaceable by any value of type t *)
 	 
 (* variables datatype *)
-datatype var = X1 | X2 | X3 | X4 | X5 | X6 | X7 | X8 | X9 ;
+datatype var = Var of string;
 
 (* non-stuck expression datatype *)
 datatype e =
@@ -36,7 +39,7 @@ datatype e =
 	| Equal of e * e
 	| Times of e * e
 	| Subtract of e * e
-	| Divide of e * e
+ (* | Divide of e * e *)
 	| Condition of e * e * e;
 
 (* possibly stuck expression datatype *)

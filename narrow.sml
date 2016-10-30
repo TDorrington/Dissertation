@@ -10,7 +10,7 @@ fun narrow (v, t, sigma, theta) = case v of
 
 	| B(boolean) => Config(Expression(Value(B(boolean))), sigma, theta)
 	
-	| R(real) 	 => Config(Expression(Value(R(real)))   , sigma, theta)
+  (*| R(real) 	 => Config(Expression(Value(R(real)))   , sigma, theta)*)
 
 	(* When v a hole, check in given sigma first if hole already instantiated
 	   and if so, return existing instantiation *)
@@ -27,5 +27,5 @@ fun narrow (v, t, sigma, theta) = case v of
 				if(success) 
 					then Config(Expression(Value(v)), Substitution.union(sigma,ValueHole(a),v), theta')
 					else Config(Stuck, sigma, theta)
-			end
+			end;
 	
