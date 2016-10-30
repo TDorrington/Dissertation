@@ -37,7 +37,7 @@ fun elabPhraseArithBool (v1, v2, sigma, theta, oper) : config =
 
 (* -------------------------------------------------------------------------------- *)
 (* Curried functions: Take operator 'a * 'a -> 'b,
-   and turn into function 'a * 'a => Value('b), i.e. wrap into value datatype *)	
+   and returns function 'a * 'a => Value('b), i.e. wrap output into value datatype *)	
 
 (* Function that wraps output of n+n, n-n, or n*n in value datatype *)
 val arithInt = fn oper => fn (n1, n2) => 
@@ -80,19 +80,17 @@ fun elabPhraseEqual	(c as Config(Expression(Equal(Value(v1),Value(v2))),sigma,th
 
 (* -------------------------------------------------------------------------------- *)
 	
-fun elabPhraseCond (Config(Expression(Condition(Value(B(b)),e1,e2)),sigma,theta)) : config =
+fun elabPhraseCond (Config(Expression(Condition(Value(v),e1,e2)),sigma,theta)) : config =
 
-	case narrow(B(b),Bool,sigma,theta) of
+	case narrow(v,Bool,sigma,theta) of
 	
 		  (* rule E-IF-BAD *)
 		  c as Config(Stuck,sigma1,theta1) => c
 		 
-		| Config(Expression(Value(B(b1))),sigma2,theta2) =>
+		| Config(Expression(Value(B(b))),sigma2,theta2) =>
 		
-			if b 
-			
-				(* rule E-IF-GOOD1 *)
-				then Config(Expression(e1),sigma2,theta2)
+			if b (* rule E-IF-GOOD1 *)
+				 then Config(Expression(e1),sigma2,theta2)
 				
-				(* rule E-IF-GOOD2 *)
-				else Config(Expression(e2),sigma2,theta2);
+				 (* rule E-IF-GOOD2 *)
+				 else Config(Expression(e2),sigma2,theta2);
