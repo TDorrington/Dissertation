@@ -12,13 +12,22 @@ use "C:/Users/Thomas/Documents/GitHub/Dissertation/unify.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/rules.sml";
 
-(* Basic case: 4+3=7 *)
+(* Basic case: 4+3=7 -------------------------------------------------------------- *)
+(* int *)
 val c1 = Config( Expression(Plus(Value(N(4)),Value(N(3)))), [], []);
 
-(* Type variable case: checks 'a in v['a]+3 instantiated to type int *)
+(* real *)
+val c1' = Config( Expression(Plus(Value(R(4.0)),Value(R(3.0)))), [], []);
+
+(* Type variable case: checks 'a in v['a]+3 instantiated to correct type ---------- *)
+(* int *)
 val c2 = Config( Expression(Plus(Value(VHole(ValueHole(TypeVar("a")))), 
 								 Value(N(3)))), [], []);
-								 
+
+(* real *)
+val c2' = Config( Expression(Plus(Value(VHole(ValueHole(TypeVar("a")))), 
+								  Value(R(3.0)))), [], []);
+
 (* Type variable case again: check 'a1 and 'a2 in v['a1]+v['a2] instantiated to type int *)
 val c3 = Config( Expression(Plus(Value(VHole(ValueHole(TypeVar("a1")))),
 								 Value(VHole(ValueHole(TypeVar("a2")))))), [], []);

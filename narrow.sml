@@ -9,12 +9,10 @@ fun narrow (N(integer), Int, sigma, theta) =
 
 |	narrow (B(boolean), Bool, sigma, theta) =
 	Config(Expression(Value(B(boolean))), sigma, theta)
-	
-(*
+
 | 	narrow (R(real), Real, sigma, theta) =
 	Config(Expression(Value(R(real))), sigma, theta)
-*)
-
+	
 |  narrow(VHole(ValueHole(a)), t, sigma, theta) =
 	(* When v a hole, check in given sigma first if hole already instantiated
 	   and if so, return existing instantiation *)
