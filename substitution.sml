@@ -1,4 +1,5 @@
 structure Substitution : SUBSTITUTION =
+
 	struct
 
 		type (''a, 'b) map = (''a * 'b) list;
@@ -11,6 +12,7 @@ structure Substitution : SUBSTITUTION =
 				 
 		fun union (m, x, y) =
 		    case m of [] => [(x,y)]
+					 (* only add map if not already one for x - don't update (?) *)
 		    	     | l => if contains(x,m) then l else (x,y)::l;
 	
 		fun get (x, m) =
