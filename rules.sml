@@ -22,7 +22,6 @@ val logicalReal = fn oper => fn (R(r1), R(r2)) => B(oper(r1,r2));
    except in case where operator is divide or equal   *)
 
 fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t1, t2) : config = 
-
 	
 	case narrow(v1,t1,sigma,theta) of
 			
@@ -147,7 +146,7 @@ fun elabPhraseOperation (Config(Expression(e),sigma,theta)) =
 
 (* -------------------------------------------------------------------------------- *)
 	
-fun elabPhraseCond (Config(Expression(Condition(Value(v),e1,e2)),sigma,theta)) : config =
+fun elabPhraseCondition (Config(Expression(Condition(Value(v),e1,e2)),sigma,theta)) : config =
 
 	case narrow(v,Bool,sigma,theta) of
 	

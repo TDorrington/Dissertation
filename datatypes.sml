@@ -10,7 +10,7 @@ datatype typeVar =
 					As well as datatype with certain restrictions on constructor parameters *)
 				 | EqualityTypeVar of string	
 				 
-				 (* New Type Variable: int or real *)
+				 (* New Arithmetic Type Variable: int or real *)
 				 | ArithTypeVar of string;  
 
 (* type hole datatype *)
