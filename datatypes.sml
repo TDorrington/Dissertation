@@ -13,6 +13,15 @@ datatype typeVar =
 				 (* New Arithmetic Type Variable: int or real *)
 				 | ArithTypeVar of string;  
 
+(* Integer that is used to generate fresh type variables
+   Type variables will also be "a" with the current global counter appended onto it *)
+val globalCounter = ref 0;
+
+(* Function to get the latest global counter, and increment at the same time *)
+fun getCounterAndUpdate() = 
+	let val current = !globalCounter
+	in (globalCounter := !globalCounter + 1);current end;
+				 
 (* type hole datatype *)
 datatype typeHole = TypeHole of typeVar;
 	
@@ -21,6 +30,7 @@ datatype t =
 	   Bool					(* boolean *)
 	 | Int 					(* integer *)
      | Real					(* real    *)
+	 | Pair of t * t		(* pairs   *)
 	 | THole of typeHole;	(* type variable *)
 
 (* value hole datatype *)
@@ -28,11 +38,15 @@ datatype valHole = ValueHole of typeVar;
 	 
 (* value datatype *) 
 datatype v =
-	   N of int					(* integer *)
-  	 | B of bool				(* boolean *)
-     | R of real			    (*  real    *)
+	   N of int					(* integer  *)
+  	 | B of bool				(* boolean  *)
+     | R of real			    (* real     *)
+	 | ValuePair of v * v		(* pairs 	*)
 	 | VHole of valHole; 		(* unconstrained value replaceable by any value of type t *)
 	 
+(* variable datatype *)
+datatype var = Var of string;	 
+
 (* non-stuck expression datatype *)
 (* +,-,* are of type (int * int -> int) OR (real * real -> real)
    / is of type (real * real -> real)
@@ -49,7 +63,10 @@ datatype e =
 	| LessThanEqual of e * e
 	| MoreThanEqual of e * e
 	| Equal of e * e
-	| Condition of e * e * e;
+	| Condition of e * e * e
+	| ExpressionPair of e * e
+	| Variable of var
+	| Case of e * e * e; 
 	
 (* possibly stuck expression datatype *)
 datatype expression = Stuck | Expression of e; 

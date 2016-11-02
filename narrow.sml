@@ -14,7 +14,24 @@ case (v,t) of
 
 	| (R(real),Real)    => Config(Expression(Value(R(real))), sigma, theta)
 	
-	| (VHole(ValueHole(a)),_) =>
+	| (ValuePair(v1,v2),Pair(t1,t2)) =>
+	
+		let val (theta1, success) = unify( [typeof(v1),t1], theta) 
+		in
+			if(success)
+			
+			then let val (theta2, success2) = unify( [typeof(v2),t2], theta1)
+			
+				 in
+					if(success2)
+					then Config(Expression(Value(ValuePair(v1,v2))),sigma,theta2)
+					else Config(Stuck,sigma,theta2)
+				 end
+				 
+			else Config(Stuck, sigma, theta1)
+		end
+	
+	| (VHole(ValueHole(a)),t) =>
 	(* When v a hole, check in given sigma first if hole already instantiated
 	   and if so, return existing instantiation *)
 	   

@@ -10,6 +10,9 @@ fun gen (t, theta:typeSub) = case t of
 	  Bool => B(true)
 	| Int => N(1)
     | Real => R(1.0)
+	
+	(* For pairs, recursively call gen to get values for components *)
+	| Pair(t1,t2) => ValuePair(gen(t1,theta),gen(t2,theta))
 
 	(* For unconstrained types, yields fresh hole constrained to that type *)
 	| THole(TypeHole(a)) => if Substitution.contains(TypeHole(a),theta) 

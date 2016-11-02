@@ -1,6 +1,6 @@
-(* Implements rules 
-   corresponding to evaluation & type inference of arithmetic/logical operations
-   e+e,e-e,e*e,e/e,e<e,e<=e,e>e,e>=e,e=e *)
+(* Implements rules corresponding to evaluation & type inference of arithmetic/logical operations
+   Both arguments are values
+   v+v,v-v,v*v,v/v,v<v,v<=v,v>v,v>=v,v=v *)
 
 (* -------------------------------------------------------------------------------- *)
 (* Curried functions: Take operator 'a * 'a -> 'b,
@@ -20,7 +20,6 @@ val logicalInt = fn oper => fn (N(n1), N(n2)) => B(oper(n1,n2));
 val logicalReal = fn oper => fn (R(r1), R(r2)) => B(oper(r1,r2));
 
 (* -------------------------------------------------------------------------------- *)
-
 (* Rules for arithmetic and boolean operations that can be evaluated 
    i.e. both arguments to operator not value holes
    except in case where operator is divide or equal   *)
@@ -56,7 +55,7 @@ datatype operations = PLUS | SUBTRACT | DIVIDE | TIMES    (* Arithmetic operatio
 (* Rules for all arithmetic and boolean operations
    even when both arguments to operator are value holes
    in which case we handle its evaluation explicitly in this function   *)
-fun elabPhraseOperationGeneral (v1,v2,sigma,theta,oper) =
+fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 	
 	(* Wrap into value datatype equivalent versions of operator oper *)
 	let val (intWrap, realWrap) = 
@@ -64,7 +63,7 @@ fun elabPhraseOperationGeneral (v1,v2,sigma,theta,oper) =
 		case oper of PLUS     => (arithInt(op+),arithReal(op+))
 				   | SUBTRACT => (arithInt(op-),arithReal(op-))
 				   | TIMES    => (arithInt(op*),arithReal(op*))
-				   | DIVIDE   => (arithInt(op*),arithReal(op/)) (* intWrap arbitrary, never used *)
+				   | DIVIDE   => (arithInt(op*),arithReal(op/))		 (* intWrap arbitrary, never used *)
 				   | LESS     => (logicalInt(op<), logicalReal(op<))
 				   | MORE     => (logicalInt(op>), logicalReal(op>))
 				   | LESSEQ   => (logicalInt(op<=),logicalReal(op<=))
@@ -74,14 +73,28 @@ fun elabPhraseOperationGeneral (v1,v2,sigma,theta,oper) =
 	in case (v1,v2) of 
 	
 		  (* op : int * int -> int/bool *)
-		  (N(_),N(_)) 	  	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta, intWrap, Int,Int)
-		| (N(_),VHole(_)) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta, intWrap, Int,Int)
-		| (VHole(_),N(_)) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta, intWrap, Int,Int)
+		  (* need to first check operator is not /, since cannot apply to integer arguments *)
+		  (N(_),N(_)) 	  	  => 
+			if oper = DIVIDE then Config(Stuck,sigma,theta)
+							 else elabPhraseOperationEvaluate(v1,v2,sigma,theta, intWrap, Int,Int)
+		| (N(_),VHole(_)) 	  => 
+			if oper = DIVIDE then Config(Stuck,sigma,theta)
+							 else elabPhraseOperationEvaluate(v1,v2,sigma,theta, intWrap, Int,Int)
+		| (VHole(_),N(_)) 	  => 
+			if oper = DIVIDE then Config(Stuck,sigma,theta)
+							 else elabPhraseOperationEvaluate(v1,v2,sigma,theta, intWrap, Int,Int)
 					
 		  (* op : real * real -> real/bool *)
-		| (R(_),R(_)) 	  	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta, realWrap, Real,Real)
-		| (R(_),VHole(_)) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta, realWrap, Real,Real)
-		| (VHole(_),R(_)) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta, realWrap, Real,Real)
+		  (* need to first check operator is not =, since cannot apply to real arguments *)
+		| (R(_),R(_)) 	  	  => 
+			if oper = EQ then Config(Stuck,sigma,theta)
+						 else elabPhraseOperationEvaluate(v1,v2,sigma,theta, realWrap, Real,Real)
+		| (R(_),VHole(_)) 	  => 
+			if oper = EQ then Config(Stuck,sigma,theta)
+						 else elabPhraseOperationEvaluate(v1,v2,sigma,theta, realWrap, Real,Real)
+		| (VHole(_),R(_)) 	  => 
+			if oper = EQ then Config(Stuck,sigma,theta) 
+						 else elabPhraseOperationEvaluate(v1,v2,sigma,theta, realWrap, Real,Real)
 		
 		| (VHole(ValueHole(a)),VHole(ValueHole(b))) =>
 		  (* We cannot evaluate 'a op 'b as it stands, so instead narrow 'a and 'b to be 
@@ -150,24 +163,3 @@ fun elabPhraseOperationGeneral (v1,v2,sigma,theta,oper) =
 		| _			 	 	  => Config(Stuck,sigma,theta)
 		
 	end;
-		
-(* Handles all expressions for boolean and arithmetic operations *)
-fun elabPhraseOperation (Config(Expression(e),sigma,theta)) =
-
-	case e of
-		
-		(* Arithmetic operations +,-,*,/ *)
-		  Plus(Value(v1),Value(v2))		  	=> elabPhraseOperationGeneral(v1,v2,sigma,theta,PLUS)
-		| Times(Value(v1),Value(v2))		=> elabPhraseOperationGeneral(v1,v2,sigma,theta,TIMES)
-		| Subtract(Value(v1),Value(v2)) 	=> elabPhraseOperationGeneral(v1,v2,sigma,theta,SUBTRACT)
-	   (* Divide only handles real arguments, not integer *)
-		| Divide(Value(R(v1)),Value(R(v2))) => elabPhraseOperationGeneral(R(v1),R(v2),sigma,theta,DIVIDE)
-		
-		(* Boolean operations <,<=,>,>=,=*)
-	    | LessThan(Value(v1),Value(v2))		 => elabPhraseOperationGeneral(v1,v2,sigma,theta,LESS)
-		| MoreThan(Value(v1),Value(v2))		 => elabPhraseOperationGeneral(v1,v2,sigma,theta,MORE)
-		| LessThanEqual(Value(v1),Value(v2)) => elabPhraseOperationGeneral(v1,v2,sigma,theta,LESSEQ)
-		| MoreThanEqual(Value(v1),Value(v2)) => elabPhraseOperationGeneral(v1,v2,sigma,theta,MOREEQ)
-	   (* Equal only handles integer arguments, not real *)
-		| Equal(Value(N(v1)),Value(N(v2)))	 => elabPhraseOperationGeneral(N(v1),N(v2),sigma,theta,EQ);
-		
