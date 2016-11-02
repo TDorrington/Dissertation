@@ -125,15 +125,15 @@ fun evaluate (c as Config(Expression(Value(v)),sigma,theta)) = c
 (* Handles context rule (context-if): boolean argument a general expression ---------  *)		
 |  evaluate (Config(Expression(Condition(e,e1,e2)),sigma,theta)) =
    let val Config(Expression(Value(v)),sigma1,theta1) = evaluate(Config(Expression(e),sigma,theta))
-   in evaluate (Config(Expression(Condition(Value(v),e1,e2)),sigma1,theta1)) end;
+   in evaluate (Config(Expression(Condition(Value(v),e1,e2)),sigma1,theta1)) end
  
 (* Implements evaluation & type inference rules for case-pair expression with first operand a value *)
 (* i.e. implement rules (E-CASE-PAIR-GOOD) and (E-CASE-PAIR-BAD) *) 
 |  evaluate (Config(Expression(Case(Value(v),ExpressionPair(Variable(x1),Variable(x2)),e)),sigma,theta)) =
 
 	(* generate fresh type variables, alpha1 and alpha2, using unique counter *)
-	let val alpha1 = TypeHole("a" ^ Int.toString(getCounterAndUpdate()));
-		val alpha2 = TypeHole("a" ^ Int.toString(getCounterAndUpdate()))
+	let val alpha1 = TypeHole(TypeVar("a" ^ Int.toString(getCounterAndUpdate())));
+		val alpha2 = TypeHole(TypeVar("a" ^ Int.toString(getCounterAndUpdate())))
 	in
 		(* double check fresh type variables not already in type substitution
 		   this should not be the case if we begin evaluation with empty substitution since all
@@ -153,8 +153,8 @@ fun evaluate (c as Config(Expression(Value(v)),sigma,theta)) = c
 			  (* rule E-CASE-PAIR-GOOD *)
 			| Config(Expression(Value(ValuePair(v1,v2))),sigma1,theta1) =>
 			
-				let val e'  = substitute(e,v1,x1);
-					val e'' = substitute(e',v2,x2)
+				let val e'  = substitute(e,v1,x1,sigma1,theta1,evaluate);
+					val e'' = substitute(e',v2,x2,sigma1,theta1,evaluate)
 				in Config(Expression(e''),sigma1,theta1) end
 				
    end;

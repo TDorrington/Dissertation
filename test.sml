@@ -6,6 +6,7 @@ use "C:/Users/Thomas/Documents/GitHub/Dissertation/gen.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/unify.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/rule-operation.sml";
+use "C:/Users/Thomas/Documents/GitHub/Dissertation/substitute.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/evaluate.sml";
 
 (* Basic case: 4+3=7 -------------------------------------------------------------- *)
