@@ -1,8 +1,3 @@
-(* TO ASK:
-
-	- should IF not performs constraints on two return expressions having same type 
-*)
-
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/SUBSTITUTION-sig.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/substitution.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/datatypes.sml";
@@ -10,7 +5,8 @@ use "C:/Users/Thomas/Documents/GitHub/Dissertation/typeof.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/gen.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/unify.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow.sml";
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/rules.sml";
+use "C:/Users/Thomas/Documents/GitHub/Dissertation/rule-operation.sml";
+use "C:/Users/Thomas/Documents/GitHub/Dissertation/rule-conditional.sml";
 
 (* Basic case: 4+3=7 -------------------------------------------------------------- *)
 (* int *)

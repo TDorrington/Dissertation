@@ -1,3 +1,7 @@
+(* Implements rules 
+   corresponding to evaluation & type inference of arithmetic/logical operations
+   e+e,e-e,e*e,e/e,e<e,e<=e,e>e,e>=e,e=e *)
+
 (* -------------------------------------------------------------------------------- *)
 (* Curried functions: Take operator 'a * 'a -> 'b,
    and returns function Value('a) * Value('a) => Value('b)
@@ -25,17 +29,17 @@ fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t1, t2) : config =
 	
 	case narrow(v1,t1,sigma,theta) of
 			
-	  (* rule E-OP-ARITH-BOOL-BAD1 *)
+	  (* rule E-OP-BAD1 *)
 	  c1 as Config(Stuck,sigma1,theta1) => c1
 
 	| Config(Expression(Value(n1)),sigma1,theta1) =>
 				
-		case narrow(v2,t2,sigma,theta) of
+		case narrow(v2,t2,sigma1,theta1) of
 					
-			  (* rule E-OP-ARITH-BOOL-BAD2 *)
+			  (* rule E-OP-BAD2 *)
 			  c2 as Config(Stuck,sigma2,theta2) => c2
 						
-			  (* rule E-OP-ARITH-BOOL-GOOD *)
+			  (* rule E-OP--GOOD *)
 			| _ =>
 							
 				(* get value using type & value substitutions from n1 *)
@@ -50,7 +54,7 @@ datatype operations = PLUS | SUBTRACT | DIVIDE | TIMES    (* Arithmetic operatio
 					| LESS | LESSEQ | MORE | MOREEQ | EQ; (* Boolean operations    *)
 				
 (* Rules for all arithmetic and boolean operations
-   even when both arguments to operator not value holes
+   even when both arguments to operator are value holes
    in which case we handle its evaluation explicitly in this function   *)
 fun elabPhraseOperationGeneral (v1,v2,sigma,theta,oper) =
 	
@@ -80,10 +84,12 @@ fun elabPhraseOperationGeneral (v1,v2,sigma,theta,oper) =
 		| (VHole(_),R(_)) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta, realWrap, Real,Real)
 		
 		| (VHole(ValueHole(a)),VHole(ValueHole(b))) =>
-		  (* We cannot evaluate 'a op 'b, so instead narrow 'a and 'b to be 
+		  (* We cannot evaluate 'a op 'b as it stands, so instead narrow 'a and 'b to be 
 			 arithmetic type variables, and leave as 'a op 'b with new type restrictions
-			 Except in division/equal case, where we know 'a and 'b must be of type real/int 
-			 respectively can also then evaluate after gen called *)
+			 Except in the following two cases:
+				- division/equal case, where we know 'a and 'b must be of type real/int 
+				  respectively - can also then evaluate after gen called 
+				- after substitutions made in call to narrow, 'a or 'b are of a concrete type *)
 		
 		let (* Extract string from type variable datatype *)
 			val s1 = case a of TypeVar(s) => s | EqualityTypeVar(s) => s | ArithTypeVar(s) => s;
@@ -95,28 +101,50 @@ fun elabPhraseOperationGeneral (v1,v2,sigma,theta,oper) =
 				
 		in case narrow(v1,t1,sigma,theta) of
 				
-		  c1 as Config(Stuck,sigma1,theta1) => c1	(* rule E-OP-ARITH-BOOL-BAD1 *)
+		  c1 as Config(Stuck,sigma1,theta1) => c1	(* rule E-OP-BAD1 *)
 				  
 		| Config(Expression(Value(n1)),sigma1,theta1) =>
+		
+			(* After substitutions, we may now know first argument to be a concrete type *)
+			(case n1 of 
+				(* If integer, real or boolean, we know enough information to call evaluation function/be stuck *)
+				  N(_) => elabPhraseOperationEvaluate(v1,v2,sigma1,theta1, intWrap, Int,Int)
+				| R(_) => elabPhraseOperationEvaluate(v1,v2,sigma1,theta1, realWrap, Real,Real)
+				| B(_) => Config(Stuck,sigma1,theta1)
 				
-			case narrow(v2,t2,sigma,theta) of
+				(* No more information gained from substitutions, carry on as normal *)
+				| _ => 
 					
-			  c2 as Config(Stuck,sigma2,theta2) => c2	(* rule E-OP-ARITH-BOOL-BAD2 *)
+					(case narrow(v2,t2,sigma1,theta1) of
+					
+						  c2 as Config(Stuck,sigma2,theta2) => c2	(* rule E-OP-BAD2 *)
 						
-			| _ => 	
-					(* get value using type & value substitutions from n1 *)
-				let val Config(Expression(Value(n3)),sigma3,theta3) = narrow(v2,t2,sigma1,theta1);
+						| _ => 	
+							(* get value using type & value substitutions from n1 *)
+							let val Config(Expression(Value(n3)),sigma3,theta3) = narrow(v2,t2,sigma1,theta1);
 							
-				in case oper of PLUS     => Config(Expression(Plus(Value(n1),Value(n3))), sigma3, theta3) 
-							  | SUBTRACT => Config(Expression(Subtract(Value(n1),Value(n3))), sigma3, theta3) 
-						      | TIMES    => Config(Expression(Times(Value(n1),Value(n3))), sigma3, theta3) 
-							  | DIVIDE   => Config(Expression(Value(realWrap(n1,n3))), sigma3, theta3) 
-							  | LESS     => Config(Expression(LessThan(Value(n1),Value(n3))), sigma3, theta3) 
-						      | MORE     => Config(Expression(MoreThan(Value(n1),Value(n3))), sigma3, theta3) 
-						      | LESSEQ   => Config(Expression(LessThanEqual(Value(n1),Value(n3))), sigma3, theta3) 
-						      | MOREEQ   => Config(Expression(MoreThanEqual(Value(n1),Value(n3))), sigma3, theta3) 
-						      | EQ  	 => Config(Expression(Value(intWrap(n1,n3))), sigma3, theta3)
-				end
+							in 
+						
+							(* After substitutions, we may now know second argument to be a concrete type *)
+							(case n3 of 
+								(* If integer, real or boolean, we know enough information to call evaluation function/be stuck *)
+								  N(_) => elabPhraseOperationEvaluate(v1,v2,sigma3,theta3, intWrap, Int,Int)
+								| R(_) => elabPhraseOperationEvaluate(v1,v2,sigma3,theta3, realWrap, Real,Real)
+								| B(_) => Config(Stuck,sigma3,theta3)
+								
+								(* No more information gained from substitutions, carry on as normal *)
+								| _ => 
+						
+								(case oper of PLUS     => Config(Expression(Plus(Value(n1),Value(n3))), sigma3, theta3) 
+											| SUBTRACT => Config(Expression(Subtract(Value(n1),Value(n3))), sigma3, theta3) 
+											| TIMES    => Config(Expression(Times(Value(n1),Value(n3))), sigma3, theta3) 
+											| DIVIDE   => Config(Expression(Value(realWrap(n1,n3))), sigma3, theta3) 
+											| LESS     => Config(Expression(LessThan(Value(n1),Value(n3))), sigma3, theta3) 
+											| MORE     => Config(Expression(MoreThan(Value(n1),Value(n3))), sigma3, theta3) 
+											| LESSEQ   => Config(Expression(LessThanEqual(Value(n1),Value(n3))), sigma3, theta3) 
+											| MOREEQ   => Config(Expression(MoreThanEqual(Value(n1),Value(n3))), sigma3, theta3) 
+											| EQ  	 => Config(Expression(Value(intWrap(n1,n3))), sigma3, theta3)))
+							end))
 		end
 		
 		| _			 	 	  => Config(Stuck,sigma,theta)
@@ -143,20 +171,3 @@ fun elabPhraseOperation (Config(Expression(e),sigma,theta)) =
 	   (* Equal only handles integer arguments, not real *)
 		| Equal(Value(N(v1)),Value(N(v2)))	 => elabPhraseOperationGeneral(N(v1),N(v2),sigma,theta,EQ);
 		
-
-(* -------------------------------------------------------------------------------- *)
-	
-fun elabPhraseCondition (Config(Expression(Condition(Value(v),e1,e2)),sigma,theta)) : config =
-
-	case narrow(v,Bool,sigma,theta) of
-	
-		  (* rule E-IF-BAD *)
-		  c as Config(Stuck,sigma1,theta1) => c
-		 
-		| Config(Expression(Value(B(b))),sigma2,theta2) =>
-		
-			if b (* rule E-IF-GOOD1 *)
-				 then Config(Expression(e1),sigma2,theta2)
-				
-				 (* rule E-IF-GOOD2 *)
-				 else Config(Expression(e2),sigma2,theta2);
