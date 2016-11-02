@@ -10,25 +10,12 @@ fun replace ([],_,_) = []
 |   replace ((x,y)::l,a,b) =
 	if a=x then (b,y)::l else 
 	if a=y then (x,b)::l else (x,y)::replace(l,a,b);
-	
-(* ----------------------------------------------------------------------------------- *)
-
-(* Takes list of types, and current substitution,
-   If there is a map a->b in theta, it replaces all occurences of a in constraints by b *)	
-fun normalize ([],_) = []
-|   normalize (x::l,theta) = 
-	case x of 
-	  THole(a) => 
-		if Substitution.contains(a,theta) 
-		then Substitution.get(a,theta)::normalize(l,theta)
-		else x::normalize(l,theta)
-	| _ => x::normalize(l,theta);
 
 (* ----------------------------------------------------------------------------------- *)
 	
-(* Auxiliary function used in unify
-   It takes two variables of type typeVar, i.e. either TypeVar, EqualityTypeVar or ArithTypeVar
-   and returns a list of pairs which are new constraints
+(* Auxiliary function used in unifyWrapper
+   It takes two type variables, i.e. either TypeVar, EqualityTypeVar or ArithTypeVar
+   which must be equal, and returns a list of pairs which are equivalent constraints
  *)
 fun getNewConstraints(TypeHole(a),TypeHole(b)) = case (a,b) of
 
@@ -83,11 +70,11 @@ fun getNewConstraints(TypeHole(a),TypeHole(b)) = case (a,b) of
    unify : ConstraintSet -> Substitution * bool (if successful)
    unify(no constraints) = empty set
    unify({A=A}::C) = unify(C)
-   unify({alpha = T}::C) = unify( [alpha -> T]C) union [alpha -> T]
+   unify({alpha = T}::C) = unify( [alpha -> T]C) union [alpha -> T], alpha not in ftv(A)
    unify({alpha = beta}::C) = unify(newConstraints union C)
-   unify({T = alpha}::C) = unify( [alpha -> T]C) union [alpha -> T]
+   unify({T = alpha}::C) = unify( [alpha -> T]C) union [alpha -> T], alpha not in ftv(A)
    unify(anything else) = FAIL
-   
+   CHECK FTV LATER ON
 *)
 
 fun unifyWrapper([], theta) = (theta, true)
@@ -110,10 +97,20 @@ fun unifyWrapper([], theta) = (theta, true)
 		in case newConstraints of
 		
 			  [(THole(TypeHole(c)),THole(TypeHole(d)))]   =>  
+			  
+				(* The latestMapped variable turns cases like unify(['a,'b,Int]) 
+				   which would return [a'->'b, 'b->Int]
+				   instead into =['a->Int,'b->Int]
+				   That is, we check if any constraints further down the line have since 
+				   restricted the constraint we are about to add any further before adding
+				   An alternative would be to call unifyWrapper with an empty substitution list,
+				   rather than current theta, and union them after this method returns
+				   in a special way, but this is more efficient *)
 				let val (newMap,b) = unifyWrapper(replace(rest,THole(TypeHole(c)),THole(TypeHole(d))),theta)
 					val latestMapped = if Substitution.contains(TypeHole(d),newMap) 
 									   then Substitution.get(TypeHole(d),newMap)
 									   else THole(TypeHole(d))
+									   
 				in (Substitution.union(newMap,TypeHole(c),latestMapped), b) end
 				
 			| [a,b] => unifyWrapper(a::b::rest,theta)
@@ -149,6 +146,19 @@ fun unifyWrapper([], theta) = (theta, true)
 	
 (* ----------------------------------------------------------------------------------- *)
 
+(* Takes list of types, and current substitution,
+   If there is a map a->b in theta, it replaces all occurrences of a in constraints by b *)	
+fun normalize ([],_) = []
+|   normalize (x::l,theta) = 
+	case x of 
+	  THole(a) => 
+		if Substitution.contains(a,theta) 
+		then Substitution.get(a,theta)::normalize(l,theta)
+		else x::normalize(l,theta)
+	| _ => x::normalize(l,theta);
+	
+(* ----------------------------------------------------------------------------------- *)
+	
 (* Wrapper function. Takes a list of types which must ALL be equal,
    generates all the constraints stemming from this list, and calls unify algorithm
    At the mo, unify can only be called with 2 or 3 types in the list from narrow,  
