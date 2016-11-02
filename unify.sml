@@ -214,5 +214,3 @@ unify( [a',b',c'], [(a'1,Int),(b'1,Real)]); (* gives mapping with false *)
 unify( [a',b'',c'''], [(a'1,Int)] );		(* gives mapping [ ('a -> Int), ('b -> Int), ('c -> Int) ] *)
 unify( [a',b'',c'''], [(a'1,Int), (b''1,Int)] );  (* gives mapping [ ('a -> Int), ('b -> Int), ('c -> Int) ] *)
 unify( [a',b'',c'''], [(a'1,Real)] ); 		(* gives mapping with false *)
-
-

@@ -60,7 +60,7 @@ elabPhraseCondition(Config( Expression(Condition(Value(VHole(ValueHole(TypeVar("
 									  
 (* Check if substitution contains v['a]->true then 'if v['a] then 3 else 4 = 3 *)
 elabPhraseCondition(Config( Expression(Condition(Value(VHole(ValueHole(TypeVar("a")))),
-									  Value(N(3)), Value(N(4)))),
+									   Value(N(3)), Value(N(4)))),
 				 [ (ValueHole(TypeVar("a")), B(true)) ],
 				 [ (TypeHole (TypeVar("a")), Bool)    ]));
 (* evaluates to <Value(N(3)),[V['a]->true],['a->Bool]> *)

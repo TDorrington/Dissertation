@@ -14,6 +14,5 @@ fun gen (t, theta:typeSub) = case t of
 	(* For unconstrained types, yields fresh hole constrained to that type *)
 	| THole(TypeHole(a)) => if Substitution.contains(TypeHole(a),theta) 
 							then gen(Substitution.get(TypeHole(a),theta), theta)
-							else VHole(ValueHole(a)); (* v[a] for v fresh *)
+							else VHole(ValueHole(a)); 
 								
-(* *** work: v fresh?? *** *)
