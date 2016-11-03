@@ -83,7 +83,7 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 		| (VHole(_),N(_)) 	  => 
 			if oper = DIVIDE then Config(Stuck,sigma,theta)
 							 else elabPhraseOperationEvaluate(v1,v2,sigma,theta, intWrap, Int,Int)
-					
+		
 		  (* op : real * real -> real/bool *)
 		  (* need to first check operator is not =, since cannot apply to real arguments *)
 		| (R(_),R(_)) 	  	  => 
@@ -104,61 +104,61 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 				  respectively - can also then evaluate after gen called 
 				- after substitutions made in call to narrow, 'a or 'b are of a concrete type *)
 		
-		let (* Extract string from type variable datatype *)
-			val s1 = case a of TypeVar(s) => s | EqualityTypeVar(s) => s | ArithTypeVar(s) => s;
-			val s2 = case b of TypeVar(s) => s | EqualityTypeVar(s) => s | ArithTypeVar(s) => s;
+			let (* Extract string from type variable datatype *)
+				val s1 = case a of TypeVar(s) => s | EqualityTypeVar(s) => s | ArithTypeVar(s) => s;
+				val s2 = case b of TypeVar(s) => s | EqualityTypeVar(s) => s | ArithTypeVar(s) => s;
+				
+				(* Calculate types we must constrain type variables to *)
+				val t1 = case oper of DIVIDE => Real | EQ => Int | _ => THole(TypeHole(ArithTypeVar(s1)));
+				val t2 = case oper of DIVIDE => Real | EQ => Int | _ => THole(TypeHole(ArithTypeVar(s2)))
+					
+			in case narrow(v1,t1,sigma,theta) of
+					
+			  c1 as Config(Stuck,sigma1,theta1) => c1	(* rule E-OP-BAD1 *)
+					  
+			| Config(Expression(Value(n1)),sigma1,theta1) =>
 			
-			(* Calculate types we must constrain type variables to *)
-			val t1 = case oper of DIVIDE => Real | EQ => Int | _ => THole(TypeHole(ArithTypeVar(s1)));
-			val t2 = case oper of DIVIDE => Real | EQ => Int | _ => THole(TypeHole(ArithTypeVar(s2)))
-				
-		in case narrow(v1,t1,sigma,theta) of
-				
-		  c1 as Config(Stuck,sigma1,theta1) => c1	(* rule E-OP-BAD1 *)
-				  
-		| Config(Expression(Value(n1)),sigma1,theta1) =>
-		
-			(* After substitutions, we may now know first argument to be a concrete type *)
-			(case n1 of 
-				(* If integer, real or boolean, we know enough information to call evaluation function/be stuck *)
-				  N(_) => elabPhraseOperationEvaluate(v1,v2,sigma1,theta1, intWrap, Int,Int)
-				| R(_) => elabPhraseOperationEvaluate(v1,v2,sigma1,theta1, realWrap, Real,Real)
-				| B(_) => Config(Stuck,sigma1,theta1)
-				
-				(* No more information gained from substitutions, carry on as normal *)
-				| _ => 
+				(* After substitutions, we may now know first argument to be a concrete type *)
+				(case n1 of 
+					(* If integer, real or boolean, we know enough information to call evaluation function/be stuck *)
+					  N(_) => elabPhraseOperationEvaluate(v1,v2,sigma1,theta1, intWrap, Int,Int)
+					| R(_) => elabPhraseOperationEvaluate(v1,v2,sigma1,theta1, realWrap, Real,Real)
+					| B(_) => Config(Stuck,sigma1,theta1)
 					
-					(case narrow(v2,t2,sigma1,theta1) of
-					
-						  c2 as Config(Stuck,sigma2,theta2) => c2	(* rule E-OP-BAD2 *)
+					(* No more information gained from substitutions, carry on as normal *)
+					| _ => 
 						
-						| _ => 	
-							(* get value using type & value substitutions from n1 *)
-							let val Config(Expression(Value(n3)),sigma3,theta3) = narrow(v2,t2,sigma1,theta1);
+						(case narrow(v2,t2,sigma1,theta1) of
+						
+							  c2 as Config(Stuck,sigma2,theta2) => c2	(* rule E-OP-BAD2 *)
 							
-							in 
-						
-							(* After substitutions, we may now know second argument to be a concrete type *)
-							(case n3 of 
-								(* If integer, real or boolean, we know enough information to call evaluation function/be stuck *)
-								  N(_) => elabPhraseOperationEvaluate(v1,v2,sigma3,theta3, intWrap, Int,Int)
-								| R(_) => elabPhraseOperationEvaluate(v1,v2,sigma3,theta3, realWrap, Real,Real)
-								| B(_) => Config(Stuck,sigma3,theta3)
+							| _ => 	
+								(* get value using type & value substitutions from n1 *)
+								let val Config(Expression(Value(n3)),sigma3,theta3) = 
+									narrow(v2,t2,sigma1,theta1)
+								in 
 								
-								(* No more information gained from substitutions, carry on as normal *)
-								| _ => 
-						
-								(case oper of PLUS     => Config(Expression(Plus(Value(n1),Value(n3))), sigma3, theta3) 
-											| SUBTRACT => Config(Expression(Subtract(Value(n1),Value(n3))), sigma3, theta3) 
-											| TIMES    => Config(Expression(Times(Value(n1),Value(n3))), sigma3, theta3) 
-											| DIVIDE   => Config(Expression(Value(realWrap(n1,n3))), sigma3, theta3) 
-											| LESS     => Config(Expression(LessThan(Value(n1),Value(n3))), sigma3, theta3) 
-											| MORE     => Config(Expression(MoreThan(Value(n1),Value(n3))), sigma3, theta3) 
-											| LESSEQ   => Config(Expression(LessThanEqual(Value(n1),Value(n3))), sigma3, theta3) 
-											| MOREEQ   => Config(Expression(MoreThanEqual(Value(n1),Value(n3))), sigma3, theta3) 
-											| EQ  	 => Config(Expression(Value(intWrap(n1,n3))), sigma3, theta3)))
-							end))
-		end
+								(* After substitutions, we may now know second argument to be a concrete type *)
+								(case n3 of 
+									(* If integer, real or boolean, we know enough information to call evaluation function/be stuck *)
+									  N(_) => elabPhraseOperationEvaluate(v1,v2,sigma3,theta3, intWrap, Int,Int)
+									| R(_) => elabPhraseOperationEvaluate(v1,v2,sigma3,theta3, realWrap, Real,Real)
+									| B(_) => Config(Stuck,sigma3,theta3)
+									
+									(* No more information gained from substitutions, carry on as normal *)
+									| _ => 
+							
+									(case oper of PLUS     => Config(Expression(Plus(Value(n1),Value(n3))), sigma3, theta3) 
+												| SUBTRACT => Config(Expression(Subtract(Value(n1),Value(n3))), sigma3, theta3) 
+												| TIMES    => Config(Expression(Times(Value(n1),Value(n3))), sigma3, theta3) 
+												| DIVIDE   => Config(Expression(Value(realWrap(n1,n3))), sigma3, theta3) 
+												| LESS     => Config(Expression(LessThan(Value(n1),Value(n3))), sigma3, theta3) 
+												| MORE     => Config(Expression(MoreThan(Value(n1),Value(n3))), sigma3, theta3) 
+												| LESSEQ   => Config(Expression(LessThanEqual(Value(n1),Value(n3))), sigma3, theta3) 
+												| MOREEQ   => Config(Expression(MoreThanEqual(Value(n1),Value(n3))), sigma3, theta3) 
+												| EQ  	 => Config(Expression(Value(intWrap(n1,n3))), sigma3, theta3)))
+								end))
+			end
 		
 		| _			 	 	  => Config(Stuck,sigma,theta)
 		

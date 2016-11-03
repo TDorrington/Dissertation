@@ -9,60 +9,60 @@ use "C:/Users/Thomas/Documents/GitHub/Dissertation/rule-operation.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/substitute.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/evaluate.sml";
 
-(* Basic case: 4+3=7 -------------------------------------------------------------- *)
-(* int *)
-elabPhraseOperation(Config( Expression(Plus(Value(N(4)),Value(N(3)))), [], []));
-(* evaluates to <Value(N(7)),[],[]> *)
+(* ----------------------------------------------------------------------------------- *)
+(* test cases for unify *)
+(* ' is type variables, '' equality type variables, and ''' arithmetic type variables *)
+(* 1 appended to end means it is equivalent type, but type hole version *)
 
-(* real *)
-elabPhraseOperation(Config( Expression(Plus(Value(R(4.0)),Value(R(3.0)))), [], []));
-(* evaluates to <Value(R(7.0),[],[] *)
+val a' = THole(TypeHole(TypeVar("a")));
+val a'1 = TypeHole(TypeVar("a"));
+val b' = THole(TypeHole(TypeVar("b")));
+val b'1 = TypeHole(TypeVar("b"));
+val c' = THole(TypeHole(TypeVar("c")));
+val c'1 = TypeHole(TypeVar("c"));
+val d' = THole(TypeHole(TypeVar("d")));
 
-(* Type variable case: checks 'a in v['a]+3 instantiated to correct type ---------- *)
-(* int *)
-elabPhraseOperation(Config( Expression(Plus(Value(VHole(ValueHole(TypeVar("a")))), 
-								 Value(N(3)))), [], []));
-(* evaluates to <Value(R(4),[V['a]->1],['a->Int] *)
-								 
-(* real *)
-elabPhraseOperation(Config( Expression(Plus(Value(VHole(ValueHole(TypeVar("a")))), 
-								  Value(R(3.0)))), [], []));
-(* evaluates to <Value(R(4.0),[V['a]->1.0],['a->Real] *)
+val a'' = THole(TypeHole(EqualityTypeVar("a")));
+val b'' = THole(TypeHole(EqualityTypeVar("b")));
+val b''1 = TypeHole(EqualityTypeVar("b"));
+val c'' = THole(TypeHole(EqualityTypeVar("c")));
+val d'' = THole(TypeHole(EqualityTypeVar("d")));
 
-(* Type variable case again: check 'a1 and 'a2 in v['a1]+v['a2] instantiated to type int *)
-elabPhraseOperation(Config( Expression(Plus(Value(VHole(ValueHole(TypeVar("a1")))),
-										    Value(VHole(ValueHole(TypeVar("a2")))))), [], []));
-(* evaluates to <Value(V[''a1]+V[''a2],[V['a1]->Value(V[''a1]), V['a2]->Value(V[''a2])],
-									   ['a1 -> ''a1, 'a2 -> ''a2] *)
+val a''' = THole(TypeHole(ArithTypeVar("a")));
+val b''' = THole(TypeHole(ArithTypeVar("b")));
+val c''' = THole(TypeHole(ArithTypeVar("c")));
+val d''' = THole(TypeHole(ArithTypeVar("d")));
 
-(* Stuck configuration: true+4=stuck *)								 
-elabPhraseOperation(Config( Expression(Plus(Value(B(true)),Value(N(4)))), [], []));
-(* evaluates to <Stuck,[],[]> *)
+(* test outputs assume true, unless stated otherwise *)
+unify( [Int,Int], []);		(* gives mapping [] *)
+unify( [a',Int], []);		(* gives mapping [ (a' -> Int) ] *)
+unify( [a''',Real], []);	(* gives mapping ------- *)
+unify( [a''',Bool], []);	(* gives mapping [] with false *)
+unify( [a'',Real], []);		(* gives mapping [] with false *)
+unify( [a',b'], []);		(* gives mapping [ (a' -> b') ] *)
+unify( [a''',b'''], []);	(* gives mapping [ (a''' -> b''') ] *)
+unify( [a'',b'''], []);		(* gives mapping [ (a'' -> Int), (b''' -> Int) ] *)
+unify( [a',b',c'], []); 	(* gives mapping [ (a' -> c'), (b' -> c') ] *)
+unify( [a',b',Int], []);   	(* gives mapping [ (a' -> Int'), (b' -> Int)] *)
+unify( [a',b'',c'''],[]);	(* gives mapping [ (a' -> Int), (b'' -> Int), (c''' -> Int) ] *)
+unify( [Int,Int,Int],[]);	(* gives mapping [] *)
+unify( [a',Int], [(a'1,Int)]);		(* gives mapping [ (a' -> Int) ] *)
+unify( [a',Int], [(a'1,Real)]);  	(* gives mapping with false *)
+unify( [a',b',c'], [(a'1,Int)]);	(* gives mapping [ ('a -> Int), ('b -> Int), ('c -> Int) ] *)
+unify( [a',b',c'], [(a'1,Int),(b'1,Real)]); (* gives mapping with false *)
+unify( [a',b'',c'''], [(a'1,Int)] );		(* gives mapping [ ('a -> Int), ('b -> Int), ('c -> Int) ] *)
+unify( [a',b'',c'''], [(a'1,Int), (b''1,Int)] );  (* gives mapping [ ('a -> Int), ('b -> Int), ('c -> Int) ] *)
+unify( [a',b'',c'''], [(a'1,Real)] ); 		(* gives mapping with false *)
+unify( [Pair(Int,Int),Pair(Int,Int)], []);  (* gives mapping [] *)
+unify( [Pair(a',Int),Pair(Real,b')], []);	(* gives mapping [ ('a -> Real), ('b -> Int) ] *)
+unify( [a',Pair(Real,Real)], []);			(* gives mapping [ (a' -> Real * Real) ] *)
+unify( [a',Pair(a',Int),Pair(Real,b')], []);(* gives mapping with false *)
+unify( [a',Pair(c',Int),Pair(Real,b')], []);(* gives mapping [ 'a -> Real * Int, 'c -> Real, 'b -> Int *)
+unify( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Int], []); (* gives mapping with false *)
+unify( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Pair(Pair(a'',a'''),Pair(Bool,d'))], []);
+	(* gives mapping ['a -> ( (Int * Int) * (Bool * 'd) ), 
+					  '''c -> Int, ''a -> Int, '''a -> Int, 'b -> 'd ] *)
+unify( [a',Pair(Int,Real)], [(a'1,Int)] );  (* gives mapping with false *)
+unify( [a',Pair(b',c')], [(b'1,Int),(c'1,Int)]); (* gives mapping [ 'a -> Int * Int, 'b -> Int, 'c -> Int ] *)
 
-(* Check if substitution contains v['a]->5, then v['a]+3=8 *)
-elabPhraseOperation(Config( Expression(Plus(Value(VHole(ValueHole(TypeVar("a")))),
-								 Value(N(3)))),
-				 [ (ValueHole(TypeVar("a")), N(5)) ],
-				 [ (TypeHole (TypeVar("a")), Int ) ]));
-(* evaluates to <Value(N(8)), [V['a]->5], ['a->Int]> *)
-
-(* Basic case: if true then 3 else 4 *)				 
-elabPhraseCondition(Config( Expression(Condition(Value(B(true)), Value(N(3)), Value(N(4)))), [], []));
-(* evaluates to <Value(N(3)),[],[]> *)
-
-(* Basic case: if false then 3 else 4 *)		
-elabPhraseCondition(Config( Expression(Condition(Value(B(false)), Value(N(3)), Value(N(4)))), [], []));
-(* evaluates to <Value(N(4)),[],[]> *)
-
-(* Type variable case: check 'a in 'if v['a] then 3 else 4' instantiated to type bool *)
-elabPhraseCondition(Config( Expression(Condition(Value(VHole(ValueHole(TypeVar("a")))),
-									  Value(N(3)), Value(N(4)))), [], []));
-(* evaluates to <Value(N(3)),[V['a]->true],['a->Bool]> *)
-									  
-(* Check if substitution contains v['a]->true then 'if v['a] then 3 else 4 = 3 *)
-elabPhraseCondition(Config( Expression(Condition(Value(VHole(ValueHole(TypeVar("a")))),
-									   Value(N(3)), Value(N(4)))),
-				 [ (ValueHole(TypeVar("a")), B(true)) ],
-				 [ (TypeHole (TypeVar("a")), Bool)    ]));
-(* evaluates to <Value(N(3)),[V['a]->true],['a->Bool]> *)
-				 
+(* ----------------------------------------------------------------------------------- *)

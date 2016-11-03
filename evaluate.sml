@@ -117,15 +117,17 @@ fun evaluate (c as Config(Expression(Value(v)),sigma,theta)) = c
 		| Config(Expression(Value(B(b))),sigma2,theta2) =>
 		
 			if b (* rule E-IF-GOOD1 *)
-				 then Config(Expression(e1),sigma2,theta2)
+				 then evaluate(Config(Expression(e1),sigma2,theta2))
 				
 				 (* rule E-IF-GOOD2 *)
-				 else Config(Expression(e2),sigma2,theta2))
+				 else evaluate(Config(Expression(e2),sigma2,theta2)))
 				 
 (* Handles context rule (context-if): boolean argument a general expression ---------  *)		
 |  evaluate (Config(Expression(Condition(e,e1,e2)),sigma,theta)) =
    let val Config(Expression(Value(v)),sigma1,theta1) = evaluate(Config(Expression(e),sigma,theta))
    in evaluate (Config(Expression(Condition(Value(v),e1,e2)),sigma1,theta1)) end
+ 
+ (* TODO: here below and substitute file, pretty print and lots of test *)
  
 (* Implements evaluation & type inference rules for case-pair expression with first operand a value *)
 (* i.e. implement rules (E-CASE-PAIR-GOOD) and (E-CASE-PAIR-BAD) *) 
@@ -153,10 +155,38 @@ fun evaluate (c as Config(Expression(Value(v)),sigma,theta)) = c
 			  (* rule E-CASE-PAIR-GOOD *)
 			| Config(Expression(Value(ValuePair(v1,v2))),sigma1,theta1) =>
 			
-				let val e'  = substitute(e,v1,x1,sigma1,theta1,evaluate);
-					val e'' = substitute(e',v2,x2,sigma1,theta1,evaluate)
-				in Config(Expression(e''),sigma1,theta1) end
+				let val (e',sigma2,theta2)  = substitute(e,v1,x1,sigma1,theta1,evaluate);
+					val (e'',sigma3,theta3) = substitute(e',v2,x2,sigma2,theta2,evaluate)
+				in Config(Expression(e''),sigma3,theta3) end
 				
-   end;
- 
+   end
+   
+| evaluate (Config(Expression(Case(e1,ExpressionPair(Variable(x1),Variable(x2)),e2)),sigma,theta) =
 
+	
+ 
+ (* TESTS FOR SUBSTITUTE *)
+ 
+ substitute(Value(N(4)),N(3),Var("x"),[],[],evaluate); 			(* gives Value(N(4)),[],[]) *)
+ substitute(Variable(Var("x")),N(3),Var("x"),[],[],evaluate);   (* gives Value(N(3)),[],[]) *)
+ substitute(Plus(Value(N(3)),Value(N(4))),N(3),Var("x"),[],[], evaluate); 	(* gives Plus(Value(N(3)),Value(N(4))),[],[] *)
+ substitute(Plus(Variable(Var("x")),Variable(Var("x"))),N(3),Var("x"),[],[],evaluate); (* gives Plus(Value(N(3)),Value(N(3))),[],[] *)
+ substitute(Condition(Value(B(true)),Variable(Var("x")),Plus(Variable(Var("x")),Value(N(1)))),N(3),Var("x"),[],[],evaluate);
+ (* gives (if true then 3 else 3 + 1,[],[]) *)
+ 
+ evaluate(Config(Expression(Case(Value(ValuePair(N(1),N(2))),
+								 ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
+								 Plus(Variable(Var("x1")),Variable(Var("x2"))))),
+							[],[]));
+(* < case (1,2) of (x1,x2) -> x1 + x2 > -> < 1 + 2 > *)
+
+evaluate(Config(Expression(
+	Case(Value(ValuePair(N(1),N(2))),
+		 ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
+		 Case(ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
+			  ExpressionPair(Variable(Var("x3")),Variable(Var("x4"))),
+			  Plus(Variable(Var("x3")),Variable(Var("x3")))))), [], []));
+(* <case (1,2) of (x1,x2) ->
+		case (x1,x2) of (x3,x4) -> x3+x4 
+	maps to
+	*)

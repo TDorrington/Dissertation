@@ -1,12 +1,13 @@
 (* type variables datatype 
-   EqualityTypeVar and ArithTypeVar both subsets of TypeVar 
+   EqualityTypeVar and ArithTypeVar are both subsets of TypeVar 
    Intersection of EqualityTypeVar and ArithTypeVar is only type Int 
    Notation: 'a = TypeVar("a"), ''b = EqualityTypeVar("b"), and '''c = ArithTypeVar("c") *)
 datatype typeVar = 
 				(* Type Variables *)
 				  TypeVar of string			
 
-				 (* Equality Type Variables: int, bool, string, char, and records/lists containing any of these types
+				 (* Equality Type Variables: int, bool, string, char, 
+				    and records/lists containing any of these types
 					As well as datatype with certain restrictions on constructor parameters *)
 				 | EqualityTypeVar of string	
 				 
@@ -14,7 +15,7 @@ datatype typeVar =
 				 | ArithTypeVar of string;  
 
 (* Integer that is used to generate fresh type variables
-   Type variables will also be "a" with the current global counter appended onto it *)
+   Type variables will be "a" with the current global counter appended onto it *)
 val globalCounter = ref 0;
 
 (* Function to get the latest global counter, and increment at the same time *)
@@ -23,25 +24,25 @@ fun getCounterAndUpdate() =
 	in (globalCounter := !globalCounter + 1);current end;
 				 
 (* type hole datatype *)
-datatype typeHole = TypeHole of typeVar;
-	
+datatype typeHole = TypeHole of typeVar;	
+
 (* types datatype *)
 datatype t =
-	   Bool					(* boolean *)
-	 | Int 					(* integer *)
-     | Real					(* real    *)
-	 | Pair of t * t		(* pairs   *)
-	 | THole of typeHole;	(* type variable *)
+	   Bool					   	    (* boolean   *)
+	 | Int 					   	    (* integer   *)
+     | Real					   	    (* real      *)
+	 | Pair of t * t		   	    (* pairs     *)
+	 | THole of typeHole;	        (* type variable *)
 
 (* value hole datatype *)
-datatype valHole = ValueHole of typeVar;
+datatype valHole = ValueHole of typeVar
 	 
 (* value datatype *) 
 datatype v =
-	   N of int					(* integer  *)
-  	 | B of bool				(* boolean  *)
-     | R of real			    (* real     *)
-	 | ValuePair of v * v		(* pairs 	*)
+	   N of int					(* integer   *)
+  	 | B of bool				(* boolean   *)
+     | R of real			    (* real      *)
+	 | ValuePair of v * v		(* pairs 	 *)
 	 | VHole of valHole; 		(* unconstrained value replaceable by any value of type t *)
 	 
 (* variable datatype *)
@@ -65,15 +66,15 @@ datatype e =
 	| Equal of e * e
 	| Condition of e * e * e
 	| ExpressionPair of e * e
-	| Variable of var
-	| Case of e * e * e; 
+	| Case of e * e * e
+	| Variable of var;
 	
 (* possibly stuck expression datatype *)
 datatype expression = Stuck | Expression of e; 
 
 (* substitution datatypes *)
-type valSub  = (valHole,  v) Substitution.map; (* sigma *)
-type typeSub = (typeHole, t) Substitution.map; (* theta *)
+type valSub  = (valHole,  v) Substitution.map; (* sigma: value holes -> values *)
+type typeSub = (typeHole, t) Substitution.map; (* theta: type holes -> types *)
 
 (* configuration datatype *)
 datatype config = Config of expression * valSub * typeSub;

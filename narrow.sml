@@ -8,11 +8,11 @@ fun narrow(v,t,sigma,theta) =
 
 case (v,t) of
 
-	  (N(integer),Int)  => Config(Expression(Value(N(integer))), sigma, theta)
+	  (N(integer),Int)  => Config(Expression(Value(v)), sigma, theta)
 	 
-	| (B(boolean),Bool) => Config(Expression(Value(B(boolean))), sigma, theta)
+	| (B(boolean),Bool) => Config(Expression(Value(v)), sigma, theta)
 
-	| (R(real),Real)    => Config(Expression(Value(R(real))), sigma, theta)
+	| (R(real),Real)    => Config(Expression(Value(v)), sigma, theta)
 	
 	| (ValuePair(v1,v2),Pair(t1,t2)) =>
 	

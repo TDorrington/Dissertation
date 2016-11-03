@@ -1,7 +1,7 @@
 (* gen dynamically performs hole-filling 	
    gen takes as input a type t and returns value of that type.
    For base types, returns arbitrary value of that type
-   gen : v * t -> v *)
+   gen : t * typeSub -> v *)
 
 fun gen (t, theta:typeSub) = case t of
 
