@@ -1,7 +1,13 @@
 (* No evaluation necessary for a value *)
+(* (context-value) *)
 fun evaluate (c as Config(Expression(Value(v)),sigma,theta)) = c
 
+(* Can't evaluate a stuck expression any more *)
+(* (context-stuck) *)
+|   evaluate (c as Config(Stuck,sigma,theta)) = c
+
 (* Resolves the slight loophole that <v,v> can be an expression and a value *)
+(* (context-value-pair) *)
 |	evaluate (Config(Expression(ExpressionPair(Value(v1),Value(v2))),sigma,theta)) =
 		Config(Expression(Value(ValuePair(v1,v2))),sigma,theta)
 

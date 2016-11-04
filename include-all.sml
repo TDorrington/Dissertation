@@ -8,3 +8,7 @@ use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/rule-operation.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/substitute.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/evaluate.sml";
+use "C:/Users/Thomas/Documents/GitHub/Dissertation/pretty-print.sml";
+use "C:/Users/Thomas/Documents/GitHub/Dissertation/test-cases.sml";
+
+(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)

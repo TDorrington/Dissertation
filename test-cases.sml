@@ -1,5 +1,5 @@
 (* ----------------------------------------------------------------------------------- *)
-(* test cases for unify *)
+(* TETS CASES FOR UNIFY *)
 (* ' is type variables, '' equality type variables, and ''' arithmetic type variables *)
 (* 1 appended to end means it is equivalent type, but type hole version *)
 
@@ -22,62 +22,65 @@ val b''' = THole(TypeHole(ArithTypeVar("b")));
 val c''' = THole(TypeHole(ArithTypeVar("c")));
 val d''' = THole(TypeHole(ArithTypeVar("d")));
 
+(* Pretty prints output from unify depending on boolean flag *)
+fun prettyPrintUnifyTest(constraints,map) =
+
+	let val (theta,b) = unify(constraints,map)
+	in if b then "[" ^ prettyPrintTheta(theta) ^ "]" else "false" end;
+
 (* test outputs assume true, unless stated otherwise *)
-unify( [Int,Int], []);		(* gives mapping [] *)
-unify( [a',Int], []);		(* gives mapping [ (a' -> Int) ] *)
-unify( [a''',Real], []);	(* gives mapping ------- *)
-unify( [a''',Bool], []);	(* gives mapping [] with false *)
-unify( [a'',Real], []);		(* gives mapping [] with false *)
-unify( [a',b'], []);		(* gives mapping [ (a' -> b') ] *)
-unify( [a''',b'''], []);	(* gives mapping [ (a''' -> b''') ] *)
-unify( [a'',b'''], []);		(* gives mapping [ (a'' -> Int), (b''' -> Int) ] *)
-unify( [a',b',c'], []); 	(* gives mapping [ (a' -> c'), (b' -> c') ] *)
-unify( [a',b',Int], []);   	(* gives mapping [ (a' -> Int'), (b' -> Int)] *)
-unify( [a',b'',c'''],[]);	(* gives mapping [ (a' -> Int), (b'' -> Int), (c''' -> Int) ] *)
-unify( [Int,Int,Int],[]);	(* gives mapping [] *)
-unify( [a',Int], [(a'1,Int)]);		(* gives mapping [ (a' -> Int) ] *)
-unify( [a',Int], [(a'1,Real)]);  	(* gives mapping with false *)
-unify( [a',b',c'], [(a'1,Int)]);	(* gives mapping [ ('a -> Int), ('b -> Int), ('c -> Int) ] *)
-unify( [a',b',c'], [(a'1,Int),(b'1,Real)]); (* gives mapping with false *)
-unify( [a',b'',c'''], [(a'1,Int)] );		(* gives mapping [ ('a -> Int), ('b -> Int), ('c -> Int) ] *)
-unify( [a',b'',c'''], [(a'1,Int), (b''1,Int)] );  (* gives mapping [ ('a -> Int), ('b -> Int), ('c -> Int) ] *)
-unify( [a',b'',c'''], [(a'1,Real)] ); 		(* gives mapping with false *)
-unify( [Pair(Int,Int),Pair(Int,Int)], []);  (* gives mapping [] *)
-unify( [Pair(a',Int),Pair(Real,b')], []);	(* gives mapping [ ('a -> Real), ('b -> Int) ] *)
-unify( [a',Pair(Real,Real)], []);			(* gives mapping [ (a' -> Real * Real) ] *)
-unify( [a',Pair(a',Int),Pair(Real,b')], []);(* gives mapping with false *)
-unify( [a',Pair(c',Int),Pair(Real,b')], []);(* gives mapping [ 'a -> Real * Int, 'c -> Real, 'b -> Int *)
-unify( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Int], []); (* gives mapping with false *)
-unify( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Pair(Pair(a'',a'''),Pair(Bool,d'))], []);
-	(* gives mapping ['a -> ( (Int * Int) * (Bool * 'd) ), 
-					  '''c -> Int, ''a -> Int, '''a -> Int, 'b -> 'd ] *)
-unify( [a',Pair(Int,Real)], [(a'1,Int)] );  (* gives mapping with false *)
-unify( [a',Pair(b',c')], [(b'1,Int),(c'1,Int)]); (* gives mapping [ 'a -> Int * Int, 'b -> Int, 'c -> Int ] *)
+prettyPrintUnifyTest( [Int,Int], []);	(* [] *)
+prettyPrintUnifyTest( [a',Int], []);	(* [ ('a -> Int) ] *)
+prettyPrintUnifyTest( [a''',Real], []);	(* [ ('''a -> Real) ] *)
+prettyPrintUnifyTest( [a''',Bool], []);	(* false *)
+prettyPrintUnifyTest( [a'',Real], []);	(* false *)
+prettyPrintUnifyTest( [a',b'], []);		(* [ ('a -> 'b) ] *)
+prettyPrintUnifyTest( [a''',b'''], []);	(* [ ('''a -> '''b) ] *)
+prettyPrintUnifyTest( [a'',b'''], []);	(* [ (''a -> Int), ('''b -> Int) ] *)
+prettyPrintUnifyTest( [a',b',c'], []); 	(* [ ('a -> 'c), ('b -> 'c) ] *)
+prettyPrintUnifyTest( [a',b',Int], []); (* [ ('a -> Int'), ('b -> Int)] *)
+prettyPrintUnifyTest( [a',b'',c'''],[]);(* [ ('a -> Int), (''b -> Int), ('''c -> Int) ] *)
+prettyPrintUnifyTest( [Int,Int,Int],[]);(* [] *)
+prettyPrintUnifyTest( [a',Int], [(a'1,Int)]);	(* [ ('a -> Int) ] *)
+prettyPrintUnifyTest( [a',Int], [(a'1,Real)]);  (* false *)
+prettyPrintUnifyTest( [a',b',c'], [(a'1,Int)]);	(* [ ('b -> Int), ('c -> Int), ('a -> Int) ] *)
+prettyPrintUnifyTest( [a',b',c'], [(a'1,Int),(b'1,Real)]);  (* false *)
+prettyPrintUnifyTest( [a',b'',c'''], [(a'1,Int)]);			(* [ (('b -> Int), ('c -> Int) ] *)
+prettyPrintUnifyTest( [a',b'',c'''], [(a'1,Int), (b''1,Int)]);  (* [ ('a -> Int), ('b -> Int), ('''c -> Int) ] *)
+prettyPrintUnifyTest( [a',b'',c'''], [(a'1,Real)]); 		(* false *)
+prettyPrintUnifyTest( [Pair(Int,Int),Pair(Int,Int)], []);  	(* [] *)
+prettyPrintUnifyTest( [Pair(a',Int),Pair(Real,b')], []);	(* [ ('a -> Real), ('b -> Int) ] *)
+prettyPrintUnifyTest( [a',Pair(Real,Real)], []);			(* [ ('a -> Real * Real) ] *)
+prettyPrintUnifyTest( [a',Pair(a',Int),Pair(Real,b')], []);	(* false *)
+prettyPrintUnifyTest( [a',Pair(c',Int),Pair(Real,b')], []);	(* [ 'a -> Real * Int, 'c -> Real, 'b -> Int *)
+prettyPrintUnifyTest( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Int], []); (* false *)
+prettyPrintUnifyTest( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Pair(Pair(a'',a'''),Pair(Bool,d'))], []);
+	(* ['a -> ( (Int * Int) * (Bool * 'd) ), '''c -> Int, ''a -> Int, '''a -> Int, 'b -> 'd ] *)
+prettyPrintUnifyTest( [a',Pair(Int,Real)], [(a'1,Int)]);  (* false *)
+prettyPrintUnifyTest( [a',Pair(b',c')], [(b'1,Int),(c'1,Int)]); (* [ 'a -> Int * Int, 'b -> Int, 'c -> Int ] *)
 
 (* ----------------------------------------------------------------------------------- *)
+(* TEST CASES FOR NARROW *)
+(* will use unify in its implementation, so also further tests for this *)
 
- (* TESTS FOR SUBSTITUTE *)
- 
- substitute(Value(N(4)),N(3),Var("x"),[],[],evaluate); 			(* gives Value(N(4)),[],[]) *)
- substitute(Variable(Var("x")),N(3),Var("x"),[],[],evaluate);   (* gives Value(N(3)),[],[]) *)
- substitute(Plus(Value(N(3)),Value(N(4))),N(3),Var("x"),[],[], evaluate); 	(* gives Plus(Value(N(3)),Value(N(4))),[],[] *)
- substitute(Plus(Variable(Var("x")),Variable(Var("x"))),N(3),Var("x"),[],[],evaluate); (* gives Plus(Value(N(3)),Value(N(3))),[],[] *)
- substitute(Condition(Value(B(true)),Variable(Var("x")),Plus(Variable(Var("x")),Value(N(1)))),N(3),Var("x"),[],[],evaluate);
- (* gives (if true then 3 else 3 + 1,[],[]) *)
- 
- evaluate(Config(Expression(Case(Value(ValuePair(N(1),N(2))),
-								 ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
-								 Plus(Variable(Var("x1")),Variable(Var("x2"))))),
-							[],[]));
-(* < case (1,2) of (x1,x2) -> x1 + x2 > -> < 1 + 2 > *)
+(* basic primitive values: int, real, bool *)
+narrow(N(3),Int,[],[]);	
+narrow(R(3.0),Real,[],[]);
+narrow(N(3),Real,[],[]);
+narrow(B(true),Bool,[],[]);
+narrow(B(false),Int,[],[]);
 
-evaluate(Config(Expression(
-	Case(Value(ValuePair(N(1),N(2))),
-		 ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
-		 Case(ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
-			  ExpressionPair(Variable(Var("x3")),Variable(Var("x4"))),
-			  Plus(Variable(Var("x3")),Variable(Var("x3")))))), [], []));
-(* <case (1,2) of (x1,x2) ->
-		case (x1,x2) of (x3,x4) -> x3+x4 
-	maps to
-	*)
+(* tests for pairs *)
+
+
+(* ----------------------------------------------------------------------------------- *)
+(* TEST CASES FOR SUBSTITUTE *)
+ 
+prettyPrintExpression(Expression(substitute(Value(N(4)),N(3),Var("x")))); (* 4 *)
+prettyPrintExpression(Expression(substitute(Variable(Var("x")),N(3),Var("x")))); (* 3 *)
+prettyPrintExpression(Expression(substitute(Plus(Value(N(3)),Value(N(4))),N(3),Var("x")))); (* 3 + 4 *)
+prettyPrintExpression(Expression(substitute(Plus(Variable(Var("x")),Variable(Var("x"))),N(3),Var("x")))); (* 3 + 3 *)
+prettyPrintExpression(Expression(substitute(Condition(Value(B(true)),Variable(Var("x")),Plus(Variable(Var("x")),Value(N(1)))),N(3),Var("x")))); (* if true then 3 else 3 + 1 *)
+
+
+(* ----------------------------------------------------------------------------------- *)
