@@ -127,8 +127,6 @@ fun evaluate (c as Config(Expression(Value(v)),sigma,theta)) = c
    let val Config(Expression(Value(v)),sigma1,theta1) = evaluate(Config(Expression(e),sigma,theta))
    in evaluate (Config(Expression(Condition(Value(v),e1,e2)),sigma1,theta1)) end
  
- (* TODO: here below and substitute file, pretty print and lots of test *)
- 
 (* Implements evaluation & type inference rules for case-pair expression with first operand a value *)
 (* i.e. implement rules (E-CASE-PAIR-GOOD) and (E-CASE-PAIR-BAD) *) 
 |  evaluate (Config(Expression(Case(Value(v),ExpressionPair(Variable(x1),Variable(x2)),e)),sigma,theta)) =
@@ -155,38 +153,21 @@ fun evaluate (c as Config(Expression(Value(v)),sigma,theta)) = c
 			  (* rule E-CASE-PAIR-GOOD *)
 			| Config(Expression(Value(ValuePair(v1,v2))),sigma1,theta1) =>
 			
-				let val (e',sigma2,theta2)  = substitute(e,v1,x1,sigma1,theta1,evaluate);
-					val (e'',sigma3,theta3) = substitute(e',v2,x2,sigma2,theta2,evaluate)
-				in Config(Expression(e''),sigma3,theta3) end
+				(* We first evaluate the sub-expression e before performing the substitutions
+				   This is equivalent to working up to alpha-conversion: allows variables
+				   to bind to their closest pattern,
+				   For example, if we substituted before performing evaluation, expressions like
+					case (1,2) of (x1,x2) -> case (3,4) of (x1,x2) -> x1 + x2
+				   which should intuitively return 3+4 would fail because it would try to evaluate
+					case (3,4) of (1,2) -> 1+2 *)
+				let val Config(Expression(evalE),sigma3,theta3) = evaluate(Config(Expression(e),sigma1,theta1));
+					val subE'  = substitute(evalE,v1,x1);
+					val subE'' = substitute(subE',v2,x2)
+				in evaluate(Config(Expression(subE''),sigma3,theta3)) end
 				
    end
    
-| evaluate (Config(Expression(Case(e1,ExpressionPair(Variable(x1),Variable(x2)),e2)),sigma,theta) =
-
-	
- 
- (* TESTS FOR SUBSTITUTE *)
- 
- substitute(Value(N(4)),N(3),Var("x"),[],[],evaluate); 			(* gives Value(N(4)),[],[]) *)
- substitute(Variable(Var("x")),N(3),Var("x"),[],[],evaluate);   (* gives Value(N(3)),[],[]) *)
- substitute(Plus(Value(N(3)),Value(N(4))),N(3),Var("x"),[],[], evaluate); 	(* gives Plus(Value(N(3)),Value(N(4))),[],[] *)
- substitute(Plus(Variable(Var("x")),Variable(Var("x"))),N(3),Var("x"),[],[],evaluate); (* gives Plus(Value(N(3)),Value(N(3))),[],[] *)
- substitute(Condition(Value(B(true)),Variable(Var("x")),Plus(Variable(Var("x")),Value(N(1)))),N(3),Var("x"),[],[],evaluate);
- (* gives (if true then 3 else 3 + 1,[],[]) *)
- 
- evaluate(Config(Expression(Case(Value(ValuePair(N(1),N(2))),
-								 ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
-								 Plus(Variable(Var("x1")),Variable(Var("x2"))))),
-							[],[]));
-(* < case (1,2) of (x1,x2) -> x1 + x2 > -> < 1 + 2 > *)
-
-evaluate(Config(Expression(
-	Case(Value(ValuePair(N(1),N(2))),
-		 ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
-		 Case(ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
-			  ExpressionPair(Variable(Var("x3")),Variable(Var("x4"))),
-			  Plus(Variable(Var("x3")),Variable(Var("x3")))))), [], []));
-(* <case (1,2) of (x1,x2) ->
-		case (x1,x2) of (x3,x4) -> x3+x4 
-	maps to
-	*)
+(* Handles context rule (context-case-pair), i.e. where left-hand pair an expression *)
+| evaluate (Config(Expression(Case(e1,ExpressionPair(Variable(x1),Variable(x2)),e2)),sigma,theta)) =
+	let val Config(Expression(Value(v)),sigma1,theta1) = evaluate(Config(Expression(e1),sigma,theta))
+	in evaluate (Config(Expression(Case(Value(v),ExpressionPair(Variable(x1),Variable(x2)),e2)),sigma1,theta1)) end;

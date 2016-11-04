@@ -1,14 +1,3 @@
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/SUBSTITUTION-sig.sml";
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/substitution.sml";
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/datatypes.sml";
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/typeof.sml";
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/gen.sml";
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/unify.sml";
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow.sml";
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/rule-operation.sml";
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/substitute.sml";
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/evaluate.sml";
-
 (* ----------------------------------------------------------------------------------- *)
 (* test cases for unify *)
 (* ' is type variables, '' equality type variables, and ''' arithmetic type variables *)
@@ -66,3 +55,29 @@ unify( [a',Pair(Int,Real)], [(a'1,Int)] );  (* gives mapping with false *)
 unify( [a',Pair(b',c')], [(b'1,Int),(c'1,Int)]); (* gives mapping [ 'a -> Int * Int, 'b -> Int, 'c -> Int ] *)
 
 (* ----------------------------------------------------------------------------------- *)
+
+ (* TESTS FOR SUBSTITUTE *)
+ 
+ substitute(Value(N(4)),N(3),Var("x"),[],[],evaluate); 			(* gives Value(N(4)),[],[]) *)
+ substitute(Variable(Var("x")),N(3),Var("x"),[],[],evaluate);   (* gives Value(N(3)),[],[]) *)
+ substitute(Plus(Value(N(3)),Value(N(4))),N(3),Var("x"),[],[], evaluate); 	(* gives Plus(Value(N(3)),Value(N(4))),[],[] *)
+ substitute(Plus(Variable(Var("x")),Variable(Var("x"))),N(3),Var("x"),[],[],evaluate); (* gives Plus(Value(N(3)),Value(N(3))),[],[] *)
+ substitute(Condition(Value(B(true)),Variable(Var("x")),Plus(Variable(Var("x")),Value(N(1)))),N(3),Var("x"),[],[],evaluate);
+ (* gives (if true then 3 else 3 + 1,[],[]) *)
+ 
+ evaluate(Config(Expression(Case(Value(ValuePair(N(1),N(2))),
+								 ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
+								 Plus(Variable(Var("x1")),Variable(Var("x2"))))),
+							[],[]));
+(* < case (1,2) of (x1,x2) -> x1 + x2 > -> < 1 + 2 > *)
+
+evaluate(Config(Expression(
+	Case(Value(ValuePair(N(1),N(2))),
+		 ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
+		 Case(ExpressionPair(Variable(Var("x1")),Variable(Var("x2"))),
+			  ExpressionPair(Variable(Var("x3")),Variable(Var("x4"))),
+			  Plus(Variable(Var("x3")),Variable(Var("x3")))))), [], []));
+(* <case (1,2) of (x1,x2) ->
+		case (x1,x2) of (x3,x4) -> x3+x4 
+	maps to
+	*)
