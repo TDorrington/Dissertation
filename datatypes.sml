@@ -73,8 +73,8 @@ datatype e =
 datatype expression = Stuck | Expression of e; 
 
 (* substitution datatypes *)
-type valSub  = (valHole,  v) Substitution.map; (* sigma: value holes -> values *)
-type typeSub = (typeHole, t) Substitution.map; (* theta: type holes -> types *)
+type valSub  = (valHole,  v) Map; (* sigma: value holes -> values *)
+type typeSub = (typeHole, t) Map; (* theta: type holes -> types *)
 
 (* configuration datatype *)
 datatype config = Config of expression * valSub * typeSub;

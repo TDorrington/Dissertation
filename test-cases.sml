@@ -81,6 +81,6 @@ prettyPrintExpression(Expression(substitute(Variable(Var("x")),N(3),Var("x"))));
 prettyPrintExpression(Expression(substitute(Plus(Value(N(3)),Value(N(4))),N(3),Var("x")))); (* 3 + 4 *)
 prettyPrintExpression(Expression(substitute(Plus(Variable(Var("x")),Variable(Var("x"))),N(3),Var("x")))); (* 3 + 3 *)
 prettyPrintExpression(Expression(substitute(Condition(Value(B(true)),Variable(Var("x")),Plus(Variable(Var("x")),Value(N(1)))),N(3),Var("x")))); (* if true then 3 else 3 + 1 *)
-
+prettyPrintExpression(Expression(substitute(
 
 (* ----------------------------------------------------------------------------------- *)

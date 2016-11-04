@@ -23,4 +23,12 @@ structure Substitution : SUBSTITUTION =
 			case   m of [] => raise SubException 
 			    | (a,b)::l => if a=x then (a,y)::l else (a,b)::update(l,x,y);
 		
+		fun domain(m) = 
+			case 	 m of [] => []
+				 |  (a,_)::l => a::domain(l);
+				 
+		fun range(m) =
+			case 	m of [] => []
+				 | (_,b)::l => b::range(l);
+		
 	end;

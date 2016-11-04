@@ -137,6 +137,7 @@ fun evaluate (c as Config(Expression(Value(v)),sigma,theta)) = c
 (* i.e. implement rules (E-CASE-PAIR-GOOD) and (E-CASE-PAIR-BAD) *) 
 |  evaluate (Config(Expression(Case(Value(v),ExpressionPair(Variable(x1),Variable(x2)),e)),sigma,theta)) =
 
+	
 	(* generate fresh type variables, alpha1 and alpha2, using unique counter *)
 	let val alpha1 = TypeHole(TypeVar("a" ^ Int.toString(getCounterAndUpdate())));
 		val alpha2 = TypeHole(TypeVar("a" ^ Int.toString(getCounterAndUpdate())))

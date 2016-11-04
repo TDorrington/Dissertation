@@ -3,6 +3,7 @@ use "C:/Users/Thomas/Documents/GitHub/Dissertation/substitution.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/datatypes.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/typeof.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/gen.sml";
+use "C:/Users/Thomas/Documents/GitHub/Dissertation/list-helpers.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/unify.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/rule-operation.sml";

@@ -2,23 +2,7 @@
    Pair of form (a,b) is the constraint that types a and b must be equal *)
 
 (* ----------------------------------------------------------------------------------- *)
-(* Auxiliary function to replace all occurrences of a (which will be a type variable)
-   with type of b
-   E.g. replace( [('a,'b)], 'a, Int ) -> [(Int,'b)] *)
-   
-fun replace ([],_,_) = []
-|   replace ((x,y)::l,a,b) =
-	if a=x then (b,y)::replace(l,a,b) else 
-	if a=y then (x,b)::replace(l,a,b) else (x,y)::replace(l,a,b);
-
-(* ----------------------------------------------------------------------------------- *)
-(* Auxiliary function to append two lists *)
-
-fun append([],ys) = ys
-|	append(x::xs,ys) = x::append(xs,ys);
-
-(* ----------------------------------------------------------------------------------- *)
-(* Auxiliary function to return list of free variables in a type *)
+(* Auxiliary function to return list of free type variables in a type *)
 
 fun ftv (Real) = []
 | 	ftv (Int)  = []
