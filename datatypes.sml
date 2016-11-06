@@ -1,4 +1,4 @@
-(* type variables datatype 
+(* Type variables datatype 
    EqualityTypeVar and ArithTypeVar are both subsets of TypeVar 
    Intersection of EqualityTypeVar and ArithTypeVar is only type Int 
    Notation: 'a = TypeVar("a"), ''b = EqualityTypeVar("b"), and '''c = ArithTypeVar("c") *)
@@ -13,20 +13,11 @@ datatype typeVar =
 				 
 				 (* New Arithmetic Type Variable: int or real *)
 				 | ArithTypeVar of string;  
-
-(* Integer that is used to generate fresh type variables
-   Type variables will be "a" with the current global counter appended onto it *)
-val globalCounter = ref 0;
-
-(* Function to get the latest global counter, and increment at the same time *)
-fun getCounterAndUpdate() = 
-	let val current = !globalCounter
-	in (globalCounter := !globalCounter + 1);current end;
 				 
-(* type hole datatype *)
+(* Type hole datatype *)
 datatype typeHole = TypeHole of typeVar;	
 
-(* types datatype *)
+(* Types datatype *)
 datatype t =
 	   Bool					   	    (* boolean   *)
 	 | Int 					   	    (* integer   *)
@@ -34,10 +25,10 @@ datatype t =
 	 | Pair of t * t		   	    (* pairs     *)
 	 | THole of typeHole;	        (* type variable *)
 
-(* value hole datatype *)
+(* Value hole datatype *)
 datatype valHole = ValueHole of typeVar
 	 
-(* value datatype *) 
+(* Value datatype *) 
 datatype v =
 	   N of int					(* integer   *)
   	 | B of bool				(* boolean   *)
@@ -45,6 +36,18 @@ datatype v =
 	 | ValuePair of v * v		(* pairs 	 *)
 	 | VHole of valHole; 		(* unconstrained value replaceable by any value of type t *)
 	 
+(* Integer that is used to generate fresh type variables in the evaluate method
+   as well as fresh variables in alpha-invariant method
+   Fresh type variables will be current string with the global counter appended onto it
+   and fresh variables will be the variable name appended with counter *)
+val globalCounter = ref 0;
+
+(* Function to get the latest global counter, and increment it at the same time 
+   to ensure the same value is never returned *)
+fun getCounterAndUpdate() = 
+	let val current = !globalCounter
+	in (globalCounter := !globalCounter + 1);current end;
+	
 (* variable datatype *)
 datatype var = Var of string;	 
 
@@ -73,8 +76,9 @@ datatype e =
 datatype expression = Stuck | Expression of e; 
 
 (* substitution datatypes *)
-type valSub  = (valHole,  v) Map; (* sigma: value holes -> values *)
-type typeSub = (typeHole, t) Map; (* theta: type holes -> types *)
+type valSub  = (valHole,  v) Substitution.map; (* sigma: value holes -> values *)
+type typeSub = (typeHole, t) Substitution.map; (* theta: type holes -> types *)
+type variableSub = (var, e)  Substitution.map; (* gamma: variables -> values *)
 
 (* configuration datatype *)
 datatype config = Config of expression * valSub * typeSub;

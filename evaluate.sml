@@ -137,7 +137,6 @@ fun evaluate (c as Config(Expression(Value(v)),sigma,theta)) = c
 (* i.e. implement rules (E-CASE-PAIR-GOOD) and (E-CASE-PAIR-BAD) *) 
 |  evaluate (Config(Expression(Case(Value(v),ExpressionPair(Variable(x1),Variable(x2)),e)),sigma,theta)) =
 
-	
 	(* generate fresh type variables, alpha1 and alpha2, using unique counter *)
 	let val alpha1 = TypeHole(TypeVar("a" ^ Int.toString(getCounterAndUpdate())));
 		val alpha2 = TypeHole(TypeVar("a" ^ Int.toString(getCounterAndUpdate())))
@@ -159,22 +158,19 @@ fun evaluate (c as Config(Expression(Value(v)),sigma,theta)) = c
 			  
 			  (* rule E-CASE-PAIR-GOOD *)
 			| Config(Expression(Value(ValuePair(v1,v2))),sigma1,theta1) =>
-			
-				(* We first evaluate the sub-expression e before performing the substitutions
-				   This is equivalent to working up to alpha-conversion: allows variables
-				   to bind to their closest pattern,
-				   For example, if we substituted before performing evaluation, expressions like
-					case (1,2) of (x1,x2) -> case (3,4) of (x1,x2) -> x1 + x2
-				   which should intuitively return 3+4 would fail because it would try to evaluate
-					case (3,4) of (1,2) -> 1+2 *)
-				let val Config(Expression(evalE),sigma3,theta3) = evaluate(Config(Expression(e),sigma1,theta1));
-					val subE'  = substitute(evalE,v1,x1);
-					val subE'' = substitute(subE',v2,x2)
-				in evaluate(Config(Expression(subE''),sigma3,theta3)) end
+				
+				(* declare mapping of variables to values that will be used in 
+				   substitution function *)
+				let val gamma = [ (x1,Value(v1)), (x2,Value(v2)) ]
+				in evaluate(Config(Expression(substitute(e,gamma)),sigma1,theta1)) end
 				
    end
    
 (* Handles context rule (context-case-pair), i.e. where left-hand pair an expression *)
 | evaluate (Config(Expression(Case(e1,ExpressionPair(Variable(x1),Variable(x2)),e2)),sigma,theta)) =
 	let val Config(Expression(Value(v)),sigma1,theta1) = evaluate(Config(Expression(e1),sigma,theta))
-	in evaluate (Config(Expression(Case(Value(v),ExpressionPair(Variable(x1),Variable(x2)),e2)),sigma1,theta1)) end;
+	in evaluate (Config(Expression(Case(Value(v),ExpressionPair(Variable(x1),Variable(x2)),e2)),sigma1,theta1)) end
+	
+(* Expression matches none of the above patterns in the clauses
+   Must be a stuck expression *)
+| evaluate (Config(Expression(_),sigma,theta)) = Config(Stuck,sigma,theta);

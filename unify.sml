@@ -11,16 +11,13 @@ fun ftv (Real) = []
 |	ftv (Pair(t1,t2)) = append(ftv(t1),ftv(t2));
 
 (* ----------------------------------------------------------------------------------- *)
-(* Auxiliary function to check if a list contains an element *)
-
-fun element ([],_) = false
-|	element (x::xs,y) = if x=y then true else element(xs,y);
-
-(* ----------------------------------------------------------------------------------- *)
 (* Auxiliary function which updates a current type based on the latest substitution
-   - used in unify algorithm and normalize function before unification algorithm 
+   Regardless of the current type substitutions we cannot update int, real, or bool
+   so only non-trivial case is type holes: if the latest substitution contains the type
+   hole, we can replace it with the (more restricted) type it is mapped to
+   Used to 'normalize' a list of constraints before calling the unification algorithm 
    e.g. unify([('a,'b)],['a -> Int])
-   will first be reduced to unify([(Int,'b),['a -> Int]) *)
+   will be reduced to unify([(Int,'b),['a -> Int]) *)
 
 fun update(Int,theta)  = Int
 |	update(Real,theta) = Real
@@ -89,8 +86,8 @@ fun getNewConstraints(TypeHole(a),TypeHole(b)) = case (a,b) of
    unify : ConstraintSet -> Substitution * bool (if successful)
    unify(no constraints) = empty set
    unify({A=A}::C) = unify(C)
-   unify({alpha = T}::C) = unify( [alpha -> T]C) union [alpha -> T], alpha not in ftv(A)
    unify({alpha = beta}::C) = unify(newConstraints union C)
+   unify({alpha = T}::C) = unify( [alpha -> T]C) union [alpha -> T], alpha not in ftv(A)
    unify({T = alpha}::C) = unify( [alpha -> T]C) union [alpha -> T], alpha not in ftv(A)
    unify({A1 x A2 = A1' x A2'}::C) = unify({A1=A1',A2=A2'} union C)
    unify(anything else) = FAIL
@@ -177,7 +174,7 @@ fun normalize ([],_) = []
 (* ----------------------------------------------------------------------------------- *)
 (* Wrapper function. Takes a list of types which must ALL be equal,
    generates all the constraints stemming from this list, and calls unify algorithm
-   At the mo, unify can only be called with 2 or 3 types in the list from narrow,  
+   At the moment, unify can only be called with 2 or 3 types in the list from narrow,  
    hence 2 cases *)
    
 fun unify(l,theta) =

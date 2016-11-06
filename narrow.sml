@@ -32,11 +32,11 @@ case (v,t) of
 		end
 	
 	| (VHole(ValueHole(a)),t) =>
-	(* When v a hole, check in given sigma first if hole already instantiated
-	   and if so, return existing instantiation *)
 	   
+	   (* First check in given sigma if hole already instantiated *)
 		if Substitution.contains(ValueHole(a), sigma) then
 		
+			(* Hole already instantiated: return existing instantiation *)
 			let val v = Substitution.get(ValueHole(a), sigma); 
 				val (theta1, success) = unify( [THole(TypeHole(a)), t, typeof(v)], theta) 
 			in
@@ -46,6 +46,8 @@ case (v,t) of
 			
 		else
 		
+			(* Hole not already instantiated *)
+			(* Generate value of type t and add to existing instantiations *)
 			let val (theta1, success) = unify( [THole(TypeHole(a)), t], theta);
 				val v = gen(t, theta1) 
 			in
