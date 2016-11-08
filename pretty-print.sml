@@ -77,13 +77,6 @@ fun prettyPrintExpression(Stuck) = "Stuck"
 (* Top level pretty print to print out a configuration
    in a user-readable format *)
 fun prettyPrintConfig(Config(e,sigma,theta)) =
-	
-	let val writestream = TextIO.openAppend("output.txt");
-		val outputString = 
-			"\n\nFinal expression = " ^ prettyPrintExpression(e) ^ "\n" ^ 
-			"Final value substitution = [" ^ prettyPrintSigma(sigma) ^ "]\n" ^ 
-			"Final type substitution = [" ^ prettyPrintTheta(theta) ^ "]"
-	in 
-		TextIO.output (writestream, outputString); 
-		TextIO.closeOut writestream
-	end;
+		"\n\nFinal expression = " ^ prettyPrintExpression(e) ^ "\n" ^ 
+		"Final value substitution = [" ^ prettyPrintSigma(sigma) ^ "]\n" ^ 
+		"Final type substitution = [" ^ prettyPrintTheta(theta) ^ "]"

@@ -52,8 +52,18 @@ case (v,t) of
 				val v = gen(t, theta1) 
 			in
 				if(success) 
-					then Config(Expression(Value(v)), Substitution.union(sigma,ValueHole(a),v), theta1)
-					else Config(Stuck, sigma, theta)
+				then case v of 
+				
+					  (* prevent adding a map from a value hole to itself as a value *)
+					  VHole(ValueHole(vtyVar)) =>
+						
+						if (a=vtyVar)
+						then Config(Expression(Value(v)), sigma, theta1)
+						else Config(Expression(Value(v)), Substitution.union(sigma,ValueHole(a),v), theta1)
+				
+					| _ => Config(Expression(Value(v)), Substitution.union(sigma,ValueHole(a),v), theta1)
+				
+				else Config(Stuck, sigma, theta)
 			end
 
 	| _  => Config(Stuck, sigma, theta);

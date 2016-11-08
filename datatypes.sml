@@ -6,12 +6,10 @@ datatype typeVar =
 				(* Type Variables *)
 				  TypeVar of string			
 
-				 (* Equality Type Variables: int, bool, string, char, 
-				    and records/lists containing any of these types
-					As well as datatype with certain restrictions on constructor parameters *)
+				 (* Equality Type Variables: int, bool, string and pairs & lists of these *)
 				 | EqualityTypeVar of string	
 				 
-				 (* New Arithmetic Type Variable: int or real *)
+				 (* New Arithmetic Type Variable: int or real and pairs & lists of these *)
 				 | ArithTypeVar of string;  
 				 
 (* Type hole datatype *)
@@ -38,7 +36,7 @@ datatype v =
 	 
 (* Integer that is used to generate fresh type variables in the evaluate method
    as well as fresh variables in alpha-invariant method
-   Fresh type variables will be current string with the global counter appended onto it
+   Fresh type variables will be the string "a" with the global counter appended onto it
    and fresh variables will be the variable name appended with counter *)
 val globalCounter = ref 0;
 

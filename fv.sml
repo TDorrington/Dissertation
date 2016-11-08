@@ -7,19 +7,19 @@
 fun fvExpr(e) = case e of 
 
 	  Value(_) => []
-	| Plus(e1,e2) => append(fvExpr(e1),fvExpr(e2))
-	| Times(e1,e2) => append(fvExpr(e1),fvExpr(e2))
-	| Subtract(e1,e2) => append(fvExpr(e1),fvExpr(e2))
-	| Divide(e1,e2) => append(fvExpr(e1),fvExpr(e2))
-	| LessThan(e1,e2) => append(fvExpr(e1),fvExpr(e2))
-	| MoreThan(e1,e2) => append(fvExpr(e1),fvExpr(e2))
-	| LessThanEqual(e1,e2) => append(fvExpr(e1),fvExpr(e2))
-	| MoreThanEqual(e1,e2) => append(fvExpr(e1),fvExpr(e2))
-	| Equal(e1,e2) => append(fvExpr(e1),fvExpr(e2))
-	| Condition(e1,e2,e3) => append(append(fvExpr(e1),fvExpr(e2)),fvExpr(e3))
-	| ExpressionPair(e1,e2) => append(fvExpr(e1),fvExpr(e2))
+	| Plus(e1,e2) => union(fvExpr(e1),fvExpr(e2))
+	| Times(e1,e2) => union(fvExpr(e1),fvExpr(e2))
+	| Subtract(e1,e2) => union(fvExpr(e1),fvExpr(e2))
+	| Divide(e1,e2) => union(fvExpr(e1),fvExpr(e2))
+	| LessThan(e1,e2) => union(fvExpr(e1),fvExpr(e2))
+	| MoreThan(e1,e2) => union(fvExpr(e1),fvExpr(e2))
+	| LessThanEqual(e1,e2) => union(fvExpr(e1),fvExpr(e2))
+	| MoreThanEqual(e1,e2) => union(fvExpr(e1),fvExpr(e2))
+	| Equal(e1,e2) => union(fvExpr(e1),fvExpr(e2))
+	| Condition(e1,e2,e3) => union(union(fvExpr(e1),fvExpr(e2)),fvExpr(e3))
+	| ExpressionPair(e1,e2) => union(fvExpr(e1),fvExpr(e2))
 	| Case (Value(_),ExpressionPair(Variable(x),Variable(y)),e) => remove(remove(fvExpr(e),x),y)
 	| Variable(x) => [x];
 	
 fun fv ([]) = []
-|   fv (e::eList) = append(fvExpr(e),fv(eList));
+|   fv (e::eList) = union(fvExpr(e),fv(eList));

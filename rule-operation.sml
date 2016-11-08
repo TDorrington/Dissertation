@@ -46,7 +46,27 @@ fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t1, t2) : config =
 						narrow(v2,t2,sigma1,theta1);	
 						
 				in Config(Expression(Value(oper(n1,n3))), sigma3, theta3) end;
+				
+(* -------------------------------------------------------------------------------- *)
+(* Gets the bottom value for a value substitution by following chains in the substitution sigma
+   For example, if there is a chain v['a]->v['b], v['b]->v['''b], v['''b]->3
+   it will return 3 all when given v['a], v['b] and v['''b]
+   Similarly, if there is a chain v['a]->v['b], v['b]->(v['d],v['e]), v['d]->3, v['e]->4
+   it will return (3,4) for v['a] and v['b]
+   Doesn't detect cycles, but can there be? *)
+   
+fun resolveChain(a,sigma) = case a of
+
+	  VHole(hole) =>
 		
+		if(Substitution.contains(hole,sigma)) 
+		then resolveChain(Substitution.get(hole,sigma),sigma)
+		else a
+	  
+	| ValuePair(v1,v2) => ValuePair(resolveChain(v1,sigma),resolveChain(v2,sigma))
+	
+	| _ => a; (* Bottom value of int, real or bool *)
+	
 (* -------------------------------------------------------------------------------- *)
 
 datatype operations = PLUS | SUBTRACT | DIVIDE | TIMES    (* Arithmetic operations *)
@@ -97,13 +117,25 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 						 else elabPhraseOperationEvaluate(v1,v2,sigma,theta, realWrap, Real,Real)
 		
 		| (VHole(ValueHole(a)),VHole(ValueHole(b))) =>
-		  (* We cannot evaluate 'a op 'b as it stands, so instead narrow 'a and 'b to be 
+		  (* We cannot evaluate v['a] op v['b] as it stands, so instead narrow 'a and 'b to be 
 			 arithmetic type variables, and leave as 'a op 'b with new type restrictions
-			 Except in the following two cases:
+			 Except in the following cases:
+				- substitution already contains a mapping for either v['a] 
+				  and v['b], or both v['a] and v['b]
 				- division/equal case, where we know 'a and 'b must be of type real/int 
 				  respectively - can also then evaluate after gen called 
 				- after substitutions made in call to narrow, 'a or 'b are of a concrete type *)
+				
+			(* First check if substitution contains mappings for value holes *)
+			if(Substitution.contains(ValueHole(a),sigma) orelse Substitution.contains(ValueHole(b),sigma))
+			then let val bottomA = resolveChain(VHole(ValueHole(a)),sigma);
+					 val bottomB = resolveChain(VHole(ValueHole(b)),sigma)
+				 in elabPhraseOperation(bottomA,bottomB,sigma,theta,oper) end
+				 
+			else
 		
+			(* -- Carry on knowing both generic value holes, and no existing substitutions to concrete/more narrow values -- *)
+			
 			let (* Extract string from type variable datatype *)
 				val s1 = case a of TypeVar(s) => s | EqualityTypeVar(s) => s | ArithTypeVar(s) => s;
 				val s2 = case b of TypeVar(s) => s | EqualityTypeVar(s) => s | ArithTypeVar(s) => s;
@@ -121,8 +153,10 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 				(* After substitutions, we may now know first argument to be a concrete type *)
 				(case n1 of 
 					(* If integer, real or boolean, we know enough information to call evaluation function/be stuck *)
-					  N(_) => elabPhraseOperationEvaluate(v1,v2,sigma1,theta1, intWrap, Int,Int)
-					| R(_) => elabPhraseOperationEvaluate(v1,v2,sigma1,theta1, realWrap, Real,Real)
+					  N(_) => if oper = DIVIDE then Config(Stuck,sigma1,theta1)
+					          else elabPhraseOperationEvaluate(v1,v2,sigma1,theta1, intWrap, Int,Int)
+					| R(_) => if oper = EQ then Config(Stuck,sigma1,theta1)
+							  else elabPhraseOperationEvaluate(v1,v2,sigma1,theta1, realWrap, Real,Real)
 					| B(_) => Config(Stuck,sigma1,theta1)
 					
 					(* No more information gained from substitutions, carry on as normal *)
@@ -141,8 +175,10 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 								(* After substitutions, we may now know second argument to be a concrete type *)
 								(case n3 of 
 									(* If integer, real or boolean, we know enough information to call evaluation function/be stuck *)
-									  N(_) => elabPhraseOperationEvaluate(v1,v2,sigma3,theta3, intWrap, Int,Int)
-									| R(_) => elabPhraseOperationEvaluate(v1,v2,sigma3,theta3, realWrap, Real,Real)
+									  N(_) => if oper = DIVIDE then Config(Stuck,sigma3,theta3)
+											  else elabPhraseOperationEvaluate(v1,v2,sigma3,theta3, intWrap, Int,Int)
+									| R(_) => if oper = EQ then Config(Stuck,sigma3,theta3)
+											  else elabPhraseOperationEvaluate(v1,v2,sigma3,theta3, realWrap, Real,Real)
 									| B(_) => Config(Stuck,sigma3,theta3)
 									
 									(* No more information gained from substitutions, carry on as normal *)

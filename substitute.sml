@@ -30,6 +30,9 @@ fun substitute(e,gamma:variableSub) = case e of
 		   To check if we need to perform alpha conversion, 
 		   check that x and y are not in the domain of gamma
 		   and x and y are not in the set of free variables of the range of gamma
+		   If these side conditions are not met, replace all occurrences of x and y
+		   within e2 and the expression pair by xn and yn, respectively,
+		   for a unique integer n.
 		   Note that first expression is a value here; the substitute method will only
 		   be called on case expressions when the first argument is a value pair.
 		   Same reasoning why case expression clause in alphaInvariant method of this form *)
@@ -46,8 +49,10 @@ fun substitute(e,gamma:variableSub) = case e of
 			else
 				(* Need to generate an alpha invariant version of the case expression
 				   and then call substitute again
-				   We pass in the unique integer we want to append to all variable names *)
-				substitute(alphaVariant(c,getCounterAndUpdate()),gamma)
+				   We pass in the unique integer we want to append to all variable names
+				   and the list of variables to change is the binding variables in the case
+				   expression: x and y *)
+				substitute(alphaVariant(c,getCounterAndUpdate(),[x,y]),gamma)
 		end
 		
 			
