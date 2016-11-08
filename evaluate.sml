@@ -15,15 +15,22 @@ fun evaluate (c as  Config(Expression(Value(v)),sigma,theta)) =
 		| ValuePair(value1,value2) => ValuePair(sub(value1),sub(value2)))
 
 	in Config(Expression(Value(sub(v))),sigma,theta) end
-
+	
 (* Can't evaluate a stuck expression any more *)
 (* (context-stuck) *)
 |   evaluate (c as Config(Stuck,sigma,theta)) = c
+
+(* Cannot evaluate a free variable on its own any further *)
+|  	evaluate (c as Config(Expression(Variable(x)),sigma,theta)) = c
 
 (* Resolves the slight loophole that <v,v> can be an expression and a value *)
 (* (context-value-pair) *)
 |	evaluate (Config(Expression(ExpressionPair(Value(v1),Value(v2))),sigma,theta)) =
 		Config(Expression(Value(ValuePair(v1,v2))),sigma,theta)
+
+(* Handles pair of general expressions *)
+|  	evaluate (Config(Expression(ExpressionPair(e1,e2)),sigma,theta)) =
+	contextRuleOp2(e1,e2,sigma,theta,EXPRPAIR,evaluate)
 
 (* Arithmetic operations +,-,*,/ with both arguments as values   ------------------- *)
 (* I.e. rules (E-OP-GOOD), (E-OP-BAD1) and (E-OP-BAD2) for op an arithmetic operator *)
@@ -52,31 +59,31 @@ fun evaluate (c as  Config(Expression(Value(v)),sigma,theta)) =
 (* Arithmetic & boolean operators: at least one argument a generic expression -----------------  *)
   
 |   evaluate (Config(Expression(Plus(e1,e2)),sigma,theta)) =
-	contextRuleOp(e1,e2,sigma,theta,PLUS,evaluate)
+	contextRuleOp2(e1,e2,sigma,theta,PLUS,evaluate)
 	
 |   evaluate (Config(Expression(Times(e1,e2)),sigma,theta)) =
-	contextRuleOp(e1,e2,sigma,theta,TIMES,evaluate)
+	contextRuleOp2(e1,e2,sigma,theta,TIMES,evaluate)
 	
 |	evaluate (Config(Expression(Subtract(e1,e2)),sigma,theta)) =
-	contextRuleOp(e1,e2,sigma,theta,SUBTRACT,evaluate)
+	contextRuleOp2(e1,e2,sigma,theta,SUBTRACT,evaluate)
 
 |	evaluate (Config(Expression(Divide(e1,e2)),sigma,theta)) =
-	contextRuleOp(e1,e2,sigma,theta,DIVIDE,evaluate)
+	contextRuleOp2(e1,e2,sigma,theta,DIVIDE,evaluate)
 
 |	evaluate (Config(Expression(LessThan(e1,e2)),sigma,theta)) =
-	contextRuleOp(e1,e2,sigma,theta,LESS,evaluate)
+	contextRuleOp2(e1,e2,sigma,theta,LESS,evaluate)
 
 | 	evaluate (Config(Expression(MoreThan(e1,e2)),sigma,theta)) =
-	contextRuleOp(e1,e2,sigma,theta,MORE,evaluate)
+	contextRuleOp2(e1,e2,sigma,theta,MORE,evaluate)
 
 | 	evaluate (Config(Expression(LessThanEqual(e1,e2)),sigma,theta)) =
-	contextRuleOp(e1,e2,sigma,theta,LESSEQ,evaluate)
+	contextRuleOp2(e1,e2,sigma,theta,LESSEQ,evaluate)
 
 | 	evaluate (Config(Expression(MoreThanEqual(e1,e2)),sigma,theta)) =
-	contextRuleOp(e1,e2,sigma,theta,MOREEQ,evaluate)
+	contextRuleOp2(e1,e2,sigma,theta,MOREEQ,evaluate)
 
 | 	evaluate (Config(Expression(Equal(e1,e2)),sigma,theta)) =
-	contextRuleOp(e1,e2,sigma,theta,EQ,evaluate)
+	contextRuleOp2(e1,e2,sigma,theta,EQ,evaluate)
 	
 (* Implements evaluation & type inference rules for if expression with boolean operand a value *)
 (* i.e. implements rules (E-IF-GOOD1), (E-IF-GOOD2) and (E-IF-BAD) *)
@@ -97,18 +104,7 @@ fun evaluate (c as  Config(Expression(Value(v)),sigma,theta)) =
 				 
 (* Handles context rule (context-if): boolean argument a general expression ---------  *)		
 |  evaluate (Config(Expression(Condition(e1,e2,e3)),sigma,theta)) =
-
-	let val c as Config(e,sigma1,theta1) = evaluate(Config(Expression(e1),sigma,theta))
-	in case e of
-	
-		  Stuck => c
-		  
-		| Expression(Value(vGaurd)) => evaluate(Config(Expression(Condition(Value(vGaurd),e2,e3)),sigma1,theta1))
-		
-		(* Could potentially do more here, leave for now *)
-		| Expression(eGaurd) => Config(Expression(Condition(eGaurd,e2,e3)),sigma1,theta1)
-  
-   end
+   contextRuleOp3(e1,e2,e3,sigma,theta,COND,evaluate)
  
 (* Implements evaluation & type inference rules for case-pair expression with first operand a value *)
 (* i.e. implement rules (E-CASE-PAIR-GOOD) and (E-CASE-PAIR-BAD) *) 
@@ -144,21 +140,8 @@ fun evaluate (c as  Config(Expression(Value(v)),sigma,theta)) =
    end
    
 (* Handles context rule (context-case-pair), i.e. where left-hand pair an expression *)
-| evaluate (Config(Expression(Case(e1,ExpressionPair(Variable(x1),Variable(x2)),e2)),sigma,theta)) =
-
-	let val c as Config(e,sigma1,theta1) = evaluate(Config(Expression(e1),sigma,theta))
-	in case e of
-	
-		  Stuck => c
-		  
-		| Expression(Value(vPair)) => 
-			evaluate(Config(Expression(Case(Value(vPair),ExpressionPair(Variable(x1),Variable(x2)),e2)),sigma1,theta1))
-		
-		(* Could potentially do more here, leave for now *)
-		| Expression(ePair) => 
-			Config(Expression(Case(ePair,ExpressionPair(Variable(x1),Variable(x2)),e2)),sigma1,theta1)
-  
-   end
+| 	evaluate (Config(Expression(Case(e1,e2 as ExpressionPair(Variable(x1),Variable(x2)),e3)),sigma,theta)) =
+	contextRuleOp3(e1,e2,e3,sigma,theta,CASE,evaluate)	
 	
 (* Expression matches none of the above patterns in the clauses
    Must be a stuck expression *)

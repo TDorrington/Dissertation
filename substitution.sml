@@ -12,7 +12,7 @@ structure Substitution : SUBSTITUTION =
 				 
 		fun union (m, x, y) =
 		    case m of [] => [(x,y)]
-					 (* only add map if not already one for x - don't update (?) *)
+					 (* if already in map, then don't add: no update *)
 		    	     | l => if contains(x,m) then l else (x,y)::l;
 	
 		fun get (x, m) =

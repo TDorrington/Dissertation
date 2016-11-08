@@ -33,7 +33,7 @@ fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t1, t2) : config =
 
 	| Config(Expression(Value(n1)),sigma1,theta1) =>
 				
-		case narrow(v2,t2,sigma1,theta1) of
+		(case narrow(v2,t2,sigma,theta) of
 					
 			  (* rule E-OP-BAD2 *)
 			  c2 as Config(Stuck,sigma2,theta2) => c2
@@ -45,7 +45,7 @@ fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t1, t2) : config =
 				let val Config(Expression(Value(n3)),sigma3,theta3) = 
 						narrow(v2,t2,sigma1,theta1);	
 						
-				in Config(Expression(Value(oper(n1,n3))), sigma3, theta3) end;
+				in Config(Expression(Value(oper(n1,n3))), sigma3, theta3) end);
 				
 (* -------------------------------------------------------------------------------- *)
 (* Gets the bottom value for a value substitution by following chains in the substitution sigma
@@ -55,22 +55,23 @@ fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t1, t2) : config =
    it will return (3,4) for v['a] and v['b]
    Doesn't detect cycles, but can there be? *)
    
-fun resolveChain(a,sigma) = case a of
+fun resolveChainSigma(a,sigma) = case a of
 
 	  VHole(hole) =>
 		
 		if(Substitution.contains(hole,sigma)) 
-		then resolveChain(Substitution.get(hole,sigma),sigma)
+		then resolveChainSigma(Substitution.get(hole,sigma),sigma)
 		else a
 	  
-	| ValuePair(v1,v2) => ValuePair(resolveChain(v1,sigma),resolveChain(v2,sigma))
+	| ValuePair(v1,v2) => ValuePair(resolveChainSigma(v1,sigma),resolveChainSigma(v2,sigma))
 	
 	| _ => a; (* Bottom value of int, real or bool *)
 	
 (* -------------------------------------------------------------------------------- *)
 
 datatype operations = PLUS | SUBTRACT | DIVIDE | TIMES    (* Arithmetic operations *)
-					| LESS | LESSEQ | MORE | MOREEQ | EQ; (* Boolean operations    *)
+					| LESS | LESSEQ | MORE | MOREEQ | EQ  (* Boolean operations    *)
+					| COND | CASE | EXPRPAIR;
 				
 (* Rules for all arithmetic and boolean operations
    even when both arguments to operator are value holes
@@ -128,8 +129,8 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 				
 			(* First check if substitution contains mappings for value holes *)
 			if(Substitution.contains(ValueHole(a),sigma) orelse Substitution.contains(ValueHole(b),sigma))
-			then let val bottomA = resolveChain(VHole(ValueHole(a)),sigma);
-					 val bottomB = resolveChain(VHole(ValueHole(b)),sigma)
+			then let val bottomA = resolveChainSigma(VHole(ValueHole(a)),sigma);
+					 val bottomB = resolveChainSigma(VHole(ValueHole(b)),sigma)
 				 in elabPhraseOperation(bottomA,bottomB,sigma,theta,oper) end
 				 
 			else
@@ -144,7 +145,7 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 				val t1 = case oper of DIVIDE => Real | EQ => Int | _ => THole(TypeHole(ArithTypeVar(s1)));
 				val t2 = case oper of DIVIDE => Real | EQ => Int | _ => THole(TypeHole(ArithTypeVar(s2)))
 					
-			in case narrow(v1,t1,sigma,theta) of
+			in (case narrow(v1,t1,sigma,theta) of
 					
 			  c1 as Config(Stuck,sigma1,theta1) => c1	(* rule E-OP-BAD1 *)
 					  
@@ -193,7 +194,7 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 												| LESSEQ   => Config(Expression(LessThanEqual(Value(n1),Value(n3))), sigma3, theta3) 
 												| MOREEQ   => Config(Expression(MoreThanEqual(Value(n1),Value(n3))), sigma3, theta3) 
 												| EQ  	 => Config(Expression(Value(intWrap(n1,n3))), sigma3, theta3)))
-								end))
+								end)))
 			end
 		
 		| _			 	 	  => Config(Stuck,sigma,theta)

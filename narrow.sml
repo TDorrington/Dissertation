@@ -1,3 +1,15 @@
+fun resolveChainTheta(a,theta) = case a of
+
+	  THole(hole) =>
+		
+		if(Substitution.contains(hole,theta)) 
+		then resolveChainTheta(Substitution.get(hole,theta),theta)
+		else a
+	  
+	| Pair(t1,t2) => Pair(resolveChainTheta(t1,theta),resolveChainTheta(t2,theta))
+	
+	| _ => a; (* Bottom type of Int, Real or Bool *)
+
 (* 'narrow' dynamically performs type-checking 
     narrow : v * t * valSub * typeSub -> <v union stuck, valSub, typeSub>
     takes a value v, type t and current values & type substitutions and
@@ -36,12 +48,36 @@ case (v,t) of
 	   (* First check in given sigma if hole already instantiated *)
 		if Substitution.contains(ValueHole(a), sigma) then
 		
-			(* Hole already instantiated: return existing instantiation *)
+			(* Hole already instantiated
+			   Get existing instantiation
+			   Unify all types
+			   Get the latest most narrowed down type
+				- If it equals the typeof(v) still, return v
+				- Otherwise, generate a new value of the more specific type and return that, 
+				  as well as updating sigma
+				For example, suppose we had 
+				narrow(v['a],Int,[v['a]->v['''a]], ['a->'''a]
+				First, we get the current mapped value: v['''a]
+				Then unify the three types: 'a, Int, '''a
+				Giving us the new type substitution: ['a->'''a,'''a->Int]
+				Then get the most narrowed down type from 'a, following the chain
+				'a -> '''a -> Int
+				We see Int does not equal '''a, and it is more narrowed down
+				Hence, generate a value of type Int (calling gen), return this value,
+				and update sigma to reflect this *)
 			let val v = Substitution.get(ValueHole(a), sigma); 
-				val (theta1, success) = unify( [THole(TypeHole(a)), t, typeof(v)], theta) 
+				val (theta1, success) = unify( [THole(TypeHole(a)), t, typeof(v)], theta);
+				val latestT = resolveChainTheta(THole(TypeHole(a)),theta1)
 			in
-				if(success) then Config(Expression(Value(v)),sigma,theta1)
-							else Config(Stuck, sigma, theta)	
+				if(success=false) 
+				then Config(Stuck, sigma, theta)
+				else if(typeof(v) = latestT) 
+					 then Config(Expression(Value(v)),sigma,theta1)
+					 else let val latestV = gen(t,theta1) 
+						  in case v of 
+						      VHole(vhole) => Config(Expression(Value(latestV)),Substitution.union(sigma,vhole,latestV),theta1) 
+							| _ => Config(Expression(Value(latestV)),sigma,theta1) 
+						  end
 			end
 			
 		else

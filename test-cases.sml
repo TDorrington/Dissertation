@@ -233,56 +233,70 @@ val d = (ValueHole(TypeVar("d")));
 
 val sigma = [ (a,VHole(b)), (b,VHole(c)), (c,N(3)) ];
 
-resolveChain(VHole(a),sigma); (* 3 *)
-resolveChain(VHole(b),sigma); (* 3 *)
-resolveChain(VHole(c),sigma); (* 3 *)
+resolveChainSigma(VHole(a),sigma); (* 3 *)
+resolveChainSigma(VHole(b),sigma); (* 3 *)
+resolveChainSigma(VHole(c),sigma); (* 3 *)
 
 val sigma = [ (a,VHole(b)), (b,ValuePair(VHole(c),VHole(d))), (c,N(3)), (d,B(true)) ];
 
-resolveChain(VHole(a),sigma); (* (3,true) *)
+resolveChainSigma(VHole(a),sigma); (* (3,true) *)
 
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR EVALUATE *)
 
 prettyPrintConfig(evaluate(Config(Expression(Plus(Value(N(1)),Value(N(2)))),[],[])));
-(* 3 *)
+(* <1+2,[],[]> -> <3,[],[]> *)
 
 prettyPrintConfig(evaluate(Config(Expression(Plus(Value(VHole(a)),Value(VHole(b)))),[],[])));
-(* v['''a] + v['''b], [ v['b]->v['''b], v['a]->v['''a] ], ['a->'''a, 'b->'''b] *)
+(* <v['a]+v['b],[],[] 
+   ->
+   <v['''a] + v['''b], [ v['b]->v['''b], v['a]->v['''a] ], ['a->'''a, 'b->'''b]> 
+*)
 
 prettyPrintConfig(evaluate(Config(Expression(Plus(Value(VHole(a)),Value(VHole(c)))),
 	[ (a, VHole(ValueHole(ArithTypeVar("a")))), (b, VHole(ValueHole(ArithTypeVar("b")))) ],
 	[ (TypeHole(TypeVar("a")),THole(TypeHole(ArithTypeVar("a")))), (TypeHole(TypeVar("b")),THole(TypeHole(ArithTypeVar("b")))) ] )));
-(* v['''a] + v['''c], [ v['b]->v['''b], v['a]->v['''a], v['c]->v['''c] ], ['a->'''a, 'b->'''b, 'c->'''c] *)
+(* <v['a]+v['c], [ v['b]->v['''b], v['a]->v['''a] ], ['a->'''a, 'b->'''b]>
+   ->
+   v['''a] + v['''c], [ v['b]->v['''b], v['a]->v['''a], v['c]->v['''c] ], ['a->'''a, 'b->'''b, 'c->'''c] 
+*)
 
 prettyPrintConfig(evaluate(
 	Config(Expression(Plus(Plus(Value(N(1)),Value(N(2))),
 						   Plus(Value(N(5)),Value(N(3))))),[],[])));
-(* 11 *)
+(* <(1+2)+(5+3),[],[]> -> <11,[],[]> *)
 
 prettyPrintConfig(evaluate(Config(Expression(Value(N(3))),[],[])));
-(* 3 *)
+(* <3,[],[]> -> <3,[],[]> *)
 
 prettyPrintConfig(evaluate(Config(Expression(ExpressionPair(Value(N(3)),Value(N(4)))),[],[])));
-(* (3,4) *)
+(* <(3,4),[],[]> -> <(3,4),[],[]> *)
 
 prettyPrintConfig(evaluate(Config(Expression(
 	Plus(Plus(Value(VHole(a)),Value(VHole(b))),
 		 Plus(Value(VHole(a)),Value(VHole(c))))),[],[])));
-(* v['''a] + v['''b] + v['''a] + v['''c] *)
-
+(* <(v['a]+v['b])+(v['a]+v['c]), [], []> 
+   ->
+   <v['''a] + v['''b] + v['''a] + v['''c], [v['c]->v['''c],v['b]->v['''b],v['a]->v['''a]], ['c->'''c,'b->'''b,'a->'''a]>
+*)
+   
 prettyPrintConfig(evaluate(Config(Expression(
 	Plus(Plus(Value(VHole(a)),Value(VHole(b))),
-		 Plus(Value(N(3)),Value(VHole(c))))),[],[])));
-(* 6 *)
+		 Plus(Value(N(3)),Value(VHole(a))))),[],[])));
+(* <(v['a]+v['b])+(3+v['c]),[],[]> 
+   -> 
+   <(v['''a]+v['''b])+4,[v['b]->v['''b],v['a]->v['''a],v['c]->1],['c->int,'b->'''b,'a->'''a]> 
+*)
 
 prettyPrintConfig(evaluate(Config(Expression(
 	Condition(LessThan(Value(VHole(ValueHole(TypeVar("a")))),Value(VHole(ValueHole(TypeVar("b"))))),
-			  Value(N(3)),Value(N(4)))),[],[])));
-(* if v['''a]<v['''b] then 3 else 4 *)
-
-			  
+			  Plus(Value(VHole(ValueHole(TypeVar("a")))),Value(N(4))),Value(N(4)))),[],[])));
+(* if v['a]<v['b] then (v['a] + 3) else 4 
+   -> 
+  <4, [v['''b] -> 1, v['''a] -> 1, v['b] -> v['''b], v['a] -> v['''a]], ['''b -> int, '''a -> int, 'b -> '''b, 'a -> '''a]>
+*)
+	  
 prettyPrintConfig(evaluate(Config(Expression(
 		Case(Value(ValuePair(N(1),N(2))),
 			 ExpressionPair(Variable(Var("x")),Variable(Var("y"))),
@@ -298,7 +312,19 @@ prettyPrintConfig(evaluate(Config(Expression(
 		case (3,4) of (x,y) -> x*x -
 				case (5,6) of (x,y) -> if x=y then 1 else 0 
    => 11 *)
-  
- 
 
-							  
+prettyPrintConfig(evaluate(Config(Expression(
+		Case(ExpressionPair(Value(VHole(ValueHole(TypeVar("a")))),Plus(Value(VHole(ValueHole(TypeVar("b")))),Value(N(2)))),
+			 ExpressionPair(Variable(Var("x")),Variable(Var("y"))),
+			 Plus(Times(Variable(Var("x")),Variable(Var("y"))),
+				  Case(Value(ValuePair(N(3),N(4))),
+				  ExpressionPair(Variable(Var("x")),Variable(Var("y"))),
+				  Subtract(Times(Variable(Var("x")),Variable(Var("x"))),
+						   Case(Value(ValuePair(N(5),N(6))),
+						   ExpressionPair(Variable(Var("x")),Variable(Var("y"))),
+						   Condition(Equal(Variable(Var("x")),Variable(Var("y"))),
+									 Plus(Value(N(1)),Value(VHole(ValueHole(TypeVar("a"))))),Value(N(0))))))))),[],[])));
+(* case (v['a],v['b]+2) of (x,y) -> x*y +
+		case (3,4) of (x,y) -> x*x -
+				case (5,6) of (x,y) -> if x=y then 1+v['a] else 0 
+   => 12 *)
