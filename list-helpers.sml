@@ -1,11 +1,12 @@
-(* Auxiliary function to replace all occurrences of a (which will be a type variable)
-   with type of b in a map
-   E.g. replace( [('a,'b)], 'a, Int ) -> [(Int,'b)] *)
+(* Auxiliary function to replace all occurrences of a with b in a map
+   E.g. replace( [('a,'b)], 'b, Int ) -> [('a,Int)] 
+   Assumes no map of form x->x in the substitution *)
    
 fun replace ([],_,_) = []
 |   replace ((x,y)::l,a,b) =
-	if a=x then (b,y)::replace(l,a,b) else 
-	if a=y then (x,b)::replace(l,a,b) else (x,y)::replace(l,a,b);
+	if a=x then (b,y)::replace(l,a,b) 
+		   else if a=y then (x,b)::replace(l,a,b) 
+					   else (x,y)::replace(l,a,b);
 
 (* ----------------------------------------------------------------------------------- *)
 (* Auxiliary function which takes a list and an element, and returns true iff 
@@ -26,12 +27,12 @@ fun append([],ys) = ys
 fun union([],ys) = ys
 |	union(x::xs,ys) = if element(ys,x) then union(xs,ys) else x::union(xs,ys);
 
-
 (* ----------------------------------------------------------------------------------- *)
-(* Auxiliary function which takes a list and an element, and removes any occurrences 
-   of that element from the list
-   e.g. remove([1,2,3,1],1) = [2,3] *)
+(* Auxiliary function which takes a list, l, and a list of elements, els, and removes 
+   any occurrences of elements in els from the list, l
+   e.g. remove([1,2,3,1],[1])   = [2,3]
+   and  remove([1,2,3,4],[1,2]) = [3,4] *)
    
 fun remove([],_) = []
-|   remove(x::l,y) = if x=y then remove(l,y) else x::remove(l,y);
+|   remove(x::l,els) = if element(els,x) then remove(l,els) else x::remove(l,els);
 

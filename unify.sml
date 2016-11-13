@@ -1,15 +1,3 @@
-(* Set of constraints represented as list of pairs
-   Pair of form (a,b) is the constraint that types a and b must be equal *)
-
-(* ----------------------------------------------------------------------------------- *)
-(* Auxiliary function to return list of free type variables in a type *)
-
-fun ftv (Real) = []
-| 	ftv (Int)  = []
-| 	ftv (Bool) = []
-|  	ftv (THole(a)) = [THole(a)]
-|	ftv (Pair(t1,t2)) = append(ftv(t1),ftv(t2));
-
 (* ----------------------------------------------------------------------------------- *)
 (* Auxiliary function which updates a current type based on the latest substitution
    Regardless of the current type substitutions we cannot update int, real, or bool
@@ -19,12 +7,12 @@ fun ftv (Real) = []
    e.g. unify([('a,'b)],['a -> Int])
    will be reduced to unify([(Int,'b),['a -> Int]) *)
 
-fun update(Int,theta)  = Int
-|	update(Real,theta) = Real
-|  	update(Bool,theta) = Bool
+fun update(Int,_)  = Int
+|	update(Real,_) = Real
+|  	update(Bool,_) = Bool
 | 	update(THole(TypeHole(d)),theta) = 
 		if Substitution.contains(TypeHole(d),theta) 
-		then Substitution.get(TypeHole(d),theta)
+		then resolveChainTheta(TypeHole(d),theta)
 		else THole(TypeHole(d))
 | 	update(Pair(t1,t2),theta) = 
 		Pair(update(t1,theta),update(t2,theta));
@@ -148,6 +136,7 @@ fun unifyAlg([], theta) = (theta, true)
 					
 	| (t,THole(TypeHole(a))) => 
 		(* Assert t one of: Int, Real, Bool, t1 x t2 *)
+		(* Same as above case *)
 		
 		(* First check cases that cannot occur 
 			EqualityTypeVar -> Real, or ArithTypeVar -> Bool *)
@@ -166,7 +155,8 @@ fun unifyAlg([], theta) = (theta, true)
 	
 (* ----------------------------------------------------------------------------------- *)
 (* Takes list of types, and current substitution,
-   If there is a map a->b in theta, it replaces all occurrences of a in constraints by b *)	
+   If there is a map a->b (i.e. a chain of maps from a to b  in theta, 
+   it replaces all occurrences of a in constraints by b *)	
    
 fun normalize ([],_) = []
 |   normalize (x::l,theta) = update(x,theta)::normalize(l,theta);

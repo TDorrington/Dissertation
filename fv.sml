@@ -1,25 +1,41 @@
 (* Takes an expression and returns a set containing the free variables in that expression
-
    Only non-trivial case is the case expression
-   For case v of (x1,x2) -> e2
-   We find the free variables of e2, and remove from that set the variables x1 and x2 *)
+   For case e1 of (x1,x2) -> e2
+   We find the free variables of e2, and remove from that set the variables x1 and x2, and
+   then finally union that with the free variables of e1
+   For example, 
+   case (x,y) of (y,z) -> x+y = ({x,y}-{y,z}) union ({x,y}) = {x,y}
+*)
 
 fun fvExpr(e) = case e of 
 
-	  Value(_) => []
-	| Plus(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-	| Times(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-	| Subtract(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-	| Divide(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-	| LessThan(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-	| MoreThan(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-	| LessThanEqual(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-	| MoreThanEqual(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-	| Equal(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-	| Condition(e1,e2,e3) => union(union(fvExpr(e1),fvExpr(e2)),fvExpr(e3))
+	(* Compound value holes can contain expressions *)
+	  Value(VHole(hole)) => (case hole of 
+	  
+		  SimpleHole(_) => []
+		| BinaryOp(_,hole1,hole2) => union(fvExpr(Value(VHole(hole1))),fvExpr(Value(VHole(hole2))))
+		| ConditionHole(hole1,e1,e2) => union(union(fvExpr(Value(VHole(hole1))),fvExpr(e1)),fvExpr(e2))
+		| CaseHole(hole1,VariablePair(x,y),e) => union(fvExpr(Value(VHole(hole1))),remove(fvExpr(e),[x,y])))
+		
+	| Value(ValuePair(v1,v2)) => union(fvExpr(Value(v1)),fvExpr(Value(v2)))
+	| Value(_) => [] (* int, real or bool *)
+	| Variable(x) => [x]
+	| ArithExpr(_,e1,e2)    => union(fvExpr(e1),fvExpr(e2))
+	| BoolExpr (_,e1,e2)    => union(fvExpr(e1),fvExpr(e2))
 	| ExpressionPair(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-	| Case (Value(_),ExpressionPair(Variable(x),Variable(y)),e) => remove(remove(fvExpr(e),x),y)
-	| Variable(x) => [x];
+	| Condition(e1,e2,e3)   => union(union(fvExpr(e1),fvExpr(e2)),fvExpr(e3))
+	| Case (e1,VariablePair(x,y),e2) => union(fvExpr(e1),remove(fvExpr(e2),[x,y]));
 	
 fun fv ([]) = []
 |   fv (e::eList) = union(fvExpr(e),fv(eList));
+
+(* ----------------------------------------------------------------------------------- *)
+(* Takes an expression and returns a set containing the free type variables in that expression *)
+
+fun ftv (Real) = []
+| 	ftv (Int)  = []
+| 	ftv (Bool) = []
+|  	ftv (THole(a)) = [THole(a)]
+|	ftv (Pair(t1,t2)) = append(ftv(t1),ftv(t2));
+
+

@@ -48,26 +48,6 @@ fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t1, t2) : config =
 				in Config(Expression(Value(oper(n1,n3))), sigma3, theta3) end);
 				
 (* -------------------------------------------------------------------------------- *)
-(* Gets the bottom value for a value substitution by following chains in the substitution sigma
-   For example, if there is a chain v['a]->v['b], v['b]->v['''b], v['''b]->3
-   it will return 3 all when given v['a], v['b] and v['''b]
-   Similarly, if there is a chain v['a]->v['b], v['b]->(v['d],v['e]), v['d]->3, v['e]->4
-   it will return (3,4) for v['a] and v['b]
-   Doesn't detect cycles, but can there be? *)
-   
-fun resolveChainSigma(a,sigma) = case a of
-
-	  VHole(hole) =>
-		
-		if(Substitution.contains(hole,sigma)) 
-		then resolveChainSigma(Substitution.get(hole,sigma),sigma)
-		else a
-	  
-	| ValuePair(v1,v2) => ValuePair(resolveChainSigma(v1,sigma),resolveChainSigma(v2,sigma))
-	
-	| _ => a; (* Bottom value of int, real or bool *)
-	
-(* -------------------------------------------------------------------------------- *)
 
 datatype operations = PLUS | SUBTRACT | DIVIDE | TIMES    (* Arithmetic operations *)
 					| LESS | LESSEQ | MORE | MOREEQ | EQ  (* Boolean operations    *)

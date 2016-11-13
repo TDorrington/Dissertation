@@ -5,31 +5,52 @@
    Only non trivial case is a variable: to make a different
    variable identifier, and (hopefully) no longer capture avoiding,
    we append a unique integer to it, which is passed from outside the function.
+   This is implemented in the function substituteVar
    This preserves de Brujin Indices order: all occurrences of a variable x in expression e 
-   are now ALL referred to as variable xn, after the call to alphaVariant(e,n) *)
+   are now ALL referred to as variable xn, after the call to alphaVariant(e,n)
+*)
+	
+fun substituteVar(Var(s),n,vars) = 
+
+	if element(vars,Var(s)) 
+	then Var(s^Int.toString(n))
+	else Var(s);
 
 fun alphaVariant(e,n,vars) = 
 
 	(* local function to recursively substitute based on structure of expression - 
 	   avoids need to pass n and vars in each call *)
-	let val rec localSub = fn e => case e of 
+	let fun localSub e = case e of 
 	
-		  Value(v) => Value(v)
-		| Plus(e1,e2) => Plus(localSub(e1),localSub(e2))
-		| Times(e1,e2) => Times(localSub(e1),localSub(e2))
-		| Subtract(e1,e2) => Subtract(localSub(e1),localSub(e2))
-		| Divide(e1,e2) => Divide(localSub(e1),localSub(e2))
-		| LessThan(e1,e2) => LessThan(localSub(e1),localSub(e2))
-		| MoreThan(e1,e2) => MoreThan(localSub(e1),localSub(e2))
-		| LessThanEqual(e1,e2) => LessThanEqual(localSub(e1),localSub(e2))
-		| MoreThanEqual(e1,e2) => MoreThanEqual(localSub(e1),localSub(e2))
-		| Equal(e1,e2) => Equal(localSub(e1),localSub(e2))
-		| Condition(e1,e2,e3) => Condition(localSub(e1),localSub(e2),localSub(e3))
+		(* Compound value holes can contain expressions *)
+		  Value(ValuePair(v1,v2)) => 
+			let val Value(alpha1) = localSub(Value(v1));
+				val Value(alpha2) = localSub(Value(v2))
+			in Value(ValuePair(alpha1,alpha2)) end
+			
+		| Value(VHole(hole)) => (case hole of 
+		
+			  SimpleHole(_) => e
+			  
+			| BinaryOp(oper,hole1,hole2) =>
+				let val Value(VHole(alpha1)) = localSub(Value(VHole(hole1)));
+					val Value(VHole(alpha2)) = localSub(Value(VHole(hole2)))
+				in Value(VHole(BinaryOp(oper,alpha1,alpha2))) end
+				
+			| ConditionHole(hole1,e1,e2) =>
+				let val Value(VHole(alpha1)) = localSub(Value(VHole(hole1)))
+				in Value(VHole(ConditionHole(alpha1,localSub(e1),localSub(e2)))) end
+				
+			| CaseHole(hole1,VariablePair(x,y),e) =>
+				Value(VHole(CaseHole(hole1,VariablePair(substituteVar(x,n,vars),substituteVar(y,n,vars)),localSub(e)))))
+				
+		| Value(_) => e (* int, real or bool *)
+		| ArithExpr(arithOper,e1,e2) => ArithExpr(arithOper,localSub(e1),localSub(e2))
+		| BoolExpr (boolOper, e1,e2) => BoolExpr (boolOper, localSub(e1),localSub(e2))
 		| ExpressionPair(e1,e2) => ExpressionPair(localSub(e1),localSub(e2))
-		| Case (Value(v),ExpressionPair(varX as Variable(Var(x)), varY as Variable(Var(y))),e) => 
-			Case(Value(v),ExpressionPair(localSub(varX),localSub(varY)),localSub(e))
-		| Variable(Var(s)) => 
-			if element(vars,Var(s)) then Variable(Var(s ^ Int.toString(n)))
-									else e
+		| Condition(e1,e2,e3) => Condition(localSub(e1),localSub(e2),localSub(e3))
+		| Case(e1,VariablePair(x,y),e2) =>
+			Case(e1,VariablePair(substituteVar(x,n,vars),substituteVar(y,n,vars)),localSub(e2))
+		| Variable(x) => Variable(substituteVar(x,n,vars))
 									
 	in localSub(e) end;
