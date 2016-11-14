@@ -9,7 +9,7 @@
    This preserves de Brujin Indices order: all occurrences of a variable x in expression e 
    are now ALL referred to as variable xn, after the call to alphaVariant(e,n)
 *)
-	
+
 fun substituteVar(Var(s),n,vars) = 
 
 	if element(vars,Var(s)) 

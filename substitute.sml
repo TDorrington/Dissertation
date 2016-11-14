@@ -30,11 +30,11 @@ fun substitute(e,gamma:variableSub) = case e of
 		| c as CaseHole(hole,VariablePair(x,y),e) =>
 			(* must be capture avoiding *)
 			let val dom = Substitution.domain(gamma);
-				val fvRan = fv(Substitution.range(gamma));
-				val Value(VHole(sub)) = substitute(Value(VHole(hole)),gamma)
+				val fvRan = fv(Substitution.range(gamma))
 			in 	if (((element(dom,x)=false) andalso (element(dom,y)=false)) andalso 
 				    ((element(fvRan,x)=false) andalso (element(fvRan,y)=false)))
-				then Value(VHole(CaseHole(sub,VariablePair(x,y),substitute(e,gamma))))
+				then let val Value(VHole(sub)) = substitute(Value(VHole(hole)),gamma)
+					 in Value(VHole(CaseHole(sub,VariablePair(x,y),substitute(e,gamma)))) end
 				else substitute(alphaVariant(Value(VHole(c)),getCounterAndUpdate(),[x,y]),gamma)
 			end)
 				
@@ -43,6 +43,7 @@ fun substitute(e,gamma:variableSub) = case e of
 	| Variable(a) => if Substitution.contains(a,gamma)
 					 then Substitution.get(a,gamma)
 					 else Variable(a)
+
 	| ArithExpr(arithOper,e1,e2) => ArithExpr(arithOper,substitute(e1,gamma),substitute(e2,gamma))
 	| BoolExpr (boolOper, e1,e2) => BoolExpr (boolOper, substitute(e1,gamma),substitute(e2,gamma))
 	| ExpressionPair(e1,e2) 	 => ExpressionPair(substitute(e1,gamma),substitute(e2,gamma)) 
