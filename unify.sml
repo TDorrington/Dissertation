@@ -12,7 +12,7 @@ fun update(Int,_)  = Int
 |  	update(Bool,_) = Bool
 | 	update(THole(TypeHole(d)),theta) = 
 		if Substitution.contains(TypeHole(d),theta) 
-		then resolveChainTheta(TypeHole(d),theta)
+		then resolveChainTheta(THole(TypeHole(d)),theta)
 		else THole(TypeHole(d))
 | 	update(Pair(t1,t2),theta) = 
 		Pair(update(t1,theta),update(t2,theta));
@@ -71,7 +71,7 @@ fun getNewConstraints(TypeHole(a),TypeHole(b)) = case (a,b) of
    A = T | alpha | A x A
    where alpha a type var (i.e. either TypeVar, EqualityTypeVar or ArithTypeVar)
    
-   unify : ConstraintSet -> Substitution * bool (if successful)
+   unify : ConstraintSet -> Substitution option
    unify(no constraints) = empty set
    unify({A=A}::C) = unify(C)
    unify({alpha = beta}::C) = unify(newConstraints union C)
@@ -81,7 +81,7 @@ fun getNewConstraints(TypeHole(a),TypeHole(b)) = case (a,b) of
    unify(anything else) = FAIL
 *)
 
-fun unifyAlg([], theta) = (theta, true)
+fun unifyAlg([], theta) = SOME theta
 
 | 	unifyAlg(constraint::rest, theta) =  case constraint of
 
@@ -111,9 +111,12 @@ fun unifyAlg([], theta) = (theta, true)
 				   An alternative would be to call unifyAlg with an empty substitution list,
 				   rather than current theta, and union them after this method returns
 				   in a special way, but this is more efficient *)
-				let val (newMap,b) = unifyAlg(replace(rest,THole(TypeHole(c)),THole(TypeHole(d))),theta)
-					val latestMapped = update(THole(TypeHole(d)),newMap)
-				in (Substitution.union(newMap,TypeHole(c),latestMapped), b) end
+				(case unifyAlg(replace(rest,THole(TypeHole(c)),THole(TypeHole(d))),theta) of
+				
+					  NONE => NONE
+					| SOME(newMap) => 
+						let val latestMapped = update(THole(TypeHole(d)),newMap)
+						in SOME (Substitution.union(newMap,TypeHole(c),latestMapped)) end)
 				
 			| [a,b] => unifyAlg(a::b::rest,theta)
 		end
@@ -124,15 +127,18 @@ fun unifyAlg([], theta) = (theta, true)
 		(* First check cases that cannot occur 
 			EqualityTypeVar -> Real, or ArithTypeVar -> Bool *)
 		(case (a,t) of
-			  (EqualityTypeVar(_),Real) => (theta,false)
-			| (ArithTypeVar(_),Bool) => (theta,false)
+			  (EqualityTypeVar(_),Real) => NONE
+			| (ArithTypeVar(_),Bool) => NONE
 			
 			| _ =>  (* side condition: alpha not in ftv(t) *)
 					if element(ftv(t),THole(TypeHole(a)))
-					then (theta,false)
-					else let val (newMap,b) = unifyAlg(replace(rest,THole(TypeHole(a)),t),theta)
-							 val latestMapped = update(t,newMap)
-						 in (Substitution.union(newMap,TypeHole(a),latestMapped), b) end)
+					then NONE
+					else (case unifyAlg(replace(rest,THole(TypeHole(a)),t),theta) of
+					
+						  NONE => NONE
+						| SOME(newMap) =>
+							 let val latestMapped = update(t,newMap)
+							 in SOME (Substitution.union(newMap,TypeHole(a),latestMapped)) end))
 					
 	| (t,THole(TypeHole(a))) => 
 		(* Assert t one of: Int, Real, Bool, t1 x t2 *)
@@ -141,17 +147,20 @@ fun unifyAlg([], theta) = (theta, true)
 		(* First check cases that cannot occur 
 			EqualityTypeVar -> Real, or ArithTypeVar -> Bool *)
 		(case (a,t) of
-			  (EqualityTypeVar(_),Real) => (theta,false)
-			| (ArithTypeVar(_),Bool) => (theta,false)
+			  (EqualityTypeVar(_),Real) => NONE
+			| (ArithTypeVar(_),Bool) => NONE
 			
 			| _ =>  (* side condition: alpha not in ftv(t) *)
-					if element(ftv(t),THole(TypeHole(a))) 
-					then (theta,false)
-					else let val (newMap,b) = unifyAlg(replace(rest,THole(TypeHole(a)),t),theta)
-							 val latestMapped = update(t,newMap)
-						 in (Substitution.union(newMap,TypeHole(a),latestMapped), b) end)
+					if element(ftv(t),THole(TypeHole(a)))
+					then NONE
+					else (case unifyAlg(replace(rest,THole(TypeHole(a)),t),theta) of
+					
+						  NONE => NONE
+						| SOME(newMap) =>
+							 let val latestMapped = update(t,newMap)
+							 in SOME (Substitution.union(newMap,TypeHole(a),latestMapped)) end))
 		
-	| _ => (theta,false) (* e.g (Int,Real) *)
+	| _ => NONE (* e.g (Int,Real) *)
 	
 (* ----------------------------------------------------------------------------------- *)
 (* Takes list of types, and current substitution,

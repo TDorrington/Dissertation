@@ -9,7 +9,7 @@ datatype typeVar =
 				 (* Equality Type Variables: int, bool, string and pairs & lists of these *)
 				 | EqualityTypeVar of string	
 				 
-				 (* New Arithmetic Type Variable: int or real and pairs & lists of these *)
+				 (* New Arithmetic Type Variable: int or real. NOT pairs & lists of these *)
 				 | ArithTypeVar of string;  
 			
 datatype typeVarEnum = TYPE_VAR | EQUALITY_TYPE_VAR | ARITH_TYPE_VAR;
@@ -24,7 +24,7 @@ datatype t =
      | Real					   	    (* real      *)
 	 | Pair of t * t		   	    (* pairs     *)
 	 | THole of typeHole;	        (* type variable *)
-
+	
 (* Integer that is used to generate fresh type variables or fresh variables
    Fresh type variables will be the string "a" with the global counter appended onto it
    and fresh variables will be the variable name appended with counter *)
@@ -65,9 +65,9 @@ datatype e =
 	  Value of v
 	| Variable of var
 	| ArithExpr of arithOper * e * e
-	| BoolExpr of boolOper * e * e
+	| BoolExpr of boolOper * e * e 
 	| ExpressionPair of e * e
-	| Case of e * pattern * e
+	| Case of e * pattern * e			
 	| Condition of e * e * e
 and valHole = 
 	  SimpleHole of simpleValueHole

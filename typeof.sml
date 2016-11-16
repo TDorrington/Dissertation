@@ -144,20 +144,16 @@ fun typeOp(ArithOper(DIVIDE),t1,t2,theta) = (case (t1,t2) of
    alpha = beta. We can also generate further constraints on the type variable
      'a =   'b -> both same equality type variable
 	''a =   'b -> both same equality type variable
-   '''a =   'b -> can't deduce anything: may be Int, (Int,Int), ((Int,Int),Int), etc.
+   '''a =   'b -> both of type int
      'a =  ''b -> both same equality type variable
 	''a =  ''b -> both same equality type variable
-   '''a =  ''b -> can't deduce anything
-     'a = '''b -> can't deduce anything
-	''a = '''b -> can't deduce anything
-   '''a = '''b -> can't deduce anything
-   The cases where we cannot deduce anything arise because arithmetic & equality type variables
-   contain lists and tuples that range over the set as well.
-   So, for example, in '''a = ''b, we know one example is Int (since intersection of 
-   equality type variables and arithmetic tpye variables is Int), but it could also be
-   (Int,Int), so this is also both in the set of arithmetic type variables and the set of 
-   equality type variables. We cannot restrict because further down the line another constraint
-   may conflict with out choice her.
+   '''a =  ''b -> both of type int
+     'a = '''b -> both of type int
+	''a = '''b -> both of type int
+   '''a = '''b -> both of type int
+   The cases where we know the type variables to be of type int arise because = is only
+   of type int * int -> bool, so any type variable set involving a real imply it cannot
+   be that case
    
    (t11,t12)=(t21,t22) is both t11=t21 and t12=t22 of form above
 *)
@@ -185,10 +181,13 @@ fun typeOp(ArithOper(DIVIDE),t1,t2,theta) = (case (t1,t2) of
 		(SOME Bool,Substitution.union(theta,TypeHole(EqualityTypeVar(a)),Bool))
 					
 	| (THole(TypeHole(TypeVar(a))),THole(TypeHole(TypeVar(b)))) =>
-		let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
-		in (SOME Bool, Substitution.union(Substitution.union(theta,TypeHole(TypeVar(a)),freshVar),
-				     					  TypeHole(TypeVar(b)),freshVar))
-		end
+		(* if already same type, no need to generate a fresh type variable for them to share *)
+		if a = b
+		then (SOME Bool, theta)
+		else let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
+			 in (SOME Bool, Substitution.union(Substitution.union(theta,TypeHole(TypeVar(a)),freshVar),
+											   TypeHole(TypeVar(b)),freshVar))
+			 end
 											  
 	| (THole(TypeHole(EqualityTypeVar(a))),THole(TypeHole(TypeVar(b)))) =>
 		let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
@@ -211,7 +210,9 @@ fun typeOp(ArithOper(DIVIDE),t1,t2,theta) = (case (t1,t2) of
 											   TypeHole(EqualityTypeVar(b)),freshVar))
 			 end
 				
-	| (THole(hole1),THole(hole2)) => (SOME Bool, theta)
+	| (THole(hole1),THole(hole2)) => 
+		(SOME Bool, Substitution.union(Substitution.union(theta,hole1,Int),
+											 hole2,Int))
 					
 	| (Pair(t11,t12),Pair(t21,t22)) =>
 		let val (arg0,theta1) = isEqualArgs(t11,t21,theta);
@@ -292,6 +293,9 @@ fun typeOp(ArithOper(DIVIDE),t1,t2,theta) = (case (t1,t2) of
 (* ----------------------------------------------------------------------------------- *)
 (* Returns the type of a simple value hole, which may be simple, e.g. v['a], 
    or compound, e.g. v[if 'a then 3 else 4] *)
+(* Use typeofexpr to implement typeofhole by 'unwrapping' the value hole
+   e.g. typeofhole(v[case 'a of (x,y) -> (x+y)]) => 
+        typeofexpr(case v['a] of (x,y) -> (x+y))*)
    
 fun typeofhole(SimpleHole(ValueHole(tyVar)),theta) =  
 		if Substitution.contains(TypeHole(tyVar),theta) 
@@ -299,82 +303,19 @@ fun typeofhole(SimpleHole(ValueHole(tyVar)),theta) =
 		else (SOME (THole(TypeHole(tyVar))),theta)
 	
 |  	typeofhole (BinaryOp(EXPR_PAIR,valhole1,valhole2),theta) =
+	typeofexpr(ExpressionPair(Value(VHole(valhole1)),Value(VHole(valhole2))),theta,[])
 
-	(case typeofhole(valhole1,theta) of 
-	
-		  (NONE,theta1) => (NONE,theta1)
-		| (SOME(t1),theta1) => (case typeofhole(valhole2,theta1) of
-		
-			  (NONE,theta2) => (NONE,theta2)
-			| (SOME(t2),theta2) => (SOME (Pair(t1,t2)),theta2)))
-			
-|  	typeofhole (BinaryOp(oper,valhole1,valhole2),theta) =
+|  	typeofhole (BinaryOp(ArithOper(oper),valhole1,valhole2),theta) =
+	typeofexpr(ArithExpr(oper,Value(VHole(valhole1)),Value(VHole(valhole2))),theta,[])
 
-	(case typeofhole(valhole1,theta) of 
+|	typeofhole (BinaryOp(BoolOper(oper),valhole1,valhole2),theta) =
+	typeofexpr(BoolExpr(oper,Value(VHole(valhole1)),Value(VHole(valhole2))),theta,[])
 	
-		  (NONE,theta1) => (NONE,theta1)
-		| (SOME(t1),theta1) => (case typeofhole(valhole2,theta1) of
-		
-			  (NONE,theta2) => (NONE,theta2)
-			| (SOME(t2),theta2) => typeOp(oper,t1,t2,theta2)))
+|	typeofhole (CaseHole(valhole,pat,expr),theta) =
+	typeofexpr(Case(Value(VHole(valhole)),pat,expr),theta,[])
 
-|	typeofhole (CaseHole(valhole,VariablePair(x1,x2),expr),theta) =
-	(* For 'case valhole of (x,y) -> e'
-	   Firstly, call typeofhole recursively on valhole
-	   The type returned can only be 
-		(i)  simple value hole, v['a]. Here, we can then further say v['a] can be replaced 
-			 by compound value hole v[('b,'c)] for fresh 'b and 'c, with the mapping 
-			 'a -> 'b * 'c added to the substitution
-			 We can even more specific and say 
-				'a -> (  'b *   'c)
-			   ''a -> ( ''b *  ''c)
-			  '''a -> ('''b * '''c)
-		(ii) compound value hole, of form v[('a,'b)]
-	  We then call substitute on e' with x and y mapping to their respective value holes
-	  Finally, we calculate the type of that resulting expression
-	*)
-	(case typeofhole(valhole,theta) of 
-	
-		  (SOME (THole(TypeHole(tyvar))),theta1) => 
-			let val typevar_type = case tyvar of TypeVar(_)    => TYPE_VAR
-										  | ArithTypeVar(_)    => ARITH_TYPE_VAR
-									      | EqualityTypeVar(_) => EQUALITY_TYPE_VAR;
-				val t1 as THole(TypeHole(fresh1)) = generateFreshTypeVar(typevar_type,theta1);
-				val t2 as THole(TypeHole(fresh2)) = generateFreshTypeVar(typevar_type,theta1);
-				val subExpr = substitute(expr,
-						[(x1,Value(VHole(SimpleHole(ValueHole(fresh1))))),
-						 (x2,Value(VHole(SimpleHole(ValueHole(fresh2)))))]);
-				val theta2 = Substitution.union(theta1,TypeHole(tyvar),Pair(t1,t2))
-			in typeofexpr(subExpr,theta2) end
-		
-		| (SOME (Pair(THole(TypeHole(tyvar1)),THole(TypeHole(tyvar2)))),theta1) => 
-			let val subExpr = substitute(expr,[(x1,Value(VHole(SimpleHole(ValueHole(tyvar1))))),
-											   (x2,Value(VHole(SimpleHole(ValueHole(tyvar2)))))])
-			in typeofexpr(subExpr,theta1) end
-		 
-		| (_,theta1) => (NONE,theta1))
-
-| 	typeofhole (ConditionHole(valhole1,_,_),theta) =
-	(* Only check guard is typeable to Bool. Don't restrict branches *)
-	
-	(case typeofhole(valhole1,theta) of 
-	
-		  (NONE,theta1) => (NONE,theta1)
-		| (SOME(t1),theta1) => (case t1 of
-		
-			  Bool => 
-				let val freshVar = generateFreshTypeVar(TYPE_VAR,theta1)
-				in (SOME freshVar, theta1) end
-			  
-			| THole(TypeHole(TypeVar(a))) =>
-				let val freshVar = generateFreshTypeVar(TYPE_VAR,theta1)
-				in (SOME freshVar, Substitution.union(theta1,TypeHole(TypeVar(a)),Bool)) end
-				
-			| THole(TypeHole(EqualityTypeVar(a))) =>
-				let val freshVar = generateFreshTypeVar(TYPE_VAR,theta1)
-				in (SOME freshVar, Substitution.union(theta1,TypeHole(EqualityTypeVar(a)),Bool)) end
-				
-			| _ => (NONE, theta1)))
+| 	typeofhole (ConditionHole(valhole1,e2,e3),theta) =
+	typeofexpr(Condition(Value(VHole(valhole1)),e2,e3),theta,[])
 	
 (* no semi-colon: mutually recursive with typeof and typeofexpr *)
 (* ----------------------------------------------------------------------------------- *)	
@@ -407,88 +348,134 @@ and typeof (v,theta) = case v of
 (* typeofexpr returns dynamic type of an expression wrapped in an option datatype
    with NONE being returned if it cannot be typed *)
    
-and typeofexpr(Value(v),theta) = typeof(v,theta)
+and typeofexpr(Value(v),theta,gamma) = typeof(v,theta)
 
 (* Assume variable always in variable map gamma of variables -> expressions 
    Don't  care about static errors due to unbound variables: cannot lead to witnesses
    Can this even occur? Do we not substitute all variables with an expression anyway
 | 	typeofexpr(Variable(x),theta,gamma) = typeofexpr(Substitution.get(gamma,x)) *)
 
-| 	typeofexpr(ArithExpr(oper,e1,e2),theta) =
+| 	typeofexpr(ArithExpr(oper,e1,e2),theta,gamma) =
 
-	(case typeofexpr(e1,theta) of
+	(case typeofexpr(e1,theta,gamma) of
 	  
 			(NONE,theta1) => (NONE,theta1)
-		  | (SOME t1,theta1) => (case typeofexpr(e2,theta1) of
+		  | (SOME t1,theta1) => (case typeofexpr(e2,theta1,gamma) of
 		  
 			    (NONE,theta2) => (NONE,theta2)
 			  | (SOME t2,theta2) => typeOp(ArithOper(oper),t1,t2,theta2)))
 				
-|	typeofexpr(BoolExpr(oper,e1,e2),theta) =
+|	typeofexpr(BoolExpr(oper,e1,e2),theta,gamma) =
 
-	(case typeofexpr(e1,theta) of 
+	(case typeofexpr(e1,theta,gamma) of 
 	
 		  (NONE,theta1) => (NONE,theta1)
-		| (SOME(t1),theta1) => (case typeofexpr(e2,theta1) of
+		| (SOME(t1),theta1) => (case typeofexpr(e2,theta1,gamma) of
 		
 			  (NONE,theta2) => (NONE,theta2)
 			| (SOME(t2),theta2) => typeOp(BoolOper(oper),t1,t2,theta2)))
 
-| 	typeofexpr(ExpressionPair(e1,e2),theta) =
+| 	typeofexpr(ExpressionPair(e1,e2),theta,gamma) =
 
-	(case typeofexpr(e1,theta) of 
+	(case typeofexpr(e1,theta,gamma) of 
 	
 		  (NONE,theta1) => (NONE,theta1)
-		| (SOME(t1),theta1) => (case typeofexpr(e2,theta1) of
+		| (SOME(t1),theta1) => (case typeofexpr(e2,theta1,gamma) of
 		
 			  (NONE,theta2) => (NONE,theta2)
 			| (SOME(t2),theta2) => (SOME (Pair(t1,t2)),theta2)))
 
-|	typeofexpr(Case(e1,VariablePair(x1,x2),e2),theta) =
-(* Calculate the type of e1 recursively, and check it is of the form that can
-   match the pattern p: Pair or THole
-   We only need to calculate type, we are not concerned with the actual value of the expression
-   Supposed e1 types to Pair(a,b)
-   And if it types to 'a, add mapping 'a->Pair(a,b), for fresh a,b type variables
-   Then substitute e2[gen(a)/x][gen(b)/y] and recursively call typeofexpr on e2   
-*)
-	(case typeofexpr(e1,theta) of 
-	
-		  (SOME (THole(TypeHole(tyvar))),theta1) => 
-			let val typevar_type = case tyvar of TypeVar(_)    => TYPE_VAR
-										  | ArithTypeVar(_)    => ARITH_TYPE_VAR
-									      | EqualityTypeVar(_) => EQUALITY_TYPE_VAR;
-				val t1 as THole(TypeHole(fresh1)) = generateFreshTypeVar(typevar_type,theta1);
-				val t2 as THole(TypeHole(fresh2)) = generateFreshTypeVar(typevar_type,theta1);
-				val subExpr = substitute(e2,[(x1,Value(gen(t1,theta))),(x2,Value(gen(t2,theta)))]);
-				val theta2 = Substitution.union(theta1,TypeHole(tyvar),Pair(t1,t2))
-			in typeofexpr(subExpr,theta2) end
+|	typeofexpr(c as Case(e1,VariablePair(x1,x2),e2),theta,gamma) =
+(* For 'case e of (x,y) -> e'
+   First check substitution capture-avoiding
+   Then call typeofexpr recursively on e1
+   The type returned can only be 
+   (i)  simple value hole, v['a]. Here, we can then further say v['a] can be replaced 
+   by compound value hole v[('b,'c)] for fresh 'b and 'c, with the mapping 
+   'a -> 'b * 'c added to the substitution
+   We can even more specific and say 
+		'a -> (  'b *   'c)
+	   ''a -> ( ''b *  ''c)
+	  '''a -> ('''b * '''c)
+   (ii) compound value hole, of form v[('a,'b)]
+   We then check the substitution is capture avoiding (if not, get alpha invariant 
+   version), before calling substitute on e' with x and y mapping to their respective value holes
+   Finally, we calculate the type of that resulting expression *)
+	let val dom = Substitution.domain(gamma);	
+		val fvRan = fv(Substitution.range(gamma))
+	in  
+	if ((element(dom,x1) orelse element(dom,x2)) orelse 
+		(element(fvRan,x1) orelse element(fvRan,x2)))
 		
-		| (SOME (Pair(t1,t2)),theta1) => 
-			let val subExpr = substitute(e2,[(x1,Value(gen(t1,theta))),(x2,Value(gen(t2,theta)))])
-			in typeofexpr(subExpr,theta1) end
-		 
-		| (_,theta1) => (NONE,theta1))
-
-|	typeofexpr(Condition(e1,e2,e3),theta) =
-	(* Only check guard is typeable to Bool. Don't restrict branches *)
+	then (* not capture avoiding - get alpha variant version *)
+		typeofexpr(alphaVariant(c,getCounterAndUpdate(),[x1,x2]),theta,gamma)
 	
-	(case typeofexpr(e1,theta) of 
+	else (* capture avoiding *)
+		(case typeofexpr(e1,theta,gamma) of 
+		
+			  (SOME (THole(TypeHole(ArithTypeVar(_)))),theta1) => (NONE,theta1)
+		
+			| (SOME (THole(TypeHole(tyvar))),theta1) => 
+				let val typevar_type = case tyvar of TypeVar(_)    => TYPE_VAR
+											  | EqualityTypeVar(_) => EQUALITY_TYPE_VAR; 
+					val t1 as THole(TypeHole(fresh1)) = generateFreshTypeVar(typevar_type,theta1);
+					val t2 as THole(TypeHole(fresh2)) = generateFreshTypeVar(typevar_type,theta1);
+					val gent1 = Value(gen(t1,theta1))
+					val gent2 = Value(gen(t2,theta1))
+					val subExpr = substitute(e2,[(x1,gent1),(x2,gent2)]);
+					val theta2 = Substitution.union(theta1,TypeHole(tyvar),Pair(t1,t2))
+					val gamma1 = Substitution.union(Substitution.union(gamma,x1,gent1),x2,gent2)
+				in typeofexpr(subExpr,theta2,gamma1) end
+			
+			| (SOME (Pair(t1,t2)),theta1) => 
+				let val gent1 = Value(gen(t1,theta1))
+					val gent2 = Value(gen(t2,theta1)) 
+					val subExpr = substitute(e2,[(x1,gent1),(x2,gent2)])
+					val gamma1 = Substitution.union(Substitution.union(gamma,x1,gent1),x2,gent2)
+				in typeofexpr(subExpr,theta1,gamma1) end
+			 
+			| (_,theta1) => (NONE,theta1))
+
+	end
+	
+|	typeofexpr(Condition(e1,e2,e3),theta,gamma) =
+	(* First check guard is typeable to Bool
+	   Next check if two branches have same type. If they do, return that type
+	   Otherwise, we do not restrict them to have the same type, so return a fresh
+	   general type variable (this includes if one branch does not type, for the time being)
+	   i.e. Use the information when we have it but don’t stop just because we don’t.
+	   Don't worry about type variables cases, e.g. if branch 1 returns 'a 
+	   and branch 2 returns '''a. For now, just if same concrete type, i.e. Int=Int. 
+	   This will allow us to type expressions like 'if true then 3 else 4', obviously type int *) 
+	
+	(case typeofexpr(e1,theta,gamma) of 
 	
 		  (NONE,theta1) => (NONE,theta1)
-		| (SOME(t1),theta1) => (case t1 of
+		| (SOME(t1),theta1) => 
 		
-			  Bool => 
-				let val freshVar = generateFreshTypeVar(TYPE_VAR,theta1)
-				in (SOME freshVar, theta1) end
+		let fun calculateReturn(theta1) = (case typeofexpr(e2,theta1,gamma) of
+		(* In the cases where we failed to type the two sub expressions to the exact
+		   same type, just return the original type substitution map passed in *)
+		
+			  (NONE,theta2) => (SOME (generateFreshTypeVar(TYPE_VAR,theta2)),theta1)
+			| (SOME(t2),theta2) => (case typeofexpr(e3,theta2,gamma) of
+			
+				  (NONE,theta3) => (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta1)
+				| (SOME(t3),theta3) => 
+					
+					if (t2=t3) 
+					then (SOME t2,theta3)
+					else (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta1)))
+					
+		in (case t1 of
+		
+			  Bool => calculateReturn(theta1)
 			  
-			| THole(TypeHole(TypeVar(a))) =>
-				let val freshVar = generateFreshTypeVar(TYPE_VAR,theta1)
-				in (SOME freshVar, Substitution.union(theta1,TypeHole(TypeVar(a)),Bool)) end
+			| THole(TypeHole(TypeVar(a))) => calculateReturn(Substitution.union(theta1,TypeHole(TypeVar(a)),Bool))
 				
-			| THole(TypeHole(EqualityTypeVar(a))) =>
-				let val freshVar = generateFreshTypeVar(TYPE_VAR,theta1)
-				in (SOME freshVar, Substitution.union(theta1,TypeHole(EqualityTypeVar(a)),Bool)) end
+			| THole(TypeHole(EqualityTypeVar(a))) => calculateReturn(Substitution.union(theta1,TypeHole(EqualityTypeVar(a)),Bool))
 				
-			| _ => (NONE, theta1)));
+			| _ => (NONE, theta1))
+			
+		end);
 

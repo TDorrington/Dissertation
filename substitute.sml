@@ -3,8 +3,8 @@
    to some value in gamma, with that value. Denoted 'gamma e'
    Simply implemented by pattern matching on the structure of the expression
    and recursively calling substitute on its sub-expressions 
-   Only non-trivial case is case expression. Need to perform a capture-avoiding substitution. 	
-*)
+   Only non-trivial case is case expression. Need to perform a capture-avoiding substitution *)
+   
 fun substitute(e,gamma:variableSub) = case e of 
 
 	(* Compound value holes may contain expressions in them *)
@@ -31,13 +31,18 @@ fun substitute(e,gamma:variableSub) = case e of
 			(* must be capture avoiding *)
 			let val dom = Substitution.domain(gamma);
 				val fvRan = fv(Substitution.range(gamma))
-			in 	if (((element(dom,x)=false) andalso (element(dom,y)=false)) andalso 
-				    ((element(fvRan,x)=false) andalso (element(fvRan,y)=false)))
-				then let val Value(VHole(sub)) = substitute(Value(VHole(hole)),gamma)
+			in 	
+				if ((element(dom,x) orelse element(dom,y)) orelse 
+				    (element(fvRan,x) orelse element(fvRan,y)))
+					
+				then substitute(alphaVariant(Value(VHole(c)),getCounterAndUpdate(),[x,y]),gamma)
+				
+				else let val Value(VHole(sub)) = substitute(Value(VHole(hole)),gamma)
 					 in Value(VHole(CaseHole(sub,VariablePair(x,y),substitute(e,gamma)))) end
-				else substitute(alphaVariant(Value(VHole(c)),getCounterAndUpdate(),[x,y]),gamma)
 			end)
 				
+	(* Rest of expressions *)
+	
 	| Value(_) => e
 	
 	| Variable(a) => if Substitution.contains(a,gamma)
@@ -56,24 +61,25 @@ fun substitute(e,gamma:variableSub) = case e of
 		   and x and y are not in the set of free variables of the range of gamma
 		   If these side conditions are not met, replace all occurrences of x and y
 		   within e2 and the expression pair by xn and yn, respectively,
-		   for a unique integer n *)
+		   for a unique integer n (i.e. an alpha invariant of the expression) *)
 		   
 		let val dom = Substitution.domain(gamma);
 			val fvRan = fv(Substitution.range(gamma))
 		in
-			if (((element(dom,x)=false) andalso (element(dom,y)=false)) andalso 
-				((element(fvRan,x)=false) andalso (element(fvRan,y)=false)))
-			then(* Substitution is capture-avoiding
-				   Recursively substitute in body of case expression *)
-				Case(substitute(e1,gamma),VariablePair(x,y),substitute(e2,gamma))
-				
-			else(* Need to generate an alpha invariant version of the case expression
+			if ((element(dom,x) orelse element(dom,y)) orelse 
+				(element(fvRan,x) orelse element(fvRan,y)))
+			then(* Need to generate an alpha invariant version of the case expression
 				   and then call substitute again
 				   We pass in the unique integer we want to append to all variable names
 				   and the list of variables to change is the binding variables in the case
 				   expression: x and y *)
 				substitute(alphaVariant(c,getCounterAndUpdate(),[x,y]),gamma)
-		end
+			
+			else(* Substitution is capture-avoiding
+				   Recursively substitute in body of case expression *)
+				Case(substitute(e1,gamma),VariablePair(x,y),substitute(e2,gamma))
+				
+		end;
 		
 			
 		

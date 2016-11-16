@@ -1,3 +1,4 @@
+
 (* Function to determine if we can take an expression and convert it to a value hole
    (i.e. a value)
    Returns outcome in an option datatype. If not successful, returns NONE

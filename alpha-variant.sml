@@ -7,8 +7,7 @@
    we append a unique integer to it, which is passed from outside the function.
    This is implemented in the function substituteVar
    This preserves de Brujin Indices order: all occurrences of a variable x in expression e 
-   are now ALL referred to as variable xn, after the call to alphaVariant(e,n)
-*)
+   are now ALL referred to as variable xn, after the call to alphaVariant(e,n) *)
 
 fun substituteVar(Var(s),n,vars) = 
 
@@ -23,6 +22,7 @@ fun alphaVariant(e,n,vars) =
 	let fun localSub e = case e of 
 	
 		(* Compound value holes can contain expressions *)
+		
 		  Value(ValuePair(v1,v2)) => 
 			let val Value(alpha1) = localSub(Value(v1));
 				val Value(alpha2) = localSub(Value(v2))
@@ -43,7 +43,9 @@ fun alphaVariant(e,n,vars) =
 				
 			| CaseHole(hole1,VariablePair(x,y),e) =>
 				Value(VHole(CaseHole(hole1,VariablePair(substituteVar(x,n,vars),substituteVar(y,n,vars)),localSub(e)))))
-				
+			
+		(* Rest of expressions *)
+		
 		| Value(_) => e (* int, real or bool *)
 		| ArithExpr(arithOper,e1,e2) => ArithExpr(arithOper,localSub(e1),localSub(e2))
 		| BoolExpr (boolOper, e1,e2) => BoolExpr (boolOper, localSub(e1),localSub(e2))

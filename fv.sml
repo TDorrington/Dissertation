@@ -4,12 +4,12 @@
    We find the free variables of e2, and remove from that set the variables x1 and x2, and
    then finally union that with the free variables of e1
    For example, 
-   case (x,y) of (y,z) -> x+y = ({x,y}-{y,z}) union ({x,y}) = {x,y}
-*)
+   case (x,y) of (y,z) -> x+y = ({x,y}-{y,z}) union ({x,y}) = {x,y} *)
 
 fun fvExpr(e) = case e of 
 
 	(* Compound value holes can contain expressions *)
+	
 	  Value(VHole(hole)) => (case hole of 
 	  
 		  SimpleHole(_) => []
@@ -18,6 +18,9 @@ fun fvExpr(e) = case e of
 		| CaseHole(hole1,VariablePair(x,y),e) => union(fvExpr(Value(VHole(hole1))),remove(fvExpr(e),[x,y])))
 		
 	| Value(ValuePair(v1,v2)) => union(fvExpr(Value(v1)),fvExpr(Value(v2)))
+	
+	(* Rest of expressions *)
+	
 	| Value(_) => [] (* int, real or bool *)
 	| Variable(x) => [x]
 	| ArithExpr(_,e1,e2)    => union(fvExpr(e1),fvExpr(e2))
