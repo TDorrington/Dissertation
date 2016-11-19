@@ -433,8 +433,6 @@ prettyPrintTypeOf(typeof(VHole(ConditionHole(
 	Value(N(3)),Value(N(4)))),[]));
 (* FAIL *)
 
-(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)
-
 prettyPrintTypeOf(typeofexpr(ArithExpr(PLUS,Value(N(3)),Value(N(4))),[],[])); 			(* Int *) 
 prettyPrintTypeOf(typeofexpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(R(5.0))),[],[])); 	(* Real *)
 prettyPrintTypeOf(typeofexpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(N(3))),[],[])); 		(* FAIL *)
@@ -551,73 +549,378 @@ val b''' = THole(TypeHole(ArithTypeVar("b")));
 val c''' = THole(TypeHole(ArithTypeVar("c")));
 val d''' = THole(TypeHole(ArithTypeVar("d")));
 
-fun prettyPrintUnifyTest(constraints,map) =
+fun unifyTest(a,b) = (case unify(a,b) of
 
-	let val (theta,b) = unify(constraints,map)
-	in if b then "[" ^ prettyPrintTheta(theta) ^ "]" else "false" end;
+	  NONE => "FAIL"
+	| SOME(theta) => prettyPrintTheta(theta));
 
-(* test outputs assume true, unless stated otherwise *)
-prettyPrintUnifyTest( [Int,Int], []);	(* [] *)
-prettyPrintUnifyTest( [a',Int], []);	(* [ ('a -> Int) ] *)
-prettyPrintUnifyTest( [a''',Real], []);	(* [ ('''a -> Real) ] *)
-prettyPrintUnifyTest( [a''',Bool], []);	(* false *)
-prettyPrintUnifyTest( [a'',Real], []);	(* false *)
-prettyPrintUnifyTest( [a',b'], []);		(* [ ('a -> 'b) ] *)
-prettyPrintUnifyTest( [a''',b'''], []);	(* [ ('''a -> '''b) ] *)
-prettyPrintUnifyTest( [a'',b'''], []);	(* [ (''a -> Int), ('''b -> Int) ] *)
-prettyPrintUnifyTest( [a',b',c'], []); 	(* [ ('a -> 'c), ('b -> 'c) ] *)
-prettyPrintUnifyTest( [a',b',Int], []); (* [ ('a -> Int'), ('b -> Int)] *)
-prettyPrintUnifyTest( [a',b'',c'''],[]);(* [ ('a -> Int), (''b -> Int), ('''c -> Int) ] *)
-prettyPrintUnifyTest( [Int,Int,Int],[]);(* [] *)
-prettyPrintUnifyTest( [a',Int], [(a'1,Int)]);	(* [ ('a -> Int) ] *)
-prettyPrintUnifyTest( [a',Int], [(a'1,Real)]);  (* false *)
-prettyPrintUnifyTest( [a',b',c'], [(a'1,Int)]);	(* [ ('b -> Int), ('c -> Int), ('a -> Int) ] *)
-prettyPrintUnifyTest( [a',b',c'], [(a'1,Int),(b'1,Real)]);  (* false *)
-prettyPrintUnifyTest( [a',b'',c'''], [(a'1,Int)]);			(* [ (('b -> Int), ('c -> Int) ] *)
-prettyPrintUnifyTest( [a',b'',c'''], [(a'1,Int), (b''1,Int)]);  (* [ ('a -> Int), ('b -> Int), ('''c -> Int) ] *)
-prettyPrintUnifyTest( [a',b'',c'''], [(a'1,Real)]); 		(* false *)
-prettyPrintUnifyTest( [Pair(Int,Int),Pair(Int,Int)], []);  	(* [] *)
-prettyPrintUnifyTest( [Pair(a',Int),Pair(Real,b')], []);	(* [ ('a -> Real), ('b -> Int) ] *)
-prettyPrintUnifyTest( [a',Pair(Real,Real)], []);			(* [ ('a -> Real * Real) ] *)
-prettyPrintUnifyTest( [a',Pair(a',Int),Pair(Real,b')], []);	(* false *)
-prettyPrintUnifyTest( [a',Pair(c',Int),Pair(Real,b')], []);	(* [ 'a -> Real * Int, 'c -> Real, 'b -> Int *)
-prettyPrintUnifyTest( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Int], []); (* false *)
-prettyPrintUnifyTest( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Pair(Pair(a'',a'''),Pair(Bool,d'))], []);
+unifyTest( [Int,Int], []);	(* [] *)
+unifyTest( [a',Int], []);	(* [ ('a -> Int) ] *)
+unifyTest( [a''',Real], []);	(* [ ('''a -> Real) ] *)
+unifyTest( [a''',Bool], []);	(* FAIL *)
+unifyTest( [a'',Real], []);		(* FAIL *)
+unifyTest( [a',b'], []);		(* [ ('a -> 'b) ] *)
+unifyTest( [a''',b'''], []);	(* [ ('''a -> '''b) ] *)
+unifyTest( [a'',b'''], []);		(* [ (''a -> Int), ('''b -> Int) ] *)
+unifyTest( [a',b',c'], []); 	(* [ ('a -> 'c), ('b -> 'c) ] *)
+unifyTest( [a',b',Int], []); 	(* [ ('a -> Int'), ('b -> Int)] *)
+unifyTest( [a',b'',c'''],[]);	(* [ ('a -> Int), (''b -> Int), ('''c -> Int) ] *)
+unifyTest( [Int,Int,Int],[]);	(* [] *)
+unifyTest( [a',Int], [(a'1,Int)]);		(* [ ('a -> Int) ] *)
+unifyTest( [a',Int], [(a'1,Real)]);  	(* FAIL *)
+unifyTest( [a',b',c'], [(a'1,Int)]);	(* [ ('b -> Int), ('c -> Int), ('a -> Int) ] *)
+unifyTest( [a',b',c'], [(a'1,Int),(b'1,Real)]);  (* FAIL *)
+unifyTest( [a',b'',c'''], [(a'1,Int)]);				(* [ (''b -> Int), ('''c -> Int), ('a -> Int) ] *)
+unifyTest( [a',b'',c'''], [(a'1,Int), (b''1,Int)]); (* [ ('a -> Int), (''b -> Int), ('''c -> Int) ] *)
+unifyTest( [a',b'',c'''], [(a'1,Real)]); 			(* FAIL *)
+unifyTest( [Pair(Int,Int),Pair(Int,Int)], []);  	(* [] *)
+unifyTest( [Pair(a',Int),Pair(Real,b')], []);		(* [ ('a -> Real), ('b -> Int) ] *)
+unifyTest( [a',Pair(Real,Real)], []);				(* [ ('a -> Real * Real) ] *)
+unifyTest( [a',Pair(a',Int),Pair(Real,b')], []);	(* FAIL *)
+unifyTest( [a',Pair(c',Int),Pair(Real,b')], []);	(* [ 'a -> Real * Int, 'c -> Real, 'b -> Int *)
+unifyTest( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Int], []); (* FAIL *)
+unifyTest( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Pair(Pair(a'',a'''),Pair(Bool,d'))], []);
 	(* ['a -> ( (Int * Int) * (Bool * 'd) ), '''c -> Int, ''a -> Int, '''a -> Int, 'b -> 'd ] *)
-prettyPrintUnifyTest( [a',Pair(Int,Real)], [(a'1,Int)]);  (* false *)
-prettyPrintUnifyTest( [a',Pair(b',c')], [(b'1,Int),(c'1,Int)]); (* [ 'a -> Int * Int, 'b -> Int, 'c -> Int ] *)
+unifyTest( [a',Pair(Int,Real)], [(a'1,Int)]); 	 	 (* FAIL *)
+unifyTest( [a',Pair(b',c')], [(b'1,Int),(c'1,Int)]); (* [ 'a -> Int * Int, 'b -> Int, 'c -> Int ] *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR NARROW *)
 (* will use unify in its implementation, so also further tests for this *)
 
-(* basic primitive values: int, real, bool *)
 prettyPrintConfig(narrow(N(3),Int,[],[]));		(* 3,     [], [] *)
 prettyPrintConfig(narrow(R(3.0),Real,[],[]));	(* 3.0,   [], [] *)
 prettyPrintConfig(narrow(N(3),Real,[],[]));		(* Stuck, [], [] *)
 prettyPrintConfig(narrow(B(true),Bool,[],[]));	(* true,  [] ,[] *)
 prettyPrintConfig(narrow(B(false),Int,[],[]));	(* Stuck, [], [] *)
 
-(* tests for pairs *)
 prettyPrintConfig(narrow(ValuePair(N(3),N(4)),Pair(Int,Int),[],[])); (* (3,4), [], [] *)
 prettyPrintConfig(narrow(ValuePair(R(3.0),B(true)),Pair(Real,Bool),[],[])); (* (3.0,true), [], [] *)
 prettyPrintConfig(narrow(ValuePair(R(3.0),B(true)),Pair(Bool,Real),[],[])); (* (Stuck, [], [] *)
 
-(* tests for value holes *)
-val va' = VHole(ValueHole(TypeVar("a")));
-val vb' = VHole(ValueHole(TypeVar("b")));
+val va' = VHole(SimpleHole(ValueHole(TypeVar("a"))));
+val vb' = VHole(SimpleHole(ValueHole(TypeVar("b"))));
+val vc' = VHole(SimpleHole(ValueHole(TypeVar("c"))));
+val vd' = VHole(SimpleHole(ValueHole(TypeVar("d"))));
+val ve' = VHole(SimpleHole(ValueHole(TypeVar("e"))));
+val vf' = VHole(SimpleHole(ValueHole(TypeVar("f"))));
 
-val va'' = VHole(ValueHole(EqualityTypeVar("a")));
-val vb'' = VHole(ValueHole(EqualityTypeVar("b")));
+val va'' = VHole(SimpleHole(ValueHole(EqualityTypeVar("a"))));
+val vb'' = VHole(SimpleHole(ValueHole(EqualityTypeVar("b"))));
 
-val va''' = VHole(ValueHole(ArithTypeVar("a")));
-val vb''' = VHole(ValueHole(ArithTypeVar("b")));
+val va''' = VHole(SimpleHole(ValueHole(ArithTypeVar("a"))));
+val vb''' = VHole(SimpleHole(ValueHole(ArithTypeVar("b"))));
 
-prettyPrintConfig(narrow(va',Int,[],[])); 	(* 1, [v['a]->1],   ['a->Int]   *)
-prettyPrintConfig(narrow(va'',Int,[],[]));	(* 1, [v[''a]->1],  [''a->Int]  *)
-prettyPrintConfig(narrow(va''',Int,[],[]));	(* 1, [v['''a]->1], ['''a->Int] *)
-prettyPrintConfig(narrow(va''',Bool,[],[]));(* Stuck, [], [] *)
-prettyPrintConfig(narrow(va',Pair(Int,Int),[],[])); (* (1,2), [v['a]->(1,1)], ['a->Int*Int] *)
+prettyPrintConfig(narrow(ValuePair(R(3.0),B(true)),a',[],[])); 	(* (3.0,true), [], ['a1 -> bool, 'a0 -> real, 'a -> ('a0 * 'a1)] *)
+prettyPrintConfig(narrow(ValuePair(N(4),N(4)),a'',[],[]));	 	(* (4,4), [], [''a1 -> int, ''a0 -> int, ''a -> (''a0 * ''a1)] *)
+prettyPrintConfig(narrow(ValuePair(R(3.0),R(5.0)),b'',[],[]));	(* Stuck, [], [''b -> (''a0 * ''a1)] *)
+prettyPrintConfig(narrow(ValuePair(B(true),N(3)),a''',[],[]));	(* Stuck, [], [] *)
+prettyPrintConfig(narrow(ValuePair(ValuePair(N(3),N(3)),ValuePair(R(2.0),R(1.0))),a''',[],[]));		(* Stuck, [], [] *)
+prettyPrintConfig(narrow(ValuePair(ValuePair(N(3),B(true)),ValuePair(R(2.0),R(1.0))),a''',[],[]));	(* Stuck, [], [] *)
+
+prettyPrintConfig(narrow(ValuePair(ValuePair(N(3),B(true)),ValuePair(B(false),N(1))),a'',[],[]));	
+(* ((3,true),(false,1)), [], [''a2 -> int, ''a3 -> bool, ''a4 -> bool, ''a5 -> int, ''a0 -> (''a4 * ''a5), ''a1 -> (''a2 * ''a3), ''a -> (''a1 * ''a0)] *)
+
+prettyPrintConfig(narrow(ValuePair(ValuePair(N(3),B(true)),ValuePair(R(2.0),R(1.0))),a',[],[]));
+(* ((3,true),(2.0,1.0)), [], ['a63 -> real, 'a62 -> real, 'a59 -> ('a62 * 'a63), 'a61 -> bool, 'a60 -> int, 'a58 -> ('a60 * 'a61), 'a -> ('a58 * 'a59)] *)
+
+prettyPrintConfig(narrow(va',Int,[],[])); 			(* 1, [v['a]->1],   ['a->Int]   *)
+prettyPrintConfig(narrow(va'',Int,[],[]));			(* 1, [v[''a]->1],  [''a->Int]  *)
+prettyPrintConfig(narrow(va''',Int,[],[]));			(* 1, [v['''a]->1], ['''a->Int] *)
+prettyPrintConfig(narrow(va''',Bool,[],[]));		(* Stuck, [], [] *)
+prettyPrintConfig(narrow(va',Pair(Int,Int),[],[])); (* (1,1), [v['a]->(1,1)], ['a->Int*Int] *)
 prettyPrintConfig(narrow(va',Pair(b',c'),[],[]));	(* (v['b],v['c]), [v['a]->(v['b],v['c])], ['a -> 'b * 'c] *)
-prettyPrintConfig(narrow(va',Pair(a',b'),[],[]));	(* Occurs check: Stuck, [], [] *)
+prettyPrintConfig(narrow(va',Pair(a',b'),[],[]));	(* Stuck, [], [] *)
 prettyPrintConfig(narrow(va''',b'',[],[]));			(* 1, [v['''a]->1], ['''a->Int,''b->Int] *)
+
+prettyPrintConfig(narrowExpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(R(5.0))),Real,[],[])); 	(* 3.0/5.0, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(R(5.0))),Int,[],[]));		(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(DIVIDE,Value(N(3)),Value(R(5.0))),Real,[],[]));		(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(ValuePair(R(5.0),B(true)))),Real,[],[]));	(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(DIVIDE,Value(va'),Value(R(5.0))),Real,[],[]));		(* 1.0/5.0, [v['a]->1.0], ['a->Real] *)
+prettyPrintConfig(narrowExpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(va'')),Real,[],[]));		(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(DIVIDE,Value(va'),Value(vb''')),Real,[],[]));		(* 1.0/1.0, [ v['a]->1.0, v['''b]->1.0 ], ['a->Real, '''b->Real] *)
+prettyPrintConfig(narrowExpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(va''')),Real,[],[]));		(* 3.0/1.0, [ v['''a]->1.0], ['''a->Real] *)
+prettyPrintConfig(narrowExpr(ArithExpr(DIVIDE,Value(va'''),Value(va''')),Real,[],[]));		(* 1.0/1.0, [ v['''a]->1.0], ['''a->Real] *)
+
+prettyPrintConfig(narrowExpr(ArithExpr(PLUS,Value(R(3.0)),Value(R(5.0))),Real,[],[])); 		(* 3.0/5.0, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(R(3.0)),Value(R(5.0))),Int,[],[]));		(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(PLUS,Value(N(3)),Value(R(5.0))),Real,[],[]));		(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(SUBTRACT,Value(R(3.0)),Value(ValuePair(R(5.0),B(true)))),Real,[],[]));	(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(SUBTRACT,Value(va'),Value(R(5.0))),Real,[],[]));		(* 1.0 - 5.0, [v['a]->1.0], ['a->Real] *)
+prettyPrintConfig(narrowExpr(ArithExpr(SUBTRACT,Value(R(3.0)),Value(va'')),Real,[],[]));	(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(SUBTRACT,Value(va'),Value(vb''')),Real,[],[]));		(* 1.0 - 1.0, [ v['a]->1.0, v['''b]->1.0 ], ['a->Real, '''b->Real] *)
+prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(N(5)),Value(va''')),Real,[],[]));		(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(N(5)),Value(va''')),Int,[],[]));			(* 5 * 1, [v['''a]->1], ['''a->Int] *)
+prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(N(5)),Value(va''')),Bool,[],[]));		(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(va'''),Value(va''')),Real,[],[]));		(* 1.0 * 1.0, [ v['''a]->1.0], ['''a->Real] *)
+prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(va'''),Value(va''')),a''',[],[]));		(* v['''a] * v['''a], [], [] *)
+prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(va'),Value(va')),a''',[],[]));			(* v['''a] * v['''a], [v['a]->v['''a]], ['a->'''a] *)
+prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(va''),Value(va'')),a''',[],[]));			(* 1* 1, [v[''a]->1], [''a->Int, '''a->Int] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(LESS,Value(R(3.0)),Value(R(5.0))),Bool,[],[])); 		(* 3.0 < 5.0, [], [] *)
+prettyPrintConfig(narrowExpr(BoolExpr(LESS,Value(R(3.0)),Value(R(5.0))),Int,[],[]));		(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(BoolExpr(LESS,Value(N(3)),Value(R(5.0))),Bool,[],[]));			(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(BoolExpr(MORE,Value(R(3.0)),Value(ValuePair(R(5.0),B(true)))),Bool,[],[]));	(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(BoolExpr(MORE_EQ,Value(va'),Value(N(2))),Bool,[],[]));			(* 1 >= 2, [v['a]->1], ['a->Int] *)
+prettyPrintConfig(narrowExpr(BoolExpr(LESS_EQ,Value(R(3.0)),Value(va'')),Bool,[],[]));		(* Stuck, [], [] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(LESS_EQ,Value(va'),Value(vb''')),Bool,[],[]));		
+(* v['''a0] <= v['''a0], [ v['a]->v['''a0], v['''b]->v['''a0] ], ['a->'''a0, '''b->'''a0] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(LESS,Value(N(5)),Value(va''')),Bool,[],[]));			(* 5 < 1, [ v['''a]->1 ], ['''a->Int] *)
+prettyPrintConfig(narrowExpr(BoolExpr(MORE,Value(va'''),Value(va''')),Bool,[],[]));			
+(* v['''a0] > v['''a0], [v['''a]->v['''a0]], ['''a->'''a0] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(R(3.0)),Value(R(5.0))),Bool,[],[])); 		(* 3.0 = 5.0, [], [] *)
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(R(3.0)),Value(R(5.0))),Int,[],[]));			(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(N(3)),Value(R(5.0))),Bool,[],[]));			(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(R(3.0)),Value(ValuePair(R(5.0),B(true)))),Bool,[],[]));	(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(va'),Value(N(2))),Bool,[],[]));				(* 1 = 2, [v['a]->1], ['a->Int] *)
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(R(3.0)),Value(va'')),Bool,[],[]));			(* Stuck, [], [] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(va'),Value(vb''')),Bool,[],[]));		
+(* v[''a0] = 1, [ v['a]->v[''a0], v['''b]->1 ], ['a->''a0, '''b->Int, ''a0->Int] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(N(5)),Value(va''')),Bool,[],[]));		(* 5 = 1, [ v['''a]->1 ], ['''a->Int] *)
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(va'''),Value(va''')),Bool,[],[]));			
+(* 1 = 1, [v['''a]->1], ['''a->int, ''a0->int] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(ValuePair(R(5.0),B(true))),Value(ValuePair(R(5.0),B(true)))),Bool,[],[]));
+(* (5.0,true) = (5.0,true), [], [] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(ValuePair(R(5.0),B(true))),Value(ValuePair(R(3.0),B(true)))),Bool,[],[]));
+(* (5.0,true) = (3.0,true), [], [] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(ValuePair(R(5.0),B(true))),Value(ValuePair(N(5),B(true)))),Bool,[],[]));
+(* Stuck, [], [] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(ValuePair(ValuePair(R(5.0),B(true)),ValuePair(R(5.0),B(true)))),
+										 Value(ValuePair(ValuePair(R(5.0),B(true)),ValuePair(R(5.0),B(true))))),Bool,[],[]));
+(* ((5.0,true),(5.0,true)) = ((5.0,true),(5.0,true)), [], [] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,ExpressionPair(Value(ValuePair(R(5.0),B(true))),Condition(Value(va'),Value(N(4)),Value(N(5)))),
+										 ExpressionPair(Value(ValuePair(vb',B(true))),Value(N(3)))),Bool,[],[]));
+(* ((5.0,true), if true then 4 else 5) = ((1.0,true),3), [v['a]->true, v['b]->1.0], ['a->bool,'b->real] *)
+
+prettyPrintConfig(narrowExpr(ExpressionPair(Condition(Value(va'),Value(vb'),Value(vc')),Condition(Value(B(true)),Value(vd'),Value(ve'))),
+							 Pair(Int,Bool),[],[]));
+(* (if true then 1 else 1, if true then true else true), [v['e]->true,v['d]->true,v['c]->1,v['b]->1,v['a]->true],
+   ['a->bool,'b->int,'c->int,'d->bool,'e->bool] *)
+			
+prettyPrintConfig(narrowExpr(Condition(
+	Condition(Value(va'),Value(B(true)),Value(B(false))),
+	Condition(Condition(Value(B(true)),Value(B(true)),Value(vb')),Value(vc'),Value(N(3))),
+	Condition(Value(B(true)),Value(N(5)),Value(vd'))),Int,[],[]));
+(*
+if (if v['a] then true else false)
+then if (if true then true else v['b]) then v['c] else 3
+else if true then 5 else v['d] 
+=>
+if if true then true else false 
+then if if true then true else true then 1 else 3
+else if true then 5 else 1,
+[v['a]->true,v['b]->true,v['c]->1,v['d]->1],
+[a'->bool,'b->bool,'c->int,'d->int] 
+*)
+	
+prettyPrintConfig(narrowExpr(
+	Case(ExpressionPair(Value(va'),Value(vb')),VariablePair(Var("x"),Var("y")),
+		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),Int,[],[]));
+(* case (1,1) of (x,y) -> x+y, [ v['a]->1,v['b]->1 ], ['a->Int,'b->Int] *)				
+				
+prettyPrintConfig(narrowExpr(
+	Case(ExpressionPair(Value(va'),Value(vb')),VariablePair(Var("x"),Var("y")),
+		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),Real,[],[]));
+(* case (1.0,1.0) of (x,y) -> x+y, [v['a]->1.0,v['b]->1.0], ['a->Real,'b->Real] *)
+
+prettyPrintConfig(narrowExpr(
+	Case(Value(ValuePair(va',vb')),VariablePair(Var("x"),Var("y")),
+		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),Int,[],[]));
+(* case (1.0,1.0) of (x,y) -> x+y, [v['a]->1.0,v['b]->1.0], ['a->Real,'b->Real] *)
+
+prettyPrintConfig(narrowExpr(
+	Case(Value(ValuePair(va',vb')),VariablePair(Var("x"),Var("y")),
+		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),Real,[],[]));
+(* case (1.0,1.0) of (x,y) -> x+y, [v['a]->1.0,v['b]->1.0], ['a->Real,'b->Real] *)
+	
+prettyPrintConfig(narrowExpr(
+	Case(Value(ValuePair(va',vb')),VariablePair(Var("x"),Var("y")),
+		 ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("y")))),Real,[],[]));
+(* case (1.0,1.0) of (x,y) -> x/y, [v['a]->1.0,v['b]->1.0], ['a->Real,'b->Real] *)
+
+prettyPrintConfig(narrowExpr(
+	Case(Value(ValuePair(va',vb')),VariablePair(Var("x"),Var("y")),
+		 ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("y")))),Int,[],[]));
+(* Stuck, [], [] *)
+
+prettyPrintConfig(narrowExpr(
+	Case(Value(vc'),
+		 VariablePair(Var("x"),Var("y")),
+		 ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("y")))),Real,[],[]));
+(* Stuck, [], [] *)
+
+(* ----------------------------------------------------------------------------------- *)
+(* TEST CASES FOR EVALUATE *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(PLUS,Value(N(3)),Value(N(4)))),[],[])));
+(* 7, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(TIMES,Value(N(3)),Value(N(4)))),[],[])));
+(* 12, [], [] *) 
+
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(SUBTRACT,Value(N(3)),Value(N(4)))),[],[])));
+(* ~1, [], [] *)
+	
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(DIVIDE,Value(N(3)),Value(N(4)))),[],[])));
+(* Stuck, [], [] *)
+	
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(PLUS,Value(R(3.0)),Value(R(4.0)))),[],[])));
+(* 7.0, [], [] *)
+	
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(TIMES,Value(R(3.0)),Value(R(4.0)))),[],[])));
+(* 12.0, [], [] *)
+	
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(SUBTRACT,Value(R(3.0)),Value(R(4.0)))),[],[])));
+(* ~1.0, [], [] *)
+	
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(DIVIDE,Value(R(3.0)),Value(R(4.0)))),[],[])));
+(* 0.75, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(SUBTRACT,Value(R(3.0)),Value(N(4)))),[],[])));
+(* Stuck, [], [] *)
+	
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(DIVIDE,Value(N(3)),Value(R(4.0)))),[],[])));
+(* Stuck, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(PLUS,
+		ArithExpr(SUBTRACT,Value(N(3)),Value(N(4))),
+		ArithExpr(TIMES,Value(N(5)),Value(N(2))))),[],[])));
+(* 9, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(PLUS,
+		ArithExpr(SUBTRACT,
+			ArithExpr(PLUS,Value(N(10)),Value(N(4))),
+			ArithExpr(PLUS,Value(N(3)),Value(N(~1)))),
+		ArithExpr(TIMES,
+			ArithExpr(TIMES,Value(N(3)),Value(N(4))),
+			ArithExpr(SUBTRACT,Value(N(3)),Value(N(2)))))),[],[])));
+(* [(10+4)-(3+-1)] + [(3*4)*(3-2)] => 24, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(PLUS,
+		ArithExpr(SUBTRACT,
+			ArithExpr(PLUS,Value(N(10)),Value(N(4))),
+			ArithExpr(PLUS,Value(N(3)),Value(N(~1)))),
+		ArithExpr(TIMES,
+			ArithExpr(TIMES,Value(N(3)),Value(N(4))),
+			ArithExpr(SUBTRACT,Value(N(3)),Value(R(2.0)))))),[],[])));
+(* Stuck, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(PLUS,
+		ArithExpr(SUBTRACT,
+			ArithExpr(PLUS,Value(R(10.0)),Value(R(4.0))),
+			ArithExpr(PLUS,Value(R(3.0)),Value(R(~1.0)))),
+		ArithExpr(TIMES,
+			ArithExpr(TIMES,Value(R(3.0)),Value(R(4.0))),
+			ArithExpr(SUBTRACT,Value(R(3.0)),Value(R(2.0)))))),[],[])));
+(* Same as 2 above, but real => 24.0, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	ArithExpr(PLUS,
+		ArithExpr(SUBTRACT,
+			ArithExpr(DIVIDE,Value(R(10.0)),Value(R(5.0))),
+			ArithExpr(DIVIDE,Value(R(3.0)),Value(R(1.0)))),
+		ArithExpr(TIMES,
+			ArithExpr(TIMES,Value(R(3.0)),Value(R(4.0))),
+			ArithExpr(SUBTRACT,Value(R(3.0)),Value(R(2.0)))))),[],[])));
+(* 11.0, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	BoolExpr(LESS,
+		ArithExpr(SUBTRACT,
+			ArithExpr(DIVIDE,Value(R(10.0)),Value(R(5.0))),
+			ArithExpr(DIVIDE,Value(R(3.0)),Value(R(1.0)))),
+		ArithExpr(TIMES,
+			ArithExpr(TIMES,Value(R(3.0)),Value(R(4.0))),
+			ArithExpr(SUBTRACT,Value(R(3.0)),Value(R(2.0)))))),[],[])));
+(* true, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	BoolExpr(MORE,
+		ArithExpr(SUBTRACT,
+			ArithExpr(DIVIDE,Value(R(10.0)),Value(R(5.0))),
+			ArithExpr(DIVIDE,Value(R(3.0)),Value(R(1.0)))),
+		ArithExpr(TIMES,
+			ArithExpr(TIMES,Value(R(3.0)),Value(R(4.0))),
+			ArithExpr(SUBTRACT,Value(R(3.0)),Value(R(2.0)))))),[],[])));
+(* False, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	BoolExpr(LESS_EQ,
+		ArithExpr(PLUS,
+			ArithExpr(TIMES,Value(N(2)),Value(N(4))),
+			ArithExpr(SUBTRACT,Value(N(3)),Value(N(3)))),
+		ArithExpr(TIMES,
+			ArithExpr(PLUS,Value(N(3)),Value(N(1))),
+			ArithExpr(PLUS,Value(N(1)),Value(N(1)))))),[],[])));
+(* True, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	BoolExpr(EQ,
+		ArithExpr(PLUS,
+			ArithExpr(TIMES,Value(N(2)),Value(N(4))),
+			ArithExpr(SUBTRACT,Value(N(3)),Value(N(3)))),
+		ArithExpr(TIMES,
+			ArithExpr(PLUS,Value(N(3)),Value(N(1))),
+			ArithExpr(PLUS,Value(N(1)),Value(N(1)))))),[],[])));
+(* True, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	BoolExpr(EQ,
+		ArithExpr(SUBTRACT,
+			ArithExpr(DIVIDE,Value(R(10.0)),Value(R(5.0))),
+			ArithExpr(DIVIDE,Value(R(3.0)),Value(R(1.0)))),
+		ArithExpr(TIMES,
+			ArithExpr(TIMES,Value(R(3.0)),Value(R(4.0))),
+			ArithExpr(SUBTRACT,Value(R(3.0)),Value(R(2.0)))))),[],[])));
+(* Stuck, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	BoolExpr(EQ,
+		Value(ValuePair(N(3),B(true))),
+		Value(ValuePair(N(3),B(true))))),[],[])));
+(* True, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	BoolExpr(EQ,
+		Value(ValuePair(N(3),B(true))),
+		Value(ValuePair(N(4),B(true))))),[],[])));
+(* False, [], [] *)
+
+prettyPrintConfig(evaluate(Config(Expression(
+	BoolExpr(EQ,
+		Value(ValuePair(ValuePair(N(5),B(false)),ValuePair(N(3),B(true)))),
+		Value(ValuePair(ValuePair(N(5),B(false)),ValuePair(N(3),B(true)))))),[],[])));
+(* True, [], [] *)
+	
+prettyPrintConfig(evaluate(Config(Expression(
+	BoolExpr(EQ,
+		Value(ValuePair(N(3),B(true))),
+		ExpressionPair(Value(N(3)),Value(B(true))))),[],[])));
+(* True, [], [] *)
+	
+(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)

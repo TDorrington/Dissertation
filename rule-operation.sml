@@ -15,8 +15,8 @@ val logicalInt = fn oper => fn (N(n1), N(n2)) => B(oper(n1,n2));
 val logicalReal = fn oper => fn (R(r1), R(r2)) => B(oper(r1,r2));
 
 (* Function that wraps I/O of b=b in value datatype *)
-val logicalBool = fn oper => fn (B(b1), B(b2)) => B(oper(b1,b2));
-
+val logicalBool = fn (B(b1), B(b2)) => B(b1 = b2);
+		
 (* -------------------------------------------------------------------------------- *)
 (* Rules for arithmetic and boolean operations that can be evaluated 
    i.e. both arguments to operator not value holes *)
@@ -36,7 +36,7 @@ fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t) : config =
 			| _ =>
 							
 				(* get value using type & value substitutions from n1 *)
-				let val Config(Expression(Value(n3)),sigma3,theta3) = narrow(v2,t,sigma1,theta1);	
+				let val Config(Expression(Value(n3)),sigma3,theta3) = narrow(v2,t,sigma1,theta1)	
 						
 				in Config(Expression(Value(oper(n1,n3))), sigma3, theta3) end);
 				
@@ -87,35 +87,67 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 		
 		(* For bool arguments, can only be operator equal *)
 		| (B(_),B(_)) 	     =>
-			if oper = BoolOper(EQ) then elabPhraseOperationEvaluate(v1,v2,sigma,theta,logicalBool(op=),Bool)
+			if oper = BoolOper(EQ) then elabPhraseOperationEvaluate(v1,v2,sigma,theta,logicalBool,Bool)
 								   else Config(Stuck,sigma,theta)
 		| (B(_),VHole(_)) 	 =>
-			if oper = BoolOper(EQ) then elabPhraseOperationEvaluate(v1,v2,sigma,theta,logicalBool(op=),Bool)
+			if oper = BoolOper(EQ) then elabPhraseOperationEvaluate(v1,v2,sigma,theta,logicalBool,Bool)
 								   else Config(Stuck,sigma,theta)
 		| (VHole(_),B(_)) 	 =>
-			if oper = BoolOper(EQ) then elabPhraseOperationEvaluate(v1,v2,sigma,theta,logicalBool(op=),Bool)
+			if oper = BoolOper(EQ) then elabPhraseOperationEvaluate(v1,v2,sigma,theta,logicalBool,Bool)
 								   else Config(Stuck,sigma,theta)
 		
 		(* For pair arguments, can only be operator equal
-		   Pass the type which pair must narrow to to be the type of arbitrary pair *)
-		| (ValuePair(_),ValuePair(_)) =>
-			if oper = BoolOper(EQ) 
-			then (case typeof(v1,theta) of
-				    (NONE,_) => Config(Stuck,sigma,theta)
-				  | (SOME(pairType),theta1) => elabPhraseOperationEvaluate(v1,v2,sigma,theta1,logicalBool(op=),pairType))
-		    else Config(Stuck,sigma,theta)
-		| (ValuePair(_),VHole(_)) =>
-			if oper = BoolOper(EQ) 
-			then (case typeof(v1,theta) of
-				    (NONE,_) => Config(Stuck,sigma,theta)
-				  | (SOME(pairType),theta1) => elabPhraseOperationEvaluate(v1,v2,sigma,theta1,logicalBool(op=),pairType))
-		    else Config(Stuck,sigma,theta)		
-		| (VHole(_),ValuePair(_)) =>
-			if oper = BoolOper(EQ) 
-			then (case typeof(v2,theta) of
-				    (NONE,_) => Config(Stuck,sigma,theta)
-				  | (SOME(pairType),theta1) => elabPhraseOperationEvaluate(v1,v2,sigma,theta1,logicalBool(op=),pairType))
-		    else Config(Stuck,sigma,theta)
+		   Recursively call this function on each of the pair arguments, 
+		   after the possibility of narrowing a value hole to be a pair type *)
+		   
+		| (ValuePair(va1,va2),ValuePair(vb1,vb2)) =>
+		if oper = BoolOper(EQ) 
+		then let val Config(Expression(e1),sigma1,theta1) = elabPhraseOperation(va1,vb1,sigma,theta,oper);
+			     val Config(Expression(e2),sigma2,theta2) = elabPhraseOperation(va2,vb2,sigma1,theta1,oper)
+				 in (case (e1,e2) of
+				
+					  (Value(B(b1)),Value(B(b2))) => Config(Expression(Value(B(b1 andalso b2))),sigma2,theta2)
+					| _ => Config(Expression(BoolExpr(EQ,Value(v1),Value(v2))),sigma2,theta2))
+				end
+		else Config(Stuck,sigma,theta)
+			
+		| (ValuePair(va1,va2),VHole(_)) =>
+		if oper = BoolOper(EQ) 
+		then (case typeof(v1,theta) of
+			
+		    (NONE,_) => Config(Stuck,sigma,theta)
+		  | (SOME(pairType),theta1) => (case narrow(v2,pairType,sigma,theta1) of 
+				  
+		   	  c1 as Config(Stuck,sigma2,theta2) => c1
+			| Config(Expression(Value(ValuePair(vb1,vb2))),sigma2,theta2) =>
+					
+				let val Config(Expression(e1),sigma3,theta3) = elabPhraseOperation(va1,vb1,sigma2,theta2,oper);
+					val Config(Expression(e2),sigma4,theta4) = elabPhraseOperation(va2,vb2,sigma3,theta3,oper)
+				in (case (e1,e2) of
+				
+					  (Value(B(b1)),Value(B(b2))) => Config(Expression(Value(B(b1 andalso b2))),sigma4,theta4)
+					| _ => Config(Expression(BoolExpr(EQ,Value(v1),Value(ValuePair(vb1,vb2)))),sigma4,theta4))
+				end))
+		else Config(Stuck,sigma,theta)		
+			
+		| (VHole(_),ValuePair(vb1,vb2)) =>
+		if oper = BoolOper(EQ) 
+		then (case typeof(v2,theta) of
+			
+		    (NONE,_) => Config(Stuck,sigma,theta)
+		  | (SOME(pairType),theta1) => (case narrow(v1,pairType,sigma,theta1) of 
+				  
+		   	  c1 as Config(Stuck,sigma2,theta2) => c1
+			| Config(Expression(Value(ValuePair(va1,va2))),sigma2,theta2) =>
+					
+				let val Config(Expression(e1),sigma3,theta3) = elabPhraseOperation(va1,vb1,sigma2,theta2,oper);
+					val Config(Expression(e2),sigma4,theta4) = elabPhraseOperation(va2,vb2,sigma3,theta3,oper)
+				in (case (e1,e2) of
+				
+					  (Value(B(b1)),Value(B(b2))) => Config(Expression(Value(B(b1 andalso b2))),sigma4,theta4)
+					| _ => Config(Expression(BoolExpr(EQ,Value(v1),Value(ValuePair(vb1,vb2)))),sigma4,theta4))
+				end))
+		else Config(Stuck,sigma,theta)	
 		
 		| (VHole(SimpleHole(ValueHole(a))),VHole(SimpleHole(ValueHole(b)))) =>
 		  (* We cannot evaluate v['a] op v['b] as it stands, so instead narrow 'a and 'b to be 
@@ -140,7 +172,7 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 				val t = (case oper of 
 					  ArithOper(DIVIDE) => Real 
 					| BoolOper(EQ)      => generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
-					| _      => generateFreshTypeVar(ARITH_TYPE_VAR,theta))
+					| _   			    => generateFreshTypeVar(ARITH_TYPE_VAR,theta))
 				
 			in (case narrow(v1,t,sigma,theta) of
 					
@@ -155,14 +187,26 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 					          else elabPhraseOperationEvaluate(v1,v2,sigma1,theta1,intWrap,Int)
 					| R(_) => if oper = BoolOper(EQ) then Config(Stuck,sigma1,theta1)
 							  else elabPhraseOperationEvaluate(v1,v2,sigma1,theta1,realWrap,Real)
-					| B(_) => if oper = BoolOper(EQ) then elabPhraseOperationEvaluate(v1,v2,sigma1,theta1,logicalBool(op=),Bool)
+					| B(_) => if oper = BoolOper(EQ) then elabPhraseOperationEvaluate(v1,v2,sigma1,theta1,logicalBool,Bool)
 							  else Config(Stuck,sigma1,theta1)
 					| ValuePair(_) => 
 						if oper = BoolOper(EQ) 
-						then (case typeof(v1,theta1) of
-								(NONE,_) => Config(Stuck,sigma,theta1)
-							  | (SOME(pairType),theta2) => elabPhraseOperationEvaluate(v1,v2,sigma,theta2,logicalBool(op=),pairType))
-						else Config(Stuck,sigma,theta1)
+						then (case typeof(n1,theta1) of
+							
+							(NONE,_) => Config(Stuck,sigma1,theta1)
+						  | (SOME(pairType),theta2) => (case narrow(v2,pairType,sigma1,theta2) of 
+								  
+							  c1 as Config(Stuck,sigma2,theta2) => c1
+							| Config(Expression(Value(ValuePair(vb1,vb2))),sigma2,theta2) =>
+									
+								let val Config(Expression(e1),sigma3,theta3) = elabPhraseOperation(va1,vb1,sigma2,theta2,oper);
+									val Config(Expression(e2),sigma4,theta4) = elabPhraseOperation(va2,vb2,sigma3,theta3,oper)
+								in (case (e1,e2) of
+								
+									  (Value(B(b1)),Value(B(b2))) => Config(Expression(Value(B(b1 andalso b2))),sigma4,theta4)
+									| _ => Config(Expression(BoolExpr(EQ,Value(v1),Value(ValuePair(vb1,vb2)))),sigma4,theta4))
+								end))
+						else Config(Stuck,sigma,theta)
 					
 					(* No more information gained from substitutions, carry on as normal *)
 					| _ => (case narrow(v2,t,sigma,theta) of
@@ -180,13 +224,13 @@ fun elabPhraseOperation (v1,v2,sigma,theta,oper) =
 										  else elabPhraseOperationEvaluate(v1,v2,sigma3,theta3,intWrap,Int)
 								| R(_) => if oper = BoolOper(EQ) then Config(Stuck,sigma3,theta3)
 										  else elabPhraseOperationEvaluate(v1,v2,sigma3,theta3,realWrap,Real)
-								| B(_) => if oper = BoolOper(EQ) then elabPhraseOperationEvaluate(v1,v2,sigma1,theta3,logicalBool(op=),Bool)
+								| B(_) => if oper = BoolOper(EQ) then elabPhraseOperationEvaluate(v1,v2,sigma1,theta3,logicalBool,Bool)
 										else Config(Stuck,sigma1,theta3)
 								| ValuePair(_) => 
 									if oper = BoolOper(EQ) 
 									then (case typeof(v2,theta3) of
 											(NONE,_) => Config(Stuck,sigma,theta1)
-										  | (SOME(pairType),theta4) => elabPhraseOperationEvaluate(v1,v2,sigma,theta4,logicalBool(op=),pairType))
+										  | (SOME(pairType),theta4) => elabPhraseOperationEvaluate(v1,v2,sigma,theta4,logicalPair,pairType))
 									else Config(Stuck,sigma,theta3)
 									
 								(* No more information gained from substitutions, carry on as normal *)
