@@ -4,46 +4,35 @@
    Simply implemented by pattern matching on the structure of the expression
    and recursively calling substitute on its sub-expressions 
    Only non-trivial case is case expression. Need to perform a capture-avoiding substitution *)
-   
-fun substitute(e,gamma:variableSub) = case e of 
 
-	(* Compound value holes may contain expressions in them *)
+fun substituteValue(v,gamma:variableSub) = (case v of 
+
+	  ValuePair(v1,v2) => 
+		ValuePair(substituteValue(v1,gamma),substituteValue(v2,gamma)) 
 	
-	  Value(ValuePair(v1,v2)) => 
-		let val Value(sub1) = substitute(Value(v1),gamma);
-			val Value(sub2) = substitute(Value(v2),gamma)
-		in Value(ValuePair(sub1,sub2)) end
+	| VHole(BinaryOp(oper,v1,v2)) =>
+		VHole(BinaryOp(oper,substituteValue(v1,gamma),substituteValue(v2,gamma)))
 	
-	| Value(VHole(h)) => (case h of
+	| VHole(ConditionHole(v1,e1,e2)) =>
+		VHole(ConditionHole(substituteValue(v1,gamma),substitute(e1,gamma),substitute(e2,gamma)))
 	
-		  SimpleHole(_) => e
-		  
-		| BinaryOp(oper,hole1,hole2) =>
-			let val Value(VHole(sub1)) = substitute(Value(VHole(hole1)),gamma);
-				val Value(VHole(sub2)) = substitute(Value(VHole(hole2)),gamma)
-			in Value(VHole(BinaryOp(oper,sub1,sub2))) end
-			
-		| ConditionHole(hole,e1,e2) =>
-			let val Value(VHole(sub)) = substitute(Value(VHole(hole)),gamma)
-			in Value(VHole(ConditionHole(sub,substitute(e1,gamma),substitute(e2,gamma)))) end
-			
-		| c as CaseHole(hole,VariablePair(x,y),e) =>
-			(* must be capture avoiding *)
-			let val dom = Substitution.domain(gamma);
-				val fvRan = fv(Substitution.range(gamma))
-			in 	
-				if ((element(dom,x) orelse element(dom,y)) orelse 
-				    (element(fvRan,x) orelse element(fvRan,y)))
-					
-				then substitute(alphaVariant(Value(VHole(c)),getCounterAndUpdate(),[x,y]),gamma)
-				
-				else let val Value(VHole(sub)) = substitute(Value(VHole(hole)),gamma)
-					 in Value(VHole(CaseHole(sub,VariablePair(x,y),substitute(e,gamma)))) end
-			end)
-				
-	(* Rest of expressions *)
+	| hole as VHole(CaseHole(v1,VariablePair(x,y),e)) => 
+		(* must be capture avoiding *)
+		let val dom = Substitution.domain(gamma);
+			val fvRan = fv(Substitution.range(gamma))
+		in 	if ((element(dom,x) orelse element(dom,y)) orelse 
+			    (element(fvRan,x) orelse element(fvRan,y)))
+			then substituteValue(alphaValue(hole,getCounterAndUpdate(),[x,y]),gamma)
+			else VHole(CaseHole(substituteValue(v1,gamma),VariablePair(x,y),substitute(e,gamma)))	
+		end
 	
-	| Value(_) => e
+	| VHole(SimpleHole(_)) => v
+	
+	| _ => v(* int, bool or real *))
+ 
+and substitute(e,gamma) = case e of 
+
+	  Value(v) => Value(substituteValue(v,gamma))
 	
 	| Variable(a) => if Substitution.contains(a,gamma)
 					 then Substitution.get(a,gamma)
@@ -81,6 +70,3 @@ fun substitute(e,gamma:variableSub) = case e of
 				
 		end;
 		
-			
-		
-	

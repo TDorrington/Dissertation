@@ -15,44 +15,32 @@ fun substituteVar(Var(s),n,vars) =
 	then Var(s^Int.toString(n))
 	else Var(s);
 
-fun alphaVariant(e,n,vars) = 
+fun alphaValue(v,n,vars) = (case v of 
 
-	(* local function to recursively substitute based on structure of expression - 
-	   avoids need to pass n and vars in each call *)
-	let fun localSub e = case e of 
-	
-		(* Compound value holes can contain expressions *)
-		
-		  Value(ValuePair(v1,v2)) => 
-			let val Value(alpha1) = localSub(Value(v1));
-				val Value(alpha2) = localSub(Value(v2))
-			in Value(ValuePair(alpha1,alpha2)) end
-			
-		| Value(VHole(hole)) => (case hole of 
-		
-			  SimpleHole(_) => e
+	  ValuePair(v1,v2) => 
+		ValuePair(alphaValue(v1,n,vars),alphaValue(v2,n,vars))
 			  
-			| BinaryOp(oper,hole1,hole2) =>
-				let val Value(VHole(alpha1)) = localSub(Value(VHole(hole1)));
-					val Value(VHole(alpha2)) = localSub(Value(VHole(hole2)))
-				in Value(VHole(BinaryOp(oper,alpha1,alpha2))) end
-				
-			| ConditionHole(hole1,e1,e2) =>
-				let val Value(VHole(alpha1)) = localSub(Value(VHole(hole1)))
-				in Value(VHole(ConditionHole(alpha1,localSub(e1),localSub(e2)))) end
-				
-			| CaseHole(hole1,VariablePair(x,y),e) =>
-				Value(VHole(CaseHole(hole1,VariablePair(substituteVar(x,n,vars),substituteVar(y,n,vars)),localSub(e)))))
-			
-		(* Rest of expressions *)
+	| VHole(BinaryOp(oper,v1,v2)) => 
+		VHole(BinaryOp(oper,alphaValue(v1,n,vars),alphaValue(v2,n,vars)))
+					
+	| VHole(ConditionHole(v1,e1,e2)) => 
+		VHole(ConditionHole(alphaValue(v1,n,vars),alphaVariant(e1,n,vars),alphaVariant(e2,n,vars))) 
+					
+	| VHole(CaseHole(v1,VariablePair(x,y),e)) =>
+		VHole(CaseHole(v1,VariablePair(substituteVar(x,n,vars),substituteVar(y,n,vars)),alphaVariant(e,n,vars)))
 		
-		| Value(_) => e (* int, real or bool *)
-		| ArithExpr(arithOper,e1,e2) => ArithExpr(arithOper,localSub(e1),localSub(e2))
-		| BoolExpr (boolOper, e1,e2) => BoolExpr (boolOper, localSub(e1),localSub(e2))
-		| ExpressionPair(e1,e2) => ExpressionPair(localSub(e1),localSub(e2))
-		| Condition(e1,e2,e3) => Condition(localSub(e1),localSub(e2),localSub(e3))
-		| Case(e1,VariablePair(x,y),e2) =>
-			Case(e1,VariablePair(substituteVar(x,n,vars),substituteVar(y,n,vars)),localSub(e2))
-		| Variable(x) => Variable(substituteVar(x,n,vars))
-									
-	in localSub(e) end;
+	| VHole(SimpleHole(_)) => v
+		
+	| _ => v (* int, bool or real *))
+	
+and alphaVariant(e,n,vars) = (case e of 
+	
+	  Value(v) => Value(alphaValue(v,n,vars))
+	| ArithExpr(arithOper,e1,e2) => ArithExpr(arithOper,alphaVariant(e1,n,vars),alphaVariant(e2,n,vars))
+	| BoolExpr (boolOper, e1,e2) => BoolExpr (boolOper, alphaVariant(e1,n,vars),alphaVariant(e2,n,vars))
+	| ExpressionPair(e1,e2) => ExpressionPair(alphaVariant(e1,n,vars),alphaVariant(e2,n,vars))
+	| Condition(e1,e2,e3) => Condition(alphaVariant(e1,n,vars),alphaVariant(e2,n,vars),alphaVariant(e3,n,vars))
+	| Case(e1,VariablePair(x,y),e2) =>
+		Case(e1,VariablePair(substituteVar(x,n,vars),substituteVar(y,n,vars)),alphaVariant(e2,n,vars))
+	| Variable(x) => Variable(substituteVar(x,n,vars)));
+						

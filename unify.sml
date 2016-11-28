@@ -13,6 +13,13 @@ fun update(Int,_)  = Int
 | 	update(THole(TypeHole(d)),theta) = 
 		if Substitution.contains(TypeHole(d),theta) 
 		then resolveChainTheta(THole(TypeHole(d)),theta)
+		
+	(*
+		then (case resolveChainTheta(THole(TypeHole(d)),theta) of
+			  THole(_) => THole(TypeHole(d)) (* TO CHECK *)
+			| t => t)
+	*)
+
 		else THole(TypeHole(d))
 | 	update(Pair(t1,t2),theta) = 
 		Pair(update(t1,theta),update(t2,theta));
@@ -20,66 +27,34 @@ fun update(Int,_)  = Int
 (* ----------------------------------------------------------------------------------- *)
 (* Auxiliary function used in unifyAlg
    It takes two type variables, i.e. either TypeVar, EqualityTypeVar or ArithTypeVar
-   which must be equal, and returns a list of pairs which are equivalent constraints 
-   
-   9 possible cases - order corresponds to order of case clauses below
-   Idea is that 
-   
-		- TypeVariable can be unified with any types in TypeVariable:
-			'a -> 'b, 	'a -> ''b,	'a -> '''b
-				
-		- EqualityTypeVar can map to EqualityTypeVar:
-			''a -> ''b
-					
-		- EqualityTypeVar cannot map to TypeVar, but we switch to other way round:
-			'b -> ''a
-					
-		- Intersection of EqualityTypeVar and ArithTypeVar is Int, so 
-		  when unifying ''a and '''b we get the two mappings
-			''a -> Int, 	'''b -> Int
-				  
-		- ArithTypeVar can map to ArithTypeVar:
-			'''a -> '''b
-					
-		- ArithTypeVar cannot map to TypeVar, but again we switch as follows:
-			'b -> '''a
-					
-		- Similarly to above, when unifying '''a and ''b we get the mapping:
-			'''a -> Int, 	''b -> Int	
-	*)
+   which must be equal, and returns a list of pairs which are equivalent constraints *)
 	
 fun getNewConstraints(TypeHole(a),TypeHole(b)) = case (a,b) of
 
-		(TypeVar(_),_) => [(THole(TypeHole(a)), THole(TypeHole(b)))]
+		(TypeVar(s1),TypeVar(s2)) => [(THole(TypeHole(a)), THole(TypeHole(b)))] (*
+	if s1<s2 then [(THole(TypeHole(a)), THole(TypeHole(b)))]
+													  else [(THole(TypeHole(b)), THole(TypeHole(a)))] *)
+		
+	|	(TypeVar(_),_) => [(THole(TypeHole(a)), THole(TypeHole(b)))]
 					
-	| (EqualityTypeVar(_), EqualityTypeVar(_)) => [(THole(TypeHole(a)), THole(TypeHole(b)))]
+	| (EqualityTypeVar(s1), EqualityTypeVar(s2)) => [(THole(TypeHole(a)), THole(TypeHole(b)))] (*
+	if s1<s2 then [(THole(TypeHole(a)), THole(TypeHole(b)))]
+													  else [(THole(TypeHole(b)), THole(TypeHole(a)))] *)
 	
 	| (EqualityTypeVar(_), TypeVar(_)) => [(THole(TypeHole(b)), THole(TypeHole(a)))]
 	
 	| (EqualityTypeVar(_), ArithTypeVar(_)) => [(THole(TypeHole(a)), Int),(THole(TypeHole(b)), Int)] 
 										
-	| (ArithTypeVar(_),ArithTypeVar(_)) => [(THole(TypeHole(a)), THole(TypeHole(b)))]
+	| (ArithTypeVar(s1),ArithTypeVar(s2)) => [(THole(TypeHole(a)), THole(TypeHole(b)))] (*
+	if s1<s2 then [(THole(TypeHole(a)), THole(TypeHole(b)))]
+													  else [(THole(TypeHole(b)), THole(TypeHole(a)))] *)
 										
 	| (ArithTypeVar(_), EqualityTypeVar(_)) => [(THole(TypeHole(a)), Int),(THole(TypeHole(b)), Int)]
 	
 	| (ArithTypeVar(_),TypeVar(_)) => [(THole(TypeHole(b)), THole(TypeHole(a)))];
 
 (* ----------------------------------------------------------------------------------- *)
-(* Unify algorithm:
-   
-   T = Int | Bool | Real |
-   A = T | alpha | A x A
-   where alpha a type var (i.e. either TypeVar, EqualityTypeVar or ArithTypeVar)
-   
-   unify : ConstraintSet -> Substitution option
-   unify(no constraints) = empty set
-   unify({A=A}::C) = unify(C)
-   unify({alpha = beta}::C) = unify(newConstraints union C)
-   unify({alpha = T}::C) = unify( [alpha -> T]C) union [alpha -> T], alpha not in ftv(A)
-   unify({T = alpha}::C) = unify( [alpha -> T]C) union [alpha -> T], alpha not in ftv(A)
-   unify({A1 x A2 = A1' x A2'}::C) = unify({A1=A1',A2=A2'} union C)
-   unify(anything else) = FAIL
-*)
+(* Implements unification algorithm *)
 
 fun unifyAlg([], theta) = SOME theta
 
@@ -99,66 +74,95 @@ fun unifyAlg([], theta) = SOME theta
 		else
 		
 		let val newConstraints = getNewConstraints(TypeHole(a),TypeHole(b))
-		in case newConstraints of
-		
-			  [(THole(TypeHole(c)),THole(TypeHole(d)))]   =>  
+		in (case newConstraints of
+				
+			  [(THole(TypeHole(c)),THole(TypeHole(d)))]   => (case unifyAlg(rest,theta) of 
 			  
-				(* The latestMapped variable prevents cases like unify(['a,'b,Int]) 
-				   returning [a'->'b, 'b->Int]
-				   but instead returns ['a->Int,'b->Int]
-				   That is, we check if any constraints further down the line have since 
-				   restricted the constraint we are about to add any further before adding
-				   An alternative would be to call unifyAlg with an empty substitution list,
-				   rather than current theta, and union them after this method returns
-				   in a special way, but this is more efficient *)
-				(case unifyAlg(replace(rest,THole(TypeHole(c)),THole(TypeHole(d))),theta) of
+				  NONE => NONE
+				| SOME(newMap) => SOME (Substitution.union(newMap,TypeHole(c),update(THole(TypeHole(d)),newMap))))
+			     
+				(* TO CHECK: add before or after *)
+				(* unifyAlg(rest,(Substitution.union(theta,TypeHole(c),THole(TypeHole(d))))) *)
 				
-					  NONE => NONE
-					| SOME(newMap) => 
-						let val latestMapped = update(THole(TypeHole(d)),newMap)
-						in SOME (Substitution.union(newMap,TypeHole(c),latestMapped)) end)
-				
-			| [a,b] => unifyAlg(a::b::rest,theta)
+			| l => unifyAlg(append(l,rest),theta))
 		end
 
-	| (THole(TypeHole(a)),t) =>
-		(* Assert t one of: Int, Real, Bool, t1 x t2 *)
+	(* For unifying pairs and type holes,
+		unify('a,t1*t2)   <=> unify('a0*'a1,t1*t2)   with mapping 'a->'a0*'a1 for fresh 'a0, 'a1
+		unify(''a,t1*t2)  <=> unify(''a0*''a1,t1*t2) with mapping ''a->''a0*''a1 for fresh ''a0, ''a1
+		unify('''a,t1*t2) <=> FAIL
+	*)
 		
-		(* First check cases that cannot occur 
-			EqualityTypeVar -> Real, or ArithTypeVar -> Bool *)
+	| (THole(TypeHole(a)),p as Pair(p1,p2)) =>
+	
+		(* First check case that cannot occur *)
+		(case a of
+			  ArithTypeVar(_) => NONE
+			  
+			| _ => 
+			if element(ftv(p),THole(TypeHole(a)))
+			then NONE
+			else let val freshTypeVar = case a of EqualityTypeVar(_) => EQUALITY_TYPE_VAR
+										   | TypeVar(_) 			 => TYPE_VAR
+										   | ArithTypeVar(_)		 => ARITH_TYPE_VAR;
+										   (* arith should never occur as matches above *)
+					val fresh1 = generateFreshTypeVar(freshTypeVar,theta);
+					val fresh2 = generateFreshTypeVar(freshTypeVar,theta);
+					val newType = Pair(fresh1,fresh2)
+				in unifyAlg((newType,p)::rest,Substitution.union(theta,TypeHole(a),newType)) end)
+	
+	| (p as Pair(p1,p2),THole(TypeHole(a))) => 
+	
+		(* First check case that cannot occur *)
+		(case a of
+			  ArithTypeVar(_) => NONE
+			  
+			| _ => 
+			(* side condition: alpha not in ftv(t) *)
+			if element(ftv(p),THole(TypeHole(a)))
+			then NONE
+			else let val freshTypeVar = case a of EqualityTypeVar(_) => EQUALITY_TYPE_VAR
+										   | TypeVar(_) 			 => TYPE_VAR
+										   | ArithTypeVar(_)		 => ARITH_TYPE_VAR;
+										   (* arith should never occur as matches above *)
+					val fresh1 = generateFreshTypeVar(freshTypeVar,theta);
+					val fresh2 = generateFreshTypeVar(freshTypeVar,theta);
+					val newType = Pair(fresh1,fresh2)
+				in unifyAlg((newType,p)::rest,Substitution.union(theta,TypeHole(a),newType)) end)
+		
+	| (THole(TypeHole(a)),t) =>
+		(* Assert t one of: Int, Real, Bool *)
+		
+		(* First check cases that cannot occur *)
 		(case (a,t) of
 			  (EqualityTypeVar(_),Real) => NONE
 			| (ArithTypeVar(_),Bool) => NONE
 			
-			| _ =>  (* side condition: alpha not in ftv(t) *)
-					if element(ftv(t),THole(TypeHole(a)))
-					then NONE
-					else (case unifyAlg(replace(rest,THole(TypeHole(a)),t),theta) of
-					
-						  NONE => NONE
-						| SOME(newMap) =>
-							 let val latestMapped = update(t,newMap)
-							 in SOME (Substitution.union(newMap,TypeHole(a),latestMapped)) end))
+			| _ =>  
+				(* side condition: alpha not in ftv(t) *)
+				if element(ftv(t),THole(TypeHole(a)))
+				then NONE
+				else (case unifyAlg(replace(rest,THole(TypeHole(a)),t),theta) of
+				
+					  NONE => NONE
+					| SOME(newMap) => SOME (Substitution.union(newMap,TypeHole(a),update(t,newMap)))))
 					
 	| (t,THole(TypeHole(a))) => 
-		(* Assert t one of: Int, Real, Bool, t1 x t2 *)
-		(* Same as above case *)
+		(* Assert t one of: Int, Real, Bool *)
 		
-		(* First check cases that cannot occur 
-			EqualityTypeVar -> Real, or ArithTypeVar -> Bool *)
+		(* First check cases that cannot occur *)
 		(case (a,t) of
 			  (EqualityTypeVar(_),Real) => NONE
 			| (ArithTypeVar(_),Bool) => NONE
 			
-			| _ =>  (* side condition: alpha not in ftv(t) *)
-					if element(ftv(t),THole(TypeHole(a)))
-					then NONE
-					else (case unifyAlg(replace(rest,THole(TypeHole(a)),t),theta) of
+			| _ =>  
+				(* side condition: alpha not in ftv(t) *)
+				if element(ftv(t),THole(TypeHole(a)))
+				then NONE
+				else (case unifyAlg(replace(rest,THole(TypeHole(a)),t),theta) of
 					
-						  NONE => NONE
-						| SOME(newMap) =>
-							 let val latestMapped = update(t,newMap)
-							 in SOME (Substitution.union(newMap,TypeHole(a),latestMapped)) end))
+					  NONE => NONE
+					| SOME(newMap) => SOME (Substitution.union(newMap,TypeHole(a),update(t,newMap)))))
 		
 	| _ => NONE (* e.g (Int,Real) *)
 	

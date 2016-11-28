@@ -13,9 +13,9 @@ fun fvExpr(e) = case e of
 	  Value(VHole(hole)) => (case hole of 
 	  
 		  SimpleHole(_) => []
-		| BinaryOp(_,hole1,hole2) => union(fvExpr(Value(VHole(hole1))),fvExpr(Value(VHole(hole2))))
-		| ConditionHole(hole1,e1,e2) => union(union(fvExpr(Value(VHole(hole1))),fvExpr(e1)),fvExpr(e2))
-		| CaseHole(hole1,VariablePair(x,y),e) => union(fvExpr(Value(VHole(hole1))),remove(fvExpr(e),[x,y])))
+		| BinaryOp(_,v1,v2) => union(fvExpr(Value(v1)),fvExpr(Value(v2)))
+		| ConditionHole(v1,e1,e2) => union(union(fvExpr(Value(v1)),fvExpr(e1)),fvExpr(e2))
+		| CaseHole(v1,VariablePair(x,y),e) => union(fvExpr(Value(v1)),remove(fvExpr(e),[x,y])))
 		
 	| Value(ValuePair(v1,v2)) => union(fvExpr(Value(v1)),fvExpr(Value(v2)))
 	

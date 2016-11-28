@@ -5,7 +5,7 @@ structure Substitution : SUBSTITUTION =
 		(* type of map *)
 		type (''a, 'b) map = (''a * 'b) list;
 
-		(* exception associated with structure, thrown when e.g.
+		(* exception associated with structure, thrown when
 			- calling get for value x, when there is no map of the form x->y
 			- calling update for value x, when no map of the form x->y *)
 		exception SubException;

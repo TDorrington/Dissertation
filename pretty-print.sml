@@ -19,7 +19,9 @@ fun getOperString(ArithOper(oper)) = (case oper of
 	| MORE => " > "
 	| LESS_EQ => " <= "
 	| MORE_EQ => " >= "
-	| EQ => " = ");
+	| EQ => " = ")
+	
+|	getOperString(_) = " ";
 
 (* Get string representing the type *)
 fun prettyPrintType (t) =
@@ -34,21 +36,21 @@ fun prettyPrintPattern(VariablePair(Var(x1),Var(x2))) = "( " ^ x1 ^ " , " ^ x2 ^
 (* Gets the string representation of a value *)
 fun prettyPrintValue (v) =
 	(case v of N(n) => Int.toString(n)
-		    | R(r) => Real.toString(r)
-			| B(b) => Bool.toString(b)
-			| ValuePair(v1,v2) => "(" ^ prettyPrintValue(v1) ^ "," ^ prettyPrintValue(v2) ^ ")"
-			| VHole(SimpleHole(ValueHole(t))) => "v[" ^ getTypeVariableString(t) ^ "]"
-			| VHole(BinaryOp(EXPR_PAIR,hole1,hole2)) =>
-				"v[ (" ^ prettyPrintValue(VHole(hole1)) ^ " , " 
-					   ^ prettyPrintValue(VHole(hole2)) ^ " ]"
-			| VHole(BinaryOp(oper,hole1,hole2)) =>
-				"v[ " ^ prettyPrintValue(VHole(hole1)) ^ getOperString(oper)
-				      ^ prettyPrintValue(VHole(hole2)) ^ " ]"
-			| VHole(ConditionHole(hole,e1,e2)) =>
-				"v[ if " ^ prettyPrintValue(VHole(hole)) ^ " then " ^
+		     | R(r) => Real.toString(r)
+			 | B(b) => Bool.toString(b)
+			 | ValuePair(v1,v2) => "(" ^ prettyPrintValue(v1) ^ "," ^ prettyPrintValue(v2) ^ ")"
+			 | VHole(SimpleHole(ValueHole(t))) => "v[" ^ getTypeVariableString(t) ^ "]"
+			 | VHole(BinaryOp(EXPR_PAIR,v1,v2)) =>
+				"v[ (" ^ prettyPrintValue(v1) ^ " , " 
+					   ^ prettyPrintValue(v2) ^ " ]"
+			 | VHole(BinaryOp(oper,v1,v2)) =>
+				"v[ " ^ prettyPrintValue(v1) ^ getOperString(oper)
+				      ^ prettyPrintValue(v2) ^ " ]"
+			 | VHole(ConditionHole(v,e1,e2)) =>
+				"v[ if " ^ prettyPrintValue(v) ^ " then " ^
 					prettyPrintExpression(Expression(e1)) ^ " else " ^ prettyPrintExpression(Expression(e2)) ^ " ]"
-			| VHole(CaseHole(hole,pat,e)) =>
-				"v[ case " ^ prettyPrintValue(VHole(hole)) ^ " of " ^
+			 | VHole(CaseHole(v,pat,e)) =>
+				"v[ case " ^ prettyPrintValue(v) ^ " of " ^
 					prettyPrintPattern(pat) ^ " -> " ^ prettyPrintExpression(Expression(e)) ^ " ]")
 		
 (* Pretty prints a possibly stuck expression *)
@@ -94,10 +96,19 @@ fun prettyPrintTheta([]) = ""
 |	prettyPrintTheta((TypeHole(a),b)::l) =
 		prettyPrintType(THole(TypeHole(a))) ^ " -> " ^ prettyPrintType(b) ^
 		", " ^ prettyPrintTheta(l);
-	
+
+fun prettyPrintGamma([]) = ""
+
+|	prettyPrintGamma([(Var(s),e)])=
+		s ^ " -> " ^ prettyPrintExpression(Expression(e))
+		
+|	prettyPrintGamma((Var(s),e)::l) =
+		s ^ " -> " ^ prettyPrintExpression(Expression(e)) ^ ", " ^ prettyPrintGamma(l);
+		
 (* Top level pretty print to print out a configuration
    in a user-readable format *)
-fun prettyPrintConfig(Config(e,sigma,theta)) =
+fun prettyPrintConfig(Config(e,sigma,theta,gamma)) =
 		"\n\nFinal expression = " ^ prettyPrintExpression(e) ^ "\n" ^ 
 		"Final value substitution = [" ^ prettyPrintSigma(sigma) ^ "]\n" ^ 
-		"Final type substitution = [" ^ prettyPrintTheta(theta) ^ "]"
+		"Final type substitution = [" ^ prettyPrintTheta(theta) ^ "]" ^
+		"Final gamma substitution = [" ^ prettyPrintGamma(gamma) ^ "]";

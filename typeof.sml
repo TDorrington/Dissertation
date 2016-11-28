@@ -6,7 +6,7 @@
    of the current substitution
    If it is (i.e. not fresh), re-call function which will generate a new fresh type 
    variable since the global counter is always unique (and keep recalling until fresh) *)
-fun generateFreshTypeVar(typeVarEnum,theta) =
+fun generateFreshTypeVar(typeVarEnum,theta:typeSub) =
 
 	let val freshTypeVar = case typeVarEnum of
 	
@@ -34,7 +34,7 @@ fun generateFreshTypeVar(typeVarEnum,theta) =
    - =
 *)
 
-fun typeOp(ArithOper(DIVIDE),t1,t2,theta) = (case (t1,t2) of
+fun typeOp(ArithOper(DIVIDE),t1,t2,theta:typeSub) = (case (t1,t2) of
 (* Real/Real	 
    Real/'a		'a/Real		'''a/Real		Real/'''a
    'a/'b 		 '''a/'''b		'a/'''b		'''a/'b 
@@ -288,34 +288,37 @@ fun typeOp(ArithOper(DIVIDE),t1,t2,theta) = (case (t1,t2) of
 										  TypeHole(thole2),freshVar))
 		end
 					
-	| _ => (NONE,theta));
+	| _ => (NONE,theta))
+	
+(* for match warning - never actually used *)
+| 	typeOp(EXPR_PAIR,_,_,theta) = (NONE,theta);
 	
 (* ----------------------------------------------------------------------------------- *)
 (* Returns the type of a simple value hole, which may be simple, e.g. v['a], 
-   or compound, e.g. v[if 'a then 3 else 4] *)
-(* Use typeofexpr to implement typeofhole by 'unwrapping' the value hole
+   or compound, e.g. v[if 'a then 3 else 4]
+   Use typeofexpr to implement typeofhole by 'unwrapping' the value hole
    e.g. typeofhole(v[case 'a of (x,y) -> (x+y)]) => 
         typeofexpr(case v['a] of (x,y) -> (x+y))*)
    
-fun typeofhole(SimpleHole(ValueHole(tyVar)),theta) =  
-		if Substitution.contains(TypeHole(tyVar),theta) 
-		then (SOME (resolveChainTheta(THole(TypeHole(tyVar)),theta)), theta)
-		else (SOME (THole(TypeHole(tyVar))),theta)
+fun typeofhole(SimpleHole(ValueHole(tyVar)),theta:typeSub,gamma:variableSub) =  
+	if Substitution.contains(TypeHole(tyVar),theta) 
+	then (SOME (resolveChainTheta(THole(TypeHole(tyVar)),theta)), theta)
+	else (SOME (THole(TypeHole(tyVar))),theta)
 	
-|  	typeofhole (BinaryOp(EXPR_PAIR,valhole1,valhole2),theta) =
-	typeofexpr(ExpressionPair(Value(VHole(valhole1)),Value(VHole(valhole2))),theta,[])
+|  	typeofhole (BinaryOp(EXPR_PAIR,v1,v2),theta,gamma) =
+	typeofexpr(ExpressionPair(Value(v1),Value(v2)),theta,gamma)
 
-|  	typeofhole (BinaryOp(ArithOper(oper),valhole1,valhole2),theta) =
-	typeofexpr(ArithExpr(oper,Value(VHole(valhole1)),Value(VHole(valhole2))),theta,[])
+|  	typeofhole (BinaryOp(ArithOper(oper),v1,v2),theta,gamma) =
+	typeofexpr(ArithExpr(oper,Value(v1),Value(v2)),theta,gamma)
 
-|	typeofhole (BinaryOp(BoolOper(oper),valhole1,valhole2),theta) =
-	typeofexpr(BoolExpr(oper,Value(VHole(valhole1)),Value(VHole(valhole2))),theta,[])
+|	typeofhole (BinaryOp(BoolOper(oper),v1,v2),theta,gamma) =
+	typeofexpr(BoolExpr(oper,Value(v1),Value(v2)),theta,gamma)
 	
-|	typeofhole (CaseHole(valhole,pat,expr),theta) =
-	typeofexpr(Case(Value(VHole(valhole)),pat,expr),theta,[])
+|	typeofhole (CaseHole(v,pat,expr),theta,gamma) =
+	typeofexpr(Case(Value(v),pat,expr),theta,gamma)
 
-| 	typeofhole (ConditionHole(valhole1,e2,e3),theta) =
-	typeofexpr(Condition(Value(VHole(valhole1)),e2,e3),theta,[])
+| 	typeofhole (ConditionHole(v,e2,e3),theta,gamma) =
+	typeofexpr(Condition(Value(v),e2,e3),theta,gamma)
 	
 (* no semi-colon: mutually recursive with typeof and typeofexpr *)
 (* ----------------------------------------------------------------------------------- *)	
@@ -328,32 +331,33 @@ fun typeofhole(SimpleHole(ValueHole(tyVar)),theta) =
    For example, for v[ ('a/'b) + ('c/'d)], it would return type Int, and the substitution
    { 'a->Real, 'b->Real, 'c->Real, 'd->Real} *)
    
-and typeof (v,theta) = case v of
+and typeof (v,theta,gamma) = (case v of
+
 	  N(_) => (SOME Int,theta)
 	| B(_) => (SOME Bool,theta)
     | R(_) => (SOME Real,theta)
+	
 	| ValuePair(v1,v2) => 
-		(case typeof(v1,theta) of
+		(case typeof(v1,theta,gamma) of
 		
 			  (NONE,theta1) => (NONE,theta1)
-			| (SOME(a),theta1) => (case typeof(v2,theta1) of
+			| (SOME(a),theta1) => (case typeof(v2,theta1,gamma) of
 			  
 					  (NONE,theta2) => (NONE,theta2)
 					| (SOME(b),theta2) => (SOME (Pair(a,b)),theta2)))
 					
-	| VHole(h) => typeofhole(h,theta)
+	| VHole(h) => typeofhole(h,theta,gamma))
 	
 (* no semi-colon: mutually recursive with typeofhole and typeofexpr *)
 (* ----------------------------------------------------------------------------------- *)
 (* typeofexpr returns dynamic type of an expression wrapped in an option datatype
    with NONE being returned if it cannot be typed *)
    
-and typeofexpr(Value(v),theta,gamma) = typeof(v,theta)
+and typeofexpr(Value(v),theta,gamma) = typeof(v,theta,gamma)
 
-(* Assume variable always in variable map gamma of variables -> expressions 
-   Don't  care about static errors due to unbound variables: cannot lead to witnesses
-   Can this even occur? Do we not substitute all variables with an expression anyway
-| 	typeofexpr(Variable(x),theta,gamma) = typeofexpr(Substitution.get(gamma,x)) *)
+(* Assume variable always in variable map gamma of variables -> expressions
+   Return type of underlying expression it refers to *)
+| 	typeofexpr(Variable(x),theta,gamma) = typeofexpr(Substitution.get(x,gamma),theta,gamma) 
 
 | 	typeofexpr(ArithExpr(oper,e1,e2),theta,gamma) =
 
@@ -416,10 +420,13 @@ and typeofexpr(Value(v),theta,gamma) = typeof(v,theta)
 			  (SOME (THole(TypeHole(ArithTypeVar(_)))),theta1) => (NONE,theta1)
 		
 			| (SOME (THole(TypeHole(tyvar))),theta1) => 
-				let val typevar_type = case tyvar of TypeVar(_)    => TYPE_VAR
-											  | EqualityTypeVar(_) => EQUALITY_TYPE_VAR; 
-					val t1 as THole(TypeHole(fresh1)) = generateFreshTypeVar(typevar_type,theta1);
-					val t2 as THole(TypeHole(fresh2)) = generateFreshTypeVar(typevar_type,theta1);
+				let val typevar_type = case tyvar of 
+						  TypeVar(_)    	 => TYPE_VAR
+						| EqualityTypeVar(_) => EQUALITY_TYPE_VAR
+						| ArithTypeVar(_)  	 => ARITH_TYPE_VAR;
+						(* arith cannot occur - matched above, but here for non-exhaustive warnings *)
+					val t1 = generateFreshTypeVar(typevar_type,theta1);
+					val t2 = generateFreshTypeVar(typevar_type,theta1);
 					val gent1 = Value(gen(t1,theta1))
 					val gent2 = Value(gen(t2,theta1))
 					val subExpr = substitute(e2,[(x1,gent1),(x2,gent2)]);
