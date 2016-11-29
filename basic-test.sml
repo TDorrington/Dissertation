@@ -51,11 +51,17 @@ val sigma = [(a,VHole(ConditionHole(VHole(SimpleHole(b)),
 prettyPrintValue(resolveChainSigma(VHole(SimpleHole(a)),sigma));
 (* v[ if v[case (1,2) of (x,y) -> x < 2*y] then (3 < v['c]) else (10 > (v['f]-5)) *)
 
-val a' = (THole(TypeVar("a")));
-val b' = (THole(TypeVar("b")));
-val c' = (THole(TypeVar("c")));
+val a' = (TypeHole(TypeVar("a")));
+val b' = (TypeHole(TypeVar("b")));
+val c' = (TypeHole(TypeVar("c")));
+val d' = (TypeHole(TypeVar("d")));
 
-val theta = [
+val theta = [(a',Pair(Pair(THole(b'),Int),Pair(Real,Pair(Bool,THole(c'))))),
+			 (b',Pair(Real,THole(d'))),
+			 (c',Bool)];
+			 
+resolveChainTheta(THole(a'),theta);
+(* ( ( (Real * 'd) * Int ) * ( Real * (Bool * Bool) ) ) *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR LIST HELPERS *)
@@ -305,7 +311,7 @@ unifyTest( [a',b',c'], []); 	(* [ ('a -> 'c), ('b -> 'c) ] *)
 unifyTest( [a',b',Int], []); 	(* [ ('a -> Int), ('b -> Int)] *)
 unifyTest( [a',b'',c'''],[]);	(* [ ('a -> Int), (''b -> Int), ('''c -> Int) ] *)
 unifyTest( [Int,Int,Int],[]);	(* [] *)
-unifyTest( [Int,Int,Real],[]);	(* [] *)
+unifyTest( [Int,Int,Real],[]);	(* FAIL *)
 unifyTest( [Real,Real,Real],[]);(* [] *)
 unifyTest( [a',Int], [(a'1,Int)]);		(* [ ('a -> Int) ] *)
 unifyTest( [a',Int], [(a'1,Real)]);  	(* FAIL *)
@@ -321,14 +327,16 @@ unifyTest( [Pair(Int,Int),Pair(Bool,Int)], []);		(* FAIL *)
 unifyTest( [Pair(a',Int),Pair(Real,b')], []);		(* [ ('a -> Real), ('b -> Int) ] *)
 unifyTest( [a',Pair(Real,Real)], []);				(* [ ('a->'a0*'a1), ('a0->real), ('a1->real) ] *)
 unifyTest( [a',Pair(a',Int),Pair(Real,b')], []);	(* FAIL *)
-unifyTest( [a',Pair(c',Int),Pair(Real,b')], []);	(* [ 'a10 -> real, 'a11 -> int, 'a12 -> real, 'a13 -> int, 'c -> real, 'b -> int, 'a -> ('a10 * 'a11) ] *)
-unifyTest( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Int], []); (* FAIL *)
+unifyTest( [a',Pair(c',Int),Pair(Real,b')], []);	
+(* [ 'a10 -> real, 'a11 -> int, 'a12 -> real, 'a13 -> int, 'c -> real, 'b -> int, 'a -> ('a10 * 'a11) ] *)
+unifyTest( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Int], []); 
+(* FAIL *)
 unifyTest( [a',Pair(Pair(c''',Int),Pair(Bool,b')),Pair(Pair(a'',a'''),Pair(Bool,d'))], []);
 (* ['a22 -> int, 'a23 -> int, 'a24 -> bool, 'a25 -> 'd, 'a28 -> int, 'a29 -> int, 'a30 -> bool, 'a31 -> 'd, '''c -> int, ''a -> int, '''a -> int, 'b -> 'd, 'a27 -> ('a30 * 'a31), 'a26 -> ('a28 * 'a29), 'a21 -> ('a24 * 'a25), 'a20 -> ('a22 * 'a23), 'a -> ('a20 * 'a21) ] *)
-unifyTest( [a',Pair(Int,Real)], [(a'1,Int)]); 	 	 (* FAIL *)
+unifyTest( [a',Pair(Int,Real)], [(a'1,Int)]); 	 	 
+(* FAIL *)
 unifyTest( [a',Pair(b',c')], [(b'1,Int),(c'1,Int)]);
 (* [ 'a32 -> int, 'a33 -> int, 'a -> ('a32 * 'a33), 'b -> int, 'c -> int ] *)
-
 unifyTest( [a'',Pair(Int,Bool)], []);
 (* ''a34 -> int, ''a35 -> bool, ''a -> (''a34 * ''a35) *)
 unifyTest( [a'',Pair(Int,a'''),Pair(b''',Real)], []);
@@ -342,7 +350,7 @@ unifyTest( [a'',Pair(a''',b''')], []);
 unifyTest( [a'',Pair(b'',c''),Pair(d'',a''')], []);
 (* [ ''a46 -> ''d, ''a47 -> int, ''a48 -> ''d, ''a49 -> int, ''b -> ''d, ''c -> int, '''a -> int, ''a -> (''a46 * ''a47) ] *)
 unifyTest( [a'',Pair(b'',c'''),Pair(d'',a''')], []);
-(* [ ''a50 -> ''d, ''a51 -> int, '''c -> int, ''a52 -> ''d, ''a53 -> int, ''b -> ''d, '''a -> '''c, ''a -> (''a50 * ''a51) ] *)
+(* [ ''a50 -> ''d, ''a51 -> int, ''a52 -> ''d, ''a53 -> int, '''a -> int, ''b -> ''d, '''c -> '''a, ''a -> (''a50 * ''a51) ]  *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR TYPEOF *)

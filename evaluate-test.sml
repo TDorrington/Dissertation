@@ -434,10 +434,51 @@ prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,Value(va'''),Value(vb''
 prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
 	Value(ValuePair(va',B(true))),
 	Value(vb''))),[],[],[])));
-(* v[ ('a,true) = ('''a28,true) ]
-  [v[''b] -> (v[''a28],true)]
-  ['a -> ''a28, ''a29 -> bool, ''b -> (''a28 * ''a29)]
+(* v[ (''a0,true) = (''a0,true) ]
+  [v['a] -> v[''a0], v[''b] -> (v[''a0],true)]
+  ['a->''a0, ''a1 -> bool, ''b -> (''a0 * ''a1)]
 *)
+
+prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
+	Value(ValuePair(va''',N(1))),
+	Value(vb''))),[],[],[])));
+(* true
+  [v['a] -> 1, v[''b] -> (1,1)]
+  ['''a->int, ''a0->int, ''a1->int ''b -> (''a0 * ''a1)]
+*)
+
+prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
+	Value(ValuePair(va''',B(true))),
+	Value(vb''))),[],[],[])));
+(* true
+  [v['a] -> 1, v[''b] -> (1,true)]
+  ['''a->int, ''a0->int, ''a1->bool ''b -> (''a0 * ''a1)]
+*)
+
+prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
+	Value(ValuePair(va''',R(1.0))),
+	Value(vb'''))),[],[],[])));
+(* Stuck *)
+
+prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
+	Value(ValuePair(ValuePair(va',vb'),ValuePair(vc',vd'''))),
+	Value(ve'))),[],[],[])));
+(* v[ ((v[''a215],v[''a216]),(v[''a217],1)) = ((v[''a215],v[''a216]),(v[''a217],1)) ]
+  [v['''d] -> 1, v['c] -> v[''a217], v['b] -> v[''a216], v['a] -> v[''a215], v['e] -> ((v['a],v['b]),(v['c],v['''d]))]
+  ['''d -> int, ''a218 -> int, 'c -> ''a217, 'b -> ''a216, 'a -> ''a215, 'a211 -> 'a, 'a212 -> 'b, 'a213 -> 'c, 'a214 -> '''d, 'a210 -> ('a213 * 'a214), 'a209 -> ('a211 * 'a212), 'e -> ('a209 * 'a210)] *)
+
+prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
+	Value(ValuePair(ValuePair(va',vb'),ValuePair(vc',vd'''))),
+	Value(vb'))),[],[],[])));
+(* Stuck (recursive type) *)
+
+prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
+	Value(ValuePair(ValuePair(va''',vb'''),ValuePair(vc''',vd'''))),
+	Value(ve'))),[],[],[])));
+(* true,
+  [v['''d] -> 1, v['''c] -> 1, v['''b] -> 1, v['''a] -> 1, v['e] -> ((v['''a],v['''b]),(v['''c],v['''d]))]
+  ['''d -> int, ''a228 -> int, '''c -> int, ''a227 -> int, '''b -> int, ''a226 -> int, '''a -> int, ''a225 -> int, 'a221 -> '''a, 'a222 -> '''b, 'a223 -> '''c, 'a224 -> '''d, 'a220 -> ('a223 * 'a224), 'a219 -> ('a221 * 'a222), 'e -> ('a219 * 'a220)] *)
+
 
 prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
 	Value(ValuePair(va',B(true))),
@@ -447,11 +488,9 @@ prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
 prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
 	Value(ValuePair(ValuePair(va',vb'),ValuePair(vc',vd'))),
 	Value(ve'))),[],[],[])));
-(* v[ ( ('a,'b), ('c,'d) ) = ( ('a,'b), ('c,'d) ) ]
-  [v['e] -> ( (v['a],v['b]), (v['c],v['d]) )]
-  ['a32 -> 'a, 'a33 -> 'b, 'a34 -> 'c, 'a35 -> 'd, 'a31 -> ('a34 * 'a35), 'a30 -> ('a32 * 'a33), 'e -> ('a30 * 'a31)]
-*)
-
+(* v[ ((''a60,''a61),(''a62,''a63)) = ((''a60,v''a61),(v''a62,v''a63)) ]
+  [v['d] -> v[''a63], v['c] -> v[''a62], v['b] -> v[''a61], v['a] -> v[''a60], v['e] -> ((v['a],v['b]),(v['c],v['d]))]
+  ['d -> ''a63, 'c -> ''a62, 'b -> ''a61, 'a -> ''a60, 'a56 -> 'a, 'a57 -> 'b, 'a58 -> 'c, 'a59 -> 'd, 'a55 -> ('a58 * 'a59), 'a54 -> ('a56 * 'a57), 'e -> ('a54 * 'a55)] *)
 prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
 	Value(ValuePair(ValuePair(N(3),N(5)),ValuePair(B(true),B(false)))),
 	Value(va'))),[],[],[])));
@@ -468,11 +507,10 @@ prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
 prettyPrintConfig(evaluate(Config(Expression(BoolExpr(EQ,
 	Value(ValuePair(ValuePair(va''',N(5)),ValuePair(B(false),vb'''))),
 	Value(ValuePair(va'',vb'')))),[],[],[])));
-(* v[((v['''a],5),(false,v['''b])) = ((1,1),(true,1))]
-  [v[''b] -> (true,1), v[''a] -> (1,1)]
-  [''a45 -> bool, ''a46 -> int, '''b -> int, ''b -> (''a45 * ''a46), ''a43 -> int, '''a -> int, ''a44 -> int, ''a -> (''a43 * ''a44)]
-  TO CHECK *)
-
+(* false
+  [v['''b] -> 1, v[''b] -> (true,1), v['''a] -> 1, v[''a] -> (1,1)]
+  [''a78 -> bool, ''a79 -> int, '''b -> int, ''b -> (''a78 * ''a79), ''a76 -> int, '''a -> int, ''a77 -> int, ''a -> (''a76 * ''a77)] *)
+  
 (* --- EXPRESSION PAIRS --- *)
   
 prettyPrintConfig(evaluate(Config(Expression(ExpressionPair(
@@ -847,4 +885,16 @@ prettyPrintConfig(evaluate(Config(Expression(ArithExpr(PLUS,
 [a187 -> v['''c], b187 -> v[ v['''a195] - v['''a195] ], a186 -> v[ v['''a190] + v['''a190] ], b186 -> v['''a], x -> v[ v['''a184] + v['''a184] ], y -> v[ v['''a185] - v['''a185] ], a -> 3, b -> 3, a -> 2, b -> 2, x -> 2, y -> 3]
 *)
 
+prettyPrintConfig(evaluate(Config(Expression(Case(
+	Value(ValuePair(N(3),N(4))),
+	xy,
+	Case(ExpressionPair(ArithExpr(PLUS,x,y),
+						ArithExpr(TIMES,x,y)),
+		 xy,
+		 ExpressionPair(ArithExpr(TIMES,Value(N(2)),x),ArithExpr(TIMES,Value(N(3)),y))))),[],[],[])));
+(* case (3,4) of (x,y) -> [case (x+y,x*y) of (x,y) -> (x*2,y*3)]
+   =>
+  (14,36), [], 
+  ['a231 -> int, 'a230 -> int, 'a228 -> int, 'a227 -> int] *)
+  
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)

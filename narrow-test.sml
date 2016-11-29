@@ -74,7 +74,7 @@ prettyPrintConfig(narrow(va'',Int,[],[],[]));			(* 1, [v[''a]->1],  [''a->Int]  
 prettyPrintConfig(narrow(va''',Int,[],[],[]));			(* 1, [v['''a]->1], ['''a->Int] *)
 prettyPrintConfig(narrow(va''',Bool,[],[],[]));			(* Stuck, [], [] *)
 prettyPrintConfig(narrow(va',Pair(Int,Int),[],[],[]));  (* (1,1), [v['a]->(1,1)], ['a->Int*Int] *)
-prettyPrintConfig(narrow(va',Pair(b',c'),[],[],[]));	(* (v['b],v['c]), [v['a]->(v['b],v['c])], ['a -> 'b * 'c] *)
+prettyPrintConfig(narrow(va',Pair(b',c'),[],[],[]));	(* (v['b],v['c]), [v['a]->(v['b],v['c])], ['a->'a0*'a1, 'a0->'b, 'a1->'c] *)
 prettyPrintConfig(narrow(va',Pair(a',b'),[],[],[]));	(* Stuck, [], [] *)
 prettyPrintConfig(narrow(va''',Pair(c',b'),[],[],[]));	(* Stuck, [], [] *)
 prettyPrintConfig(narrow(va''',b'',[],[],[]));			(* 1, [v['''a]->1], ['''a->Int,''b->Int] *)
@@ -113,7 +113,7 @@ prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(va'''),Value(va''')),Real,[],
 prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(R(3.0)),Value(R(5.0))),a',[],[],[]));		(* 3.0*5.0, [], ['a->'''a0, '''a0->Real] *)
 prettyPrintConfig(narrowExpr(ArithExpr(SUBTRACT,Value(va'),Value(R(5.0))),a''',[],[],[]));		(* 1.0 - 5.0, [v['a]->1.0], ['a->Real,'''a->Real] *)
 prettyPrintConfig(narrowExpr(ArithExpr(SUBTRACT,Value(va'),Value(R(5.0))),a'',[],[],[]));		(* Stuck *)
-prettyPrintConfig(narrowExpr(ArithExpr(SUBTRACT,Value(va'),Value(vb''')),a',[],[],[]));			(* v['''a0]-v['''b], [ v['a]->v['''a0] ], ['''a0->'''b, 'a->'''a0] *)
+prettyPrintConfig(narrowExpr(ArithExpr(SUBTRACT,Value(va'),Value(vb''')),a',[],[],[]));			(* v['''a0]-v['''a0], [v['''b]->v['''a0],v['a]->v['''a0]], ['''b->'''a0,'a->'''a0] *)
 prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(N(5)),Value(va''')),a''',[],[],[]));			(* 5*1, [v['''a]->1], ['''a->Int] *)
 prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(va'''),Value(va''')),a'',[],[],[]));			(* 1*1, [ v['''a]->1.0], ['''a->Int, ''a->Int] *)
 prettyPrintConfig(narrowExpr(ArithExpr(TIMES,Value(va'''),Value(va''')),a''',[],[],[]));		(* v['''a] * v['''a], [], [] *)
@@ -133,10 +133,10 @@ prettyPrintConfig(narrowExpr(BoolExpr(LESS,Value(R(3.0)),Value(R(5.0))),a''',[],
 prettyPrintConfig(narrowExpr(BoolExpr(MORE,Value(R(3.0)),Value(ValuePair(R(5.0),B(true)))),a',[],[],[]));	(* Stuck, [], [] *)
 prettyPrintConfig(narrowExpr(BoolExpr(MORE_EQ,Value(va'),Value(N(2))),b',[],[],[]));		(* 1>=2, [v['a]->1], ['a->Int,'b->Bool] *)
 prettyPrintConfig(narrowExpr(BoolExpr(MORE_EQ,Value(va'),Value(N(2))),a',[],[],[]));		(* Stuck *)
-prettyPrintConfig(narrowExpr(BoolExpr(LESS_EQ,Value(R(3.0)),Value(va'')),a'',[],[],[]));	(* Stuck, [], [] *)
+prettyPrintConfig(narrowExpr(BoolExpr(LESS_EQ,Value(R(3.0)),Value(va'')),a'',[],[],[]));	(* Stuck *)
 
 prettyPrintConfig(narrowExpr(BoolExpr(LESS_EQ,Value(va'),Value(vb''')),Bool,[],[],[]));		
-(* v['''a0] <= v['''b], [ v['a]->v['''a0] ], ['a->'''a0, '''a0->'''b] *)
+(* v['''a0] <= v['''a0], [v['''b]->v['''a0], v['a]->v['''a0]], ['''b->'''a0, 'a->'''a0] *)
 
 prettyPrintConfig(narrowExpr(BoolExpr(LESS,Value(N(5)),Value(va''')),Bool,[],[],[]));			
 (* 5 < 1, [ v['''a]->1 ], ['''a->Int] *)
@@ -160,6 +160,7 @@ prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(N(3)),Value(va''')),b'',[],[],[])
 
 prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(va'),Value(vb''')),Bool,[],[],[]));		
 (* v[''a0] = 1, [ v['a]->v[''a0], v['''b]->1 ], ['a->''a0, '''b->Int, ''a0->Int] *)
+(* TO CHECK *)
 
 prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(va'),Value(vb''')),c',[],[],[]));		
 (* v[''a0] = 1, [ v['a]->v[''a0], v['''b]->1 ], ['a->''a0, '''b->Int, ''a0->Int, 'c->Bool] *)
@@ -205,6 +206,7 @@ prettyPrintConfig(narrowExpr(ExpressionPair(Condition(Value(va'),Value(vb'),Valu
 							a''',[],[],[]));
 (* Stuck *)  
    
+
 prettyPrintConfig(narrowExpr(Condition(
 	Condition(Value(va'),Value(B(true)),Value(B(false))),
 	Condition(Condition(Value(B(true)),Value(B(true)),Value(vb')),Value(vc'),Value(N(3))),
@@ -239,36 +241,51 @@ else if true then 5 else 1,
 prettyPrintConfig(narrowExpr(
 	Case(ExpressionPair(Value(va'),Value(vb')),VariablePair(Var("x"),Var("y")),
 		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),Int,[],[],[]));
-(* case (1,1) of (x,y) -> x+y, [ v['a]->1,v['b]->1 ], ['a->Int,'b->Int] *)				
+(* case (1,1) of (x,y) -> x+y, 
+  [v['a40] -> 1, v['a39] -> 1, v['b] -> v['a40], v['a] -> v['a39]]
+  ['a40 -> int, 'a39 -> int, 'b -> 'a40, 'a -> 'a39]
+  [x -> 1, y -> 1] *)	
+(* TO CHECK *)
 	
 prettyPrintConfig(narrowExpr(
 	Case(ExpressionPair(Value(va'),Value(vb')),VariablePair(Var("x"),Var("y")),
 		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),c',[],[],[]));
-(* case (v['''a0],v['''a0]) of (x,y) -> x+y, 
-[ v['a]->v['''a0],v['b]->v['''a0] ], 
-['a->'''a0,'b->'''a0, 'c->'''a0] *)	
+(* case (v['''43],v['''43]) of (x,y) -> x+y, 
+  [v['a42] -> v['''a43], v['a41] -> v['''a43], v['b] -> v['a42], v['a] -> v['a41]]
+  ['a42 -> '''a43, 'a41 -> '''a43, 'c -> '''a43, 'b -> 'a42, 'a -> 'a41]
+  [x -> v['''a43], y -> v['''a43]] *)
 	
 prettyPrintConfig(narrowExpr(
 	Case(ExpressionPair(Value(va'),Value(vb')),VariablePair(Var("x"),Var("y")),
 		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),Real,[],[],[]));
-(* case (1.0,1.0) of (x,y) -> x+y, [v['a]->1.0,v['b]->1.0], ['a->Real,'b->Real] *)
+(* case (1.0,1.0) of (x,y) -> x+y, 
+  [v['a45] -> 1.0, v['a44] -> 1.0, v['b] -> v['a45], v['a] -> v['a44]]
+  ['a45 -> real, 'a44 -> real, 'b -> 'a45, 'a -> 'a44]
+  [x -> 1.0, y -> 1.0] *)
 
 prettyPrintConfig(narrowExpr(
 	Case(Value(ValuePair(va',vb')),VariablePair(Var("x"),Var("y")),
 		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),Int,[],[],[]));
-(* case (1.0,1.0) of (x,y) -> x+y, [v['a]->1.0,v['b]->1.0], ['a->Real,'b->Real] *)
+(* case (1.0,1.0) of (x,y) -> x+y,
+  [v['a47] -> 1, v['a46] -> 1, v['b] -> v['a47], v['a] -> v['a46]]
+  ['a47 -> int, 'a46 -> int, 'b -> 'a47, 'a -> 'a46]
+  [x -> 1, y -> 1] *)
 	
 prettyPrintConfig(narrowExpr(
 	Case(Value(ValuePair(va',vb')),VariablePair(Var("x"),Var("y")),
 		 ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("y")))),Real,[],[],[]));
-(* case (1.0,1.0) of (x,y) -> x/y, [v['a]->1.0,v['b]->1.0], ['a->Real,'b->Real] *)
+(* case (1.0,1.0) of (x,y) -> x/y, 
+  [v['a49] -> 1.0, v['a48] -> 1.0, v['b] -> v['a49], v['a] -> v['a48]]
+  ['a49 -> real, 'a48 -> real, 'b -> 'a49, 'a -> 'a48]
+  [x -> 1.0, y -> 1.0] *)
 
 prettyPrintConfig(narrowExpr(
 	Case(Value(ValuePair(va',vb')),VariablePair(Var("x"),Var("y")),
 		 ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("y")))),a''',[],[],[]));
 (* case (1.0,1.0) of (x,y) -> x/y, 
-[v['a]->1.0,v['b]->1.0], 
-['a->Real,'b->Real,'''a->Real] *)
+  [v['a51] -> 1.0, v['a50] -> 1.0, v['b] -> v['a51], v['a] -> v['a50]]
+  ['a51 -> real, 'a50 -> real, '''a -> real, 'b -> 'a51, 'a -> 'a50]
+  [x -> 1.0, y -> 1.0] *)
 
 prettyPrintConfig(narrowExpr(
 	Case(Value(ValuePair(va',vb')),VariablePair(Var("x"),Var("y")),
@@ -279,4 +296,50 @@ prettyPrintConfig(narrowExpr(
 	Case(Value(vc'),
 		 VariablePair(Var("x"),Var("y")),
 		 ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("y")))),Real,[],[],[]));
-(* Stuck, [], [] *)
+(* case (1.0,1.0) of ( x , y ) -> x / y
+  [v['a55] -> 1.0, v['a54] -> 1.0, v['c] -> (v['a54],v['a55])]
+  ['a55 -> real, 'a54 -> real, 'a56 -> 'a54, 'a57 -> 'a55, 'c -> ('a56 * 'a57)]
+  [x -> 1.0, y -> 1.0] *)
+
+prettyPrintConfig(narrowExpr(
+	Case(Value(va'),
+		 VariablePair(Var("x"),Var("y")),
+		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),Int,[],[],[]));
+(* case (1,1) of ( x , y ) -> x + y
+  [v['a59] -> 1, v['a58] -> 1, v['a] -> (v['a58],v['a59])]
+  ['a59 -> int, 'a58 -> int, 'a60 -> 'a58, 'a61 -> 'a59, 'a -> ('a60 * 'a61)]
+  [x -> 1, y -> 1] *)
+
+ prettyPrintConfig(narrowExpr(
+	Case(Value(va'),
+		 VariablePair(Var("x"),Var("y")),
+		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),a''',[],[],[]));
+(* case (v['''a],v['''a]) of ( x , y ) -> x + y
+  [v['a63] -> v['''a], v['a62] -> v['''a], v['a] -> (v['a62],v['a63])]
+  ['a63 -> '''a, 'a62 -> '''a, 'a64 -> 'a62, 'a65 -> 'a63, 'a -> ('a64 * 'a65)]
+  [x -> v['''a], y -> v['''a]] *)
+  
+ 
+ prettyPrintConfig(narrowExpr(
+	Case(Value(va'''),
+		 VariablePair(Var("x"),Var("y")),
+		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),b''',[],[],[]));
+(* Stuck *)
+  
+ prettyPrintConfig(narrowExpr(
+	Case(Value(va''),
+		 VariablePair(Var("x"),Var("y")),
+		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),b'',[],[],[]));
+(* case (1,1) of ( x , y ) -> x + y
+  v[''a71] -> 1, v[''a70] -> 1, v[''a] -> (v[''a70],v[''a71])]
+  [''a71 -> int, ''a70 -> int, ''b -> int, 'a68 -> ''a70, 'a69 -> ''a71, ''a -> (''a70 * ''a71)]
+  [x -> 1, y -> 1] *)
+   
+ prettyPrintConfig(narrowExpr(
+	Case(Value(va''),
+		 VariablePair(Var("x"),Var("y")),
+		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),b''',[],[],[]));
+(* case (1,1) of ( x , y ) -> x + y
+  [v[''a75] -> 1, v[''a74] -> 1, v[''a] -> (v[''a74],v[''a75])]
+  [''a75 -> int, ''a74 -> int, '''b -> int, 'a72 -> ''a74, 'a73 -> ''a75, ''a -> (''a74 * ''a75)]
+  [x -> 1, y -> 1] *)

@@ -1,37 +1,25 @@
 (* 'narrow' dynamically performs type-checking 
     narrow : v * t * valSub * typeSub -> <v union stuck, valSub, typeSub>
     takes a value v, type t and current values & type substitutions and
-    refines v to have type t by yielding triple of either same value
-    and substitutions, or yields stuck state if not possible *)	
+    refines v to have type t, or yields stuck state if not possible *)	
 	
 fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 
 	  (N(integer),Int) => Config(Expression(Value(v)), sigma, theta, gamma)
-	| (N(integer),THole(hole)) => 
-		if Substitution.contains(hole,theta)
-		then narrow(v,resolveChainTheta(THole(hole),theta),sigma,theta,gamma)
-		else Config(Expression(Value(v)), sigma, Substitution.union(theta,hole,Int), gamma)
-	
+	| (N(integer),THole(hole)) => (case unify([resolveChainTheta(t,theta),Int],theta) of 
+	      NONE 		  => Config(Stuck,sigma,theta,gamma)
+		| SOME theta1 => Config(Expression(Value(v)),sigma,theta1,gamma))
+		
 	| (B(boolean),Bool) => Config(Expression(Value(v)), sigma, theta, gamma)
-	| (B(boolean),THole(TypeHole(TypeVar(hole)))) => 
-		if Substitution.contains(TypeHole(TypeVar(hole)),theta)
-		then narrow(v,resolveChainTheta(THole(TypeHole(TypeVar(hole))),theta),sigma,theta,gamma)
-		else Config(Expression(Value(v)), sigma, Substitution.union(theta,TypeHole(TypeVar(hole)),Bool),gamma)
-	| (B(boolean),THole(TypeHole(EqualityTypeVar(hole)))) =>
-		if Substitution.contains(TypeHole(EqualityTypeVar(hole)),theta)
-		then narrow(v,resolveChainTheta(THole(TypeHole(EqualityTypeVar(hole))),theta),sigma,theta,gamma)
-		else Config(Expression(Value(v)), sigma, Substitution.union(theta,TypeHole(EqualityTypeVar(hole)),Bool),gamma)
+	| (B(boolean),THole(hole)) => (case unify([resolveChainTheta(t,theta),Bool],theta) of 
+		  NONE  	  => Config(Stuck,sigma,theta,gamma)
+		| SOME theta1 => Config(Expression(Value(v)),sigma,theta1,gamma))
 	
 	| (R(real),Real) => Config(Expression(Value(v)), sigma, theta, gamma)
-	| (R(real),THole(TypeHole(TypeVar(hole)))) =>
-		if Substitution.contains(TypeHole(TypeVar(hole)),theta)
-		then narrow(v,resolveChainTheta(THole(TypeHole(TypeVar(hole))),theta),sigma,theta,gamma)
-		else Config(Expression(Value(v)), sigma, Substitution.union(theta,TypeHole(TypeVar(hole)),Real),gamma)
-	| (R(real),THole(TypeHole(ArithTypeVar(hole)))) => 
-		if Substitution.contains(TypeHole(ArithTypeVar(hole)),theta)
-		then narrow(v,resolveChainTheta(THole(TypeHole(ArithTypeVar(hole))),theta),sigma,theta,gamma)
-		else Config(Expression(Value(v)), sigma, Substitution.union(theta,TypeHole(ArithTypeVar(hole)),Real),gamma)
-	
+	| (R(real),THole(hole)) => (case unify([resolveChainTheta(t,theta),Real],theta) of 
+		  NONE 		  => Config(Stuck,sigma,theta,gamma)
+		| SOME theta1 => Config(Expression(Value(v)),sigma,theta1,gamma))
+		
 	| (ValuePair(v1,v2),Pair(t1,t2)) => 
 						
 		let val Config(v1narrow,sigma1,theta1,gamma1) = narrow(v1,t1,sigma,theta,gamma);
@@ -39,26 +27,23 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 		in (case (v1narrow,v2narrow) of
 			(* return a value pair where we can, but if sub-call to narrow returns an expression
 			   return an expression pair. This should be okay in evaluate function
-			   since all calls to narrow followed by another call to evaluate -
-			   just what about sub-calls to narrow...CHECK BIND EXCEPTIONS *)
+			   since all calls to narrow followed by another call to evaluate *)
 		
 			  (Expression(Value(va)),Expression(Value(vb))) => Config(Expression(Value(ValuePair(va,vb))),sigma2,theta2,gamma2)
 			| (Expression(e1narrow),Expression(e2narrow)) => Config(Expression(ExpressionPair(e1narrow,e2narrow)),sigma2,theta2,gamma2)
 			| _ => Config(Stuck,sigma,theta,gamma))
 		end
-						
-
+					
 	(* We can narrow a pair to a type hole, if it is a general type variable
 	   or equality type variable.
 	   narrow((v1,v2),'a) equivalent to narrow((v1,v2),('a0,'a1)) for fresh 'a0,'a1, and 
 	   narrow((v1,v2),''a) equivalent to narrow((v1,v2),(''a0,''a1)) for fresh ''a0,''a1
 	   Arithmetic type variables do not range over lists/pairs containing
 	   arithmetic type variable *)
-	   
+	  
 	| (ValuePair(_,_),THole(TypeHole(ArithTypeVar(_)))) => Config(Stuck,sigma,theta,gamma)
 	
-	(* For general type variable or equality type variable *)
-	| (ValuePair(v1,v2),THole(TypeHole(hole))) =>
+	| (ValuePair(_,_),THole(TypeHole(hole))) =>
 		let val freshTypeVar = case hole of EqualityTypeVar(_) => EQUALITY_TYPE_VAR
 										  | TypeVar(_) 		   => TYPE_VAR
 										  | ArithTypeVar(_)	   => ARITH_TYPE_VAR;
@@ -67,16 +52,14 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 			val freshType2 = generateFreshTypeVar(freshTypeVar,theta);
 			val newType = Pair(freshType1,freshType2)
 			val theta1 = Substitution.union(theta,TypeHole(hole),newType)
-		in
-			narrow(ValuePair(v1,v2),newType,sigma,theta1,gamma)
-		end
+		in narrow(v,newType,sigma,theta1,gamma) end
 		
 	| (VHole(SimpleHole(ValueHole(hole))),t) =>
 	   
 	   (* First check in given sigma if hole already instantiated *)
 		if Substitution.contains(ValueHole(hole), sigma) 
 		
-		then let val v = resolveChainSigma(VHole(SimpleHole(ValueHole(hole))),sigma)
+		then let val v = resolveChainSigma(v,sigma)
 			 in (case typeof(v,theta,gamma) of
 				
 				  (NONE,_) => Config(Stuck,sigma,theta,gamma)
@@ -97,7 +80,7 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 					  v as VHole(SimpleHole(ValueHole(vtyVar))) =>
 						
 						if (hole=vtyVar) 
-						then Config(Expression(Value(v)), sigma, theta1,gamma)
+						then Config(Expression(Value(v)), sigma, theta1, gamma)
 						else Config(Expression(Value(v)), Substitution.union(sigma,ValueHole(hole),v), theta1,gamma)
 				
 					| v => Config(Expression(Value(v)), Substitution.union(sigma,ValueHole(hole),v), theta1,gamma)))
@@ -117,6 +100,7 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 	| (VHole(ConditionHole(v1,e1,e2)),t) =>
 	   narrowExpr(Condition(Value(v1),e1,e2),t,sigma,theta,gamma)
 	
+	(* for anything that does not match the above clauses, can only return a stuck expression *)
 	| _  => Config(Stuck, sigma, theta, gamma))
 	
 (* ----------------------------------------------------------------------------------- *)
@@ -151,17 +135,10 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 				
 			  Config(Expression(ArithExpr(DIVIDE,e1narrow,e2narrow)),sigma2,theta2,gamma2)))
 	
-	(* can also narrow e1/e2 to a general type variable *)
-	| (ArithExpr(DIVIDE,e1,e2),THole(TypeHole(TypeVar(hole)))) =>
-		if Substitution.contains(TypeHole(TypeVar(hole)),theta)
-		then narrowExpr(e,resolveChainTheta(THole(TypeHole(TypeVar(hole))),theta),sigma,theta,gamma)
-		else narrowExpr(e,Real,sigma,Substitution.union(theta,TypeHole(TypeVar(hole)),Real),gamma)
-		
-	(* can also narrow e1/e2 to an arithmetic type variable *)
-	| (ArithExpr(DIVIDE,e1,e2),THole(TypeHole(ArithTypeVar(hole)))) =>
-		if Substitution.contains(TypeHole(ArithTypeVar(hole)),theta)
-		then narrowExpr(e,resolveChainTheta(THole(TypeHole(ArithTypeVar(hole))),theta),sigma,theta,gamma)
-		else narrowExpr(e,Real,sigma,Substitution.union(theta,TypeHole(ArithTypeVar(hole)),Real),gamma)
+	(* can also narrow e1/e2 to a type variable *)
+	| (ArithExpr(DIVIDE,e1,e2),THole(hole)) => (case unify([resolveChainTheta(t,theta),Real],theta) of 
+		  NONE 		  => Config(Stuck,sigma,theta,gamma)
+		| SOME theta1 => narrowExpr(e,Real,sigma,theta1,gamma))
 	
 	(* cannot narrow e1/e2 to anything else *)
 	| (ArithExpr(DIVIDE,_,_),_) => Config(Stuck,sigma,theta,gamma)
@@ -177,18 +154,18 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 		
 		| THole(TypeHole(TypeVar(tyvar))) => 
 			if Substitution.contains(TypeHole(TypeVar(tyvar)),theta)
-			then narrowExpr(e,resolveChainTheta(THole(TypeHole(TypeVar(tyvar))),theta),sigma,theta,gamma)
+			then narrowExpr(e,resolveChainTheta(t,theta),sigma,theta,gamma)
 			else let val freshArith = generateFreshTypeVar(ARITH_TYPE_VAR,theta)
 				 in narrowExpr(e,freshArith,sigma,Substitution.union(theta,TypeHole(TypeVar(tyvar)),freshArith),gamma) end
 		
 		| THole(TypeHole(EqualityTypeVar(tyvar))) =>  
 			if Substitution.contains(TypeHole(EqualityTypeVar(tyvar)),theta)
-			then narrowExpr(e,resolveChainTheta(THole(TypeHole(EqualityTypeVar(tyvar))),theta),sigma,theta,gamma)
+			then narrowExpr(e,resolveChainTheta(t,theta),sigma,theta,gamma)
 			else narrowExpr(e,Int,sigma,Substitution.union(theta,TypeHole(EqualityTypeVar(tyvar)),Int),gamma)
 		
 		| THole(TypeHole(ArithTypeVar(tyvar))) =>
 			if Substitution.contains(TypeHole(ArithTypeVar(tyvar)),theta)
-			then narrowExpr(e,resolveChainTheta(THole(TypeHole(ArithTypeVar(tyvar))),theta),sigma,theta,gamma)
+			then narrowExpr(e,resolveChainTheta(t,theta),sigma,theta,gamma)
 			else let val narrowType = (case typeofexpr(e1,theta,gamma) of
 		
 					  (NONE,_) => t
@@ -229,9 +206,7 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 				
 					Config(Expression(ArithExpr(oper,e1narrow,e2narrow)),sigma2,theta2,gamma2))))
 					
-	(* For op =, t can only be of type Bool 
-	   But sub-expressions can be any type in equality type variables set (fresh)
-	   unless concrete type already exists for e1 or e2 then use that if they're the same*)
+	(* For op =, t can only be of type Bool *)
 	| (BoolExpr(EQ,e1,e2),Bool) =>
 	
 		let val narrowType = (case typeofexpr(e1,theta,gamma) of
@@ -262,24 +237,14 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 		end
 	
 	(* can also narrow e1=e2 to a general type variable *)
-	| (BoolExpr(EQ,e1,e2),THole(TypeHole(TypeVar(hole)))) =>
-		if Substitution.contains(TypeHole(TypeVar(hole)),theta)
-		then narrowExpr(e,resolveChainTheta(THole(TypeHole(TypeVar(hole))),theta),sigma,theta,gamma)
-		else narrowExpr(e,Bool,sigma,Substitution.union(theta,TypeHole(TypeVar(hole)),Bool),gamma)
-		
-	(* can also narrow e1=e2 to an equality type variable *)
-	| (BoolExpr(EQ,e1,e2),THole(TypeHole(EqualityTypeVar(hole)))) =>
-		if Substitution.contains(TypeHole(EqualityTypeVar(hole)),theta)
-		then narrowExpr(e,resolveChainTheta(THole(TypeHole(EqualityTypeVar(hole))),theta),sigma,theta,gamma)
-		else narrowExpr(e,Bool,sigma,Substitution.union(theta,TypeHole(EqualityTypeVar(hole)),Bool),gamma)
+	| (BoolExpr(EQ,e1,e2),THole(hole)) => (case unify([resolveChainTheta(t,theta),Bool],theta) of 
+		  NONE 		  => Config(Stuck,sigma,theta,gamma)
+		| SOME theta1 => narrowExpr(e,Bool,sigma,theta1,gamma))
 	
 	(* cannot narrow e1=e2 to anything else *)
 	| (BoolExpr(EQ,_,_),_) => Config(Stuck,sigma,theta,gamma)
 	
-	(* For op <,<=,>=,>
-	   t can only be of type Bool
-	   but sub-expressions can be any type in arithmetic type variables set (fresh)
-       unless concrete type already exists for e1 or e2 then use that *)
+	(* For op <,<=,>=,>, t can only be of type Bool *)
 	| (BoolExpr(oper,e1,e2),Bool) =>
 	
 		let val narrowType = (case typeofexpr(e1,theta,gamma) of
@@ -308,17 +273,10 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 		end
 		
 	(* can also narrow e1 op e2 to a general type variable (for op < <= > >=) *)
-	| (BoolExpr(oper,e1,e2),THole(TypeHole(TypeVar(hole)))) =>
-		if Substitution.contains(TypeHole(TypeVar(hole)),theta)
-		then narrowExpr(e,resolveChainTheta(THole(TypeHole(TypeVar(hole))),theta),sigma,theta,gamma)
-		else narrowExpr(e,Bool,sigma,Substitution.union(theta,TypeHole(TypeVar(hole)),Bool),gamma)
+	| (BoolExpr(oper,e1,e2),THole(hole)) => (case unify([resolveChainTheta(t,theta),Bool],theta) of
+		  NONE 		  => Config(Stuck,sigma,theta,gamma)
+		| SOME theta1 => narrowExpr(e,Bool,sigma,theta1,gamma))
 		
-	(* can also narrow e1 op e2 to an equality type variable (for op < <= > >=) *)
-	| (BoolExpr(oper,e1,e2),THole(TypeHole(EqualityTypeVar(hole)))) =>
-		if Substitution.contains(TypeHole(EqualityTypeVar(hole)),theta)
-		then narrowExpr(e,resolveChainTheta(THole(TypeHole(EqualityTypeVar(hole))),theta),sigma,theta,gamma)
-		else narrowExpr(e,Bool,sigma,Substitution.union(theta,TypeHole(EqualityTypeVar(hole)),Bool),gamma)
-	
 	| (ExpressionPair(e1,e2),Pair(t1,t2)) => (case narrowExpr(e1,t1,sigma,theta,gamma) of
 	
 		  Config(Stuck,_,_,_) => Config(Stuck,sigma,theta,gamma)
@@ -349,9 +307,7 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 			val freshType2 = generateFreshTypeVar(freshTypeVar,theta);
 			val newType = Pair(freshType1,freshType2)
 			val theta1 = Substitution.union(theta,TypeHole(hole),newType)
-		in
-			narrowExpr(ExpressionPair(e1,e2),newType,sigma,theta1,gamma)
-		end
+		in narrowExpr(ExpressionPair(e1,e2),newType,sigma,theta1,gamma) end
 	
 	| (Condition(e1,e2,e3),t) => (case narrowExpr(e1,Bool,sigma,theta,gamma) of 
 	
@@ -373,38 +329,41 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 			val fvRan = fv(Substitution.range(gamma))
 		in  if ((element(dom,x) orelse element(dom,y)) orelse 
 				(element(fvRan,x) orelse element(fvRan,y)))
+				
 		    then narrowExpr(alphaVariant(c,getCounterAndUpdate(),[x,y]),t,sigma,theta,gamma)
 			
-			else (case e1 of 
-				  (* first expression must be a value pair or expression pair *)
+			else (case narrowExpr(e1,Pair(generateFreshTypeVar(TYPE_VAR,theta),generateFreshTypeVar(TYPE_VAR,theta)),sigma,theta,gamma) of
+			
+				  Config(Stuck,_,_,_) => Config(Stuck,sigma,theta,gamma)
+				| Config(Expression(e1narrow),sigma1,theta1,gamma1) => (case e1narrow of 
 				  
-				  ExpressionPair(e11,e12) => (case narrowExpr(e2,t,sigma,theta,(x,e11)::(y,e12)::gamma) of
-					
-					  Config(Stuck,_,_,_) => Config(Stuck,sigma,theta,gamma)
-					| Config(Expression(e2narrow),sigma1,theta1,gamma1) => 
-					
-						Config(Expression(Case(ExpressionPair(Substitution.get(x,gamma1),Substitution.get(y,gamma1)),VariablePair(x,y),e2narrow)),
-								sigma1,theta1,gamma1))
-				  
-				  
-				| Value(ValuePair(v11,v12)) => (case narrowExpr(e2,t,sigma,theta,(x,Value(v11))::(y,Value(v12))::gamma) of
-					
-					  Config(Stuck,_,_,_) => Config(Stuck,sigma,theta,gamma)
-					| Config(Expression(e2narrow),sigma1,theta1,gamma1) => (case Substitution.get(x,gamma1) of 
-					
-						  Value(updatedV1) => (case Substitution.get(y,gamma1) of 
-																  
-								  Value(updatedV2) => 
-									Config(Expression(Case(Value(ValuePair(updatedV1,updatedV2)),VariablePair(x,y),e2narrow)),sigma1,theta1,gamma1)
-									  
-								| updatedE2 => 
-									Config(Expression(Case(ExpressionPair(Value(updatedV1),updatedE2),VariablePair(x,y),e2narrow)),sigma1,theta1,gamma1))
-
-						| updatedE1 =>
-							Config(Expression(Case(ExpressionPair(updatedE1,Substitution.get(y,gamma1)),VariablePair(x,y),e2narrow)),sigma1,theta1,gamma1)))
-							 
+					  ExpressionPair(e11,e12) => (case narrowExpr(e2,t,sigma1,theta1,(x,e11)::(y,e12)::gamma1) of
 						
-				| _ => Config(Stuck,sigma,theta,gamma))
+						  Config(Stuck,_,_,_) => Config(Stuck,sigma,theta,gamma)
+						| Config(Expression(e2narrow),sigma2,theta2,gamma2) => 
+						
+							Config(Expression(Case(ExpressionPair(Substitution.get(x,gamma2),Substitution.get(y,gamma2)),VariablePair(x,y),e2narrow)),
+									sigma2,theta2,gamma2))
+					  
+					  
+					| Value(ValuePair(v11,v12)) => (case narrowExpr(e2,t,sigma1,theta1,(x,Value(v11))::(y,Value(v12))::gamma1) of
+						
+						  Config(Stuck,_,_,_) => Config(Stuck,sigma,theta,gamma)
+						| Config(Expression(e2narrow),sigma2,theta2,gamma2) => (case Substitution.get(x,gamma2) of 
+						
+							  Value(updatedV1) => (case Substitution.get(y,gamma2) of 
+																	  
+									  Value(updatedV2) => 
+										Config(Expression(Case(Value(ValuePair(updatedV1,updatedV2)),VariablePair(x,y),e2narrow)),sigma2,theta2,gamma2)
+										  
+									| updatedE2 => 
+										Config(Expression(Case(ExpressionPair(Value(updatedV1),updatedE2),VariablePair(x,y),e2narrow)),sigma2,theta2,gamma2))
+
+							| updatedE1 =>
+								Config(Expression(Case(ExpressionPair(updatedE1,Substitution.get(y,gamma2)),VariablePair(x,y),e2narrow)),sigma2,theta2,gamma2)))
+								 
+							
+					| _ => Config(Stuck,sigma,theta,gamma)))
 		end
 	
 	| _ => Config(Stuck,sigma,theta,gamma))

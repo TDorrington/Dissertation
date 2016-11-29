@@ -1,14 +1,5 @@
-(* If we cannot reduce the individual equals to booleans, e.g. (v['a],v['b])=(v['c],v['d])
-				   which would return v['a='c] and v['b='d],
-				   we can do nothing but return the original equals expression in a value hole, i.e.
-				   v[('a,'b)=('c,'d)]
-				   with the new type and value hole substitutions,
-				   in this case showing v['a] and v['c] to point to the same equality type variable,
-				   and v['b] and v['d] to point to another same equality type variable *)
-
-(* Curried function which takes an operator oper
-   Returns a function from a pair of two values to a possibly-stuck expression
-   Performs the same operation as oper, but wrapping into datatype constructs *)
+(* Curried function which takes an operator oper, and
+   returns a function from a pair of two values to a possibly-stuck expression *)
 val rec operationWrap = fn oper =>
 
    (fn (N(n1),N(n2)) => (case oper of 
@@ -54,18 +45,22 @@ val rec operationWrap = fn oper =>
 	
 	| _ => Stuck);
 		
-(* -------------------------------------------------------------------------------- *)
 (* Rules for arithmetic and boolean operations *)
 fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, gamma, oper, t) : config = 
 	
 	(case evaluate(narrow(v1,t,sigma,theta,gamma)) of
 			
-	  c as Config(Stuck,_,_,_) => c (* rule E-OP-BAD1 *)
+	  (* rule E-OP-BAD1 *)
+	  c as Config(Stuck,_,_,_) => c 
+	  
 	| Config(Expression(Value(n1)),sigma1,theta1,gamma1) => (case evaluate(narrow(v2,t,sigma1,theta1,gamma1)) of
 					
-		  c as Config(Stuck,_,_,_) => c (* rule E-OP-BAD2 *)
+		  (* rule E-OP-BAD2 *)
+		  c as Config(Stuck,_,_,_) => c
+		  
 		| Config(Expression(Value(n2)),sigma2,theta2,gamma2) => 
 		
+			(* rule E-OP-GOOD *)
 			Config(oper(n1,n2),sigma2,theta2,gamma2)))
 						
 and elabPhraseOperation(v1,v2,sigma,theta,gamma,oper) =
@@ -95,31 +90,46 @@ and elabPhraseOperation(v1,v2,sigma,theta,gamma,oper) =
 		then let val Config(e1,sigma1,theta1,gamma1) = elabPhraseOperation(va1,vb1,sigma,theta,gamma,oper);
 			     val Config(e2,sigma2,theta2,gamma2) = elabPhraseOperation(va2,vb2,sigma1,theta1,gamma1,oper)
 				 in (case (e1,e2) of
-				
-					  (Stuck,_) => Config(Stuck,sigma2,theta2,gamma2)
-					| (_,Stuck) => Config(Stuck,sigma2,theta2,gamma2)
-					| (Expression(Value(B(b1))),Expression(Value(B(b2)))) => Config(Expression(Value(B(b1 andalso b2))),sigma2,theta2,gamma2)
-					| _ => Config(Expression(Value(VHole(BinaryOp(BoolOper(EQ),resolveChainSigma(v1,sigma2),resolveChainSigma(v2,sigma2))))),sigma2,theta2,gamma2))
+					
+					  (Expression(Value(B(b1))),Expression(Value(B(b2)))) => 
+						Config(Expression(Value(B(b1 andalso b2))),sigma2,theta2,gamma2)
+						
+					| (Expression(_),Expression(_)) => 
+						Config(Expression(Value(VHole(BinaryOp(BoolOper(EQ),resolveChainSigma(v1,sigma2),resolveChainSigma(v2,sigma2))))),sigma2,theta2,gamma2)
+					
+					| _ => Config(Stuck,sigma2,theta2,gamma2))
+					
 				end
+				
 		else Config(Stuck,sigma,theta,gamma)
 		
 	| (ValuePair(_,_),VHole(_)) => (case typeof(v1,theta,gamma) of 
+	
 		  (NONE,_) => Config(Stuck,sigma,theta,gamma)
-		| (SOME(pairType),theta1) => elabPhraseOperationEvaluate(v1,v2,sigma,theta1,gamma,wrapper,pairType))	
+		| (SOME(pairType),theta1) => (case evaluate(narrow(v2,pairType,sigma,theta1,gamma)) of
 		
-	| (VHole(_),ValuePair(vb1,vb2)) => (case typeof(v2,theta,gamma) of 
+			  c as Config(Stuck,sigma2,theta2,gamma2) => c
+			| Config(Expression(Value(v2narrow)),sigma2,theta2,gamma2) => 
+				
+				elabPhraseOperation(v1,v2narrow,sigma2,theta2,gamma2,oper)))
+		
+	| (VHole(_),ValuePair(_,_)) => (case typeof(v2,theta,gamma) of 
+	
 		  (NONE,_) => Config(Stuck,sigma,theta,gamma)
-		| (SOME(pairType),theta1) => elabPhraseOperationEvaluate(v1,v2,sigma,theta1,gamma,wrapper,pairType))	
+		| (SOME(pairType),theta1) => (case evaluate(narrow(v1,pairType,sigma,theta1,gamma)) of
+		
+			  c as Config(Stuck,sigma2,theta2,gamma2) => c
+			| Config(Expression(Value(v1narrow)),sigma2,theta2,gamma2) => 
+				
+				elabPhraseOperation(v1narrow,v2,sigma2,theta2,gamma2,oper)))	
 		
 	| (VHole(_),VHole(_)) =>
-	   (* Calculate types we must constrain type variables to 
-	      If we are constraining to a fresh type variable 
-		  (either equality for op =, or arithmetic for anything else except real)
-		  first check the two arguments are not already of the same type variable
-		  to prevent unnecessary complications in the substitutions *)
 		let val (t,theta1) = (case oper of 
 		
 			  ArithOper(DIVIDE) => (Real,theta)
+			  
+			 (* When using typeof in the two clauses below, return the original
+			    theta if they are not equal equality/arithmetic type variables *)
 			  
 			| BoolOper(EQ) => 
 				let val (t1,theta1) = typeof(v1,theta,gamma);
@@ -167,21 +177,19 @@ and evaluate (Config(Expression(Value(v)),s,t,g)) =
 |  	evaluate (Config(Expression(Variable(x)),s,t,g)) = 
 	Config(Expression(Substitution.get(x,g)),s,t,g)
 
-(* Arithmetic operations +,-,*,/ with both arguments as values   ------------------- *)
-(* I.e. rules (E-OP-GOOD), (E-OP-BAD1) and (E-OP-BAD2) for op an arithmetic operator *)
+(* Arithmetic operations +,-,*,/ with both arguments as values 
+   i.e. rules (E-OP-GOOD), (E-OP-BAD1) and (E-OP-BAD2) for op an arithmetic operator *)
 | 	evaluate (Config(Expression(ArithExpr(oper,Value(v1),Value(v2))),sigma,theta,gamma)) =
 
 		elabPhraseOperation(v1,v2,sigma,theta,gamma,ArithOper(oper))
 		
-(* Boolean operations <,<=,>,>=,= with both arguments as values *)
-(* I.e. rules (E-OP-GOOD), (E-OP-BAD1) and (E-OP-BAD2) for op a boolean operator *)
+(* Boolean operations <,<=,>,>=,= with both arguments as values 
+   i.e. rules (E-OP-GOOD), (E-OP-BAD1) and (E-OP-BAD2) for op a boolean operator *)
 |	evaluate (Config(Expression(BoolExpr(oper,Value(v1),Value(v2))),sigma,theta,gamma)) =
 
 		elabPhraseOperation(v1,v2,sigma,theta,gamma,BoolOper(oper))
  
-(* Arithmetic & boolean operators: right argument a generic expression -----------------  *)
-(* (context-op-2) *)
-	  
+(* (context-op-2) for arithmetic expressions *)	  
 |	evaluate (Config(Expression(ArithExpr(oper,Value(v1),e2)),sigma,theta,gamma)) =
 
 	(case evaluate(Config(Expression(e2),sigma,theta,gamma)) of 
@@ -191,6 +199,7 @@ and evaluate (Config(Expression(Value(v)),s,t,g)) =
 		| Config(Expression(Value(v2)),sigma1,theta1,gamma1) =>
 			evaluate(Config(Expression(ArithExpr(oper,Value(v1),Value(v2))),sigma1,theta1,gamma1)))
 	
+(* (context-op-2) for boolean expressions *)	 
 |	evaluate (Config(Expression(BoolExpr(oper,Value(v1),e2)),sigma,theta,gamma)) =
 
 	(case evaluate(Config(Expression(e2),sigma,theta,gamma)) of 
@@ -200,9 +209,7 @@ and evaluate (Config(Expression(Value(v)),s,t,g)) =
 		| Config(Expression(Value(v2)),sigma1,theta1,gamma1) =>
 			evaluate(Config(Expression(BoolExpr(oper,Value(v1),Value(v2))),sigma1,theta1,gamma1)))
   
-(* Arithmetic & boolean operators: both arguments a generic expression -----------------  *)
-(* (context-op-1*)
-
+(* (context-op-1) for arithmetic expressions *)	 
 |	evaluate (Config(Expression(ArithExpr(oper,e1,e2)),sigma,theta,gamma)) =
 
 	(case evaluate(Config(Expression(e1),sigma,theta,gamma)) of 
@@ -212,6 +219,7 @@ and evaluate (Config(Expression(Value(v)),s,t,g)) =
 		| Config(Expression(Value(v1)),sigma1,theta1,gamma1) =>
 			evaluate(Config(Expression(ArithExpr(oper,Value(v1),e2)),sigma1,theta1,gamma1)))
 	
+(* (context-op-1) for boolean expressions *)	
 |	evaluate (Config(Expression(BoolExpr(oper,e1,e2)),sigma,theta,gamma)) =
 
 	(case evaluate(Config(Expression(e1),sigma,theta,gamma)) of 
@@ -257,13 +265,16 @@ and evaluate (Config(Expression(Value(v)),s,t,g)) =
 		 
 		| Config(Expression(Value(B(b))),sigma1,theta1,gamma1) =>
 		
-			if b (* rule E-IF-GOOD1 *)
+			if b 
+				 (* rule E-IF-GOOD1 *)
 				 then evaluate(Config(Expression(e1),sigma1,theta1,gamma1))
 				
 				 (* rule E-IF-GOOD2 *)
 				 else evaluate(Config(Expression(e2),sigma1,theta1,gamma1))
 		
 		| Config(Expression(Value(newV)),sigma1,theta1,gamma1) =>
+		
+			(* rule E-IF-HOLE *)
 			Config(Expression(Value(VHole(ConditionHole(newV,e1,e2)))),sigma1,theta1,gamma1))
 			
 				 
@@ -281,7 +292,6 @@ and evaluate (Config(Expression(Value(v)),s,t,g)) =
 (* i.e. implement rules (E-CASE-PAIR-GOOD) and (E-CASE-PAIR-BAD) *) 
 |  evaluate (Config(Expression(Case(Value(v),VariablePair(x1,x2),e)),sigma,theta,gamma)) =
 
-	(* generate fresh type variables, alpha1 and alpha2, using unique counter *)
 	let val alpha1 = generateFreshTypeVar(TYPE_VAR,theta)
 		val alpha2 = generateFreshTypeVar(TYPE_VAR,theta)
 		
@@ -293,8 +303,6 @@ and evaluate (Config(Expression(Value(v)),s,t,g)) =
 	  (* rule E-CASE-PAIR-GOOD *)
 	| Config(Expression(Value(ValuePair(v1,v2))),sigma1,theta1,gamma1) =>
 				
-		(* declare mapping of variables to values that will be used in 
-		   substitution function *)
 		let val gamma2 = append([ (x1,Value(v1)), (x2,Value(v2)) ],gamma1)
 		in evaluate(Config(Expression(substitute(e,gamma2)),sigma1,theta1,gamma2)) end)
 				

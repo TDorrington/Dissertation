@@ -87,3 +87,23 @@ val globalCounter = ref 0;
 fun getCounterAndUpdate() = 
 	let val current = !globalCounter
 	in (globalCounter := !globalCounter + 1);current end;
+
+(* Generates a fresh type variable of the form depending on enumeration argument 
+   (i.e. general type variable, equality type variable, or arithmetic type variable)
+   We also need to check the generated type variable is neither in the domain or range
+   of the current substitution. If it is, keep re-calling function *)
+fun generateFreshTypeVar(typeVarEnum,theta:typeSub) =
+
+	let val freshTypeVar = case typeVarEnum of
+	
+		  TYPE_VAR => TypeHole(TypeVar("a" ^ Int.toString(getCounterAndUpdate())))
+		  
+		| EQUALITY_TYPE_VAR => TypeHole(EqualityTypeVar("a" ^ Int.toString(getCounterAndUpdate())))
+		
+		| ARITH_TYPE_VAR => TypeHole(ArithTypeVar("a" ^ Int.toString(getCounterAndUpdate())))
+
+	in 
+		if element(Substitution.domain(theta),freshTypeVar) orelse element(Substitution.range(theta),THole(freshTypeVar))
+		then generateFreshTypeVar(typeVarEnum,theta)
+		else THole(freshTypeVar)
+	end;
