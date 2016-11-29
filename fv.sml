@@ -19,8 +19,6 @@ fun fvExpr(e) = case e of
 		
 	| Value(ValuePair(v1,v2)) => union(fvExpr(Value(v1)),fvExpr(Value(v2)))
 	
-	(* Rest of expressions *)
-	
 	| Value(_) => [] (* int, real or bool *)
 	| Variable(x) => [x]
 	| ArithExpr(_,e1,e2)    => union(fvExpr(e1),fvExpr(e2))

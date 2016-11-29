@@ -1,13 +1,6 @@
 (* Takes an expression and returns an alpha-variant version
    Also takes a list of variables, vars, which we only need change; we cannot change all variables
-   as we only want to change those variables bound in the closest fun/case binding.
-   This is used in the substitute function when the side condition fails.
-   Only non trivial case is a variable: to make a different
-   variable identifier, and (hopefully) no longer capture avoiding,
-   we append a unique integer to it, which is passed from outside the function.
-   This is implemented in the function substituteVar
-   This preserves de Brujin Indices order: all occurrences of a variable x in expression e 
-   are now ALL referred to as variable xn, after the call to alphaVariant(e,n) *)
+   as we only want to change those variables bound in the closest fun/case binding *)
 
 fun substituteVar(Var(s),n,vars) = 
 

@@ -1,10 +1,3 @@
-(* Takes an expression e, a map of variables to expressions, gamma,
-   and substitutes all variables occurring in expression e, for which there is a map
-   to some value in gamma, with that value. Denoted 'gamma e'
-   Simply implemented by pattern matching on the structure of the expression
-   and recursively calling substitute on its sub-expressions 
-   Only non-trivial case is case expression. Need to perform a capture-avoiding substitution *)
-
 fun substituteValue(v,gamma:variableSub) = (case v of 
 
 	  ValuePair(v1,v2) => 
@@ -28,7 +21,7 @@ fun substituteValue(v,gamma:variableSub) = (case v of
 	
 	| VHole(SimpleHole(_)) => v
 	
-	| _ => v(* int, bool or real *))
+	| _ => v (* int, bool or real *))
  
 and substitute(e,gamma) = case e of 
 
@@ -44,13 +37,7 @@ and substitute(e,gamma) = case e of
 	| Condition(e1,e2,e3)		 => Condition(substitute(e1,gamma),substitute(e2,gamma),substitute(e3,gamma))
 	
 	| c as Case (e1,VariablePair(x,y),e2) => 
-		(* Need to perform a capture-avoiding substitution for 'case e1 of (x,y) -> e2'
-		   To check if we need to perform alpha conversion, 
-		   check that x and y are not in the domain of gamma
-		   and x and y are not in the set of free variables of the range of gamma
-		   If these side conditions are not met, replace all occurrences of x and y
-		   within e2 and the expression pair by xn and yn, respectively,
-		   for a unique integer n (i.e. an alpha invariant of the expression) *)
+		(* Need to perform a capture-avoiding substitution, otherwise perform alpha conversion *)
 		   
 		let val dom = Substitution.domain(gamma);
 			val fvRan = fv(Substitution.range(gamma))
