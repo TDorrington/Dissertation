@@ -11,7 +11,8 @@ fun resolveChainSigma(a,sigma:valSub) =
 		| BoolExpr(oper,e1,e2)  => BoolExpr(oper,resolveExpr(e1),resolveExpr(e2))
 		| ExpressionPair(e1,e2) => ExpressionPair(resolveExpr(e1),resolveExpr(e2))
 		| Case(e1,p,e2)  		=> Case(resolveExpr(e1),p,resolveExpr(e2))
-		| Condition(e1,e2,e3)	=> Condition(resolveExpr(e1),resolveExpr(e2),resolveExpr(e3)))
+		| Condition(e1,e2,e3)	=> Condition(resolveExpr(e1),resolveExpr(e2),resolveExpr(e3))
+		| App(e1,e2) 			=> App(resolveExpr(e1),resolveExpr(e2)))
 	
 	in case a of 
 
@@ -26,7 +27,11 @@ fun resolveChainSigma(a,sigma:valSub) =
 	
 	| VHole(CaseHole(v,pattern,e)) => VHole(CaseHole(resolveChainSigma(v,sigma),pattern,resolveExpr(e)))
 	
+	| VHole(AppHole(v1,v2)) => VHole(AppHole(resolveChainSigma(v1,sigma),resolveChainSigma(v2,sigma)))
+	
 	| ValuePair(v1,v2) => ValuePair(resolveChainSigma(v1,sigma),resolveChainSigma(v2,sigma))
+	
+	| Func(x,t,e) => Func(x,t,resolveExpr(e))
 	
 	| _ => a (* Bottom value of int, real or bool *)
 
@@ -44,6 +49,8 @@ fun resolveChainTheta(a,theta:typeSub) = case a of
 	  
 	| Pair(t1,t2) => Pair(resolveChainTheta(t1,theta),resolveChainTheta(t2,theta))
 	
-	| _ => a; (* Bottom type of Int, Real or Bool *)
+	| Fun(t1,t2)  => Fun(resolveChainTheta(t1,theta),resolveChainTheta(t2,theta))
+	
+	| _ => a; (* Int, Real, Bool *)
 
 	

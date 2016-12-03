@@ -188,162 +188,180 @@ fun typeOp(ArithOper(DIVIDE),t1,t2,theta:typeSub) = (case (t1,t2) of
 | 	typeOp(EXPR_PAIR,_,_,theta) = (NONE,theta);
 	
 (* ----------------------------------------------------------------------------------- *)
-(* Returns the type of a simple value hole, which may be simple, e.g. v['a], 
-   or compound, e.g. v[if 'a then 3 else 4]
+(* Returns the type of a value hole, which may be simple or compound
    Use typeofexpr to implement typeofhole by 'unwrapping' the value hole
    e.g. typeofhole(v[case 'a of (x,y) -> (x+y)]) => 
         typeofexpr(case v['a] of (x,y) -> (x+y))*)
    
-fun typeofhole(SimpleHole(ValueHole(tyVar)),theta:typeSub,gamma:variableSub) =  
-	if Substitution.contains(TypeHole(tyVar),theta) 
-	then (SOME (resolveChainTheta(THole(TypeHole(tyVar)),theta)), theta)
-	else (SOME (THole(TypeHole(tyVar))),theta)
+fun typeofhole(SimpleHole(ValueHole(tyVar)),theta:typeSub) =  
+	(SOME (resolveChainTheta(THole(TypeHole(tyVar)),theta)), theta)
 	
-|  	typeofhole (BinaryOp(EXPR_PAIR,v1,v2),theta,gamma) =
-	typeofexpr(ExpressionPair(Value(v1),Value(v2)),theta,gamma)
+|  	typeofhole (BinaryOp(EXPR_PAIR,v1,v2),theta) =
+	typeofexpr(ExpressionPair(Value(v1),Value(v2)),theta)
 
-|  	typeofhole (BinaryOp(ArithOper(oper),v1,v2),theta,gamma) =
-	typeofexpr(ArithExpr(oper,Value(v1),Value(v2)),theta,gamma)
+|  	typeofhole (BinaryOp(ArithOper(oper),v1,v2),theta) =
+	typeofexpr(ArithExpr(oper,Value(v1),Value(v2)),theta)
 
-|	typeofhole (BinaryOp(BoolOper(oper),v1,v2),theta,gamma) =
-	typeofexpr(BoolExpr(oper,Value(v1),Value(v2)),theta,gamma)
+|	typeofhole (BinaryOp(BoolOper(oper),v1,v2),theta) =
+	typeofexpr(BoolExpr(oper,Value(v1),Value(v2)),theta)
 	
-|	typeofhole (CaseHole(v,pat,expr),theta,gamma) =
-	typeofexpr(Case(Value(v),pat,expr),theta,gamma)
+|	typeofhole (CaseHole(v,pat,expr),theta) =
+	typeofexpr(Case(Value(v),pat,expr),theta)
 
-| 	typeofhole (ConditionHole(v,e2,e3),theta,gamma) =
-	typeofexpr(Condition(Value(v),e2,e3),theta,gamma)
+| 	typeofhole (ConditionHole(v,e2,e3),theta) =
+	typeofexpr(Condition(Value(v),e2,e3),theta)
+	
+| 	typeofhole (AppHole(v1,v2),theta) =
+	typeofexpr(App(Value(v1),Value(v2)),theta)
 	
 (* no semi-colon: mutually recursive with typeof and typeofexpr *)
 (* ----------------------------------------------------------------------------------- *)	
 (* typeof returns dynamic type of a value
    Returns pair of type (wrapped in option datatype) and a type substitution *)
    
-and typeof (v,theta,gamma) = (case v of
+and typeof (v,theta) = (case v of
 
 	  N(_) => (SOME Int,theta)
 	| B(_) => (SOME Bool,theta)
     | R(_) => (SOME Real,theta)
 	
-	| ValuePair(v1,v2) => 
-		(case typeof(v1,theta,gamma) of
+	| Func(x,t1,e) => (case typeofexpr(substitute(e, [(x,Value(gen(t1,theta)))]),theta) of
+	
+		  (NONE,theta1) => (NONE,theta1)
+		  (* get the latest type substitution for t1, after calculating t2 *)
+		| (SOME(t2),theta1) => (SOME (Fun(resolveChainTheta(t1,theta1),t2)),theta1))
+			
+	| ValuePair(v1,v2) => (case typeof(v1,theta) of
 		
-			  (NONE,theta1) => (NONE,theta1)
-			| (SOME(a),theta1) => (case typeof(v2,theta1,gamma) of
+		  (NONE,theta1) => (NONE,theta1)
+		| (SOME(a),theta1) => (case typeof(v2,theta1) of
 			  
-					  (NONE,theta2) => (NONE,theta2)
-					| (SOME(b),theta2) => (SOME (Pair(a,b)),theta2)))
+				  (NONE,theta2) => (NONE,theta2)
+				  (* get the latest type substitution for a, after calculating b *)
+				| (SOME(b),theta2) => (SOME (Pair(resolveChainTheta(a,theta2),b)),theta2)))
 					
-	| VHole(h) => typeofhole(h,theta,gamma))
+	| VHole(h) => typeofhole(h,theta))
 	
 (* no semi-colon: mutually recursive with typeofhole and typeofexpr *)
 (* ----------------------------------------------------------------------------------- *)
 (* typeofexpr returns dynamic type of an expression and type substitution theta *)
    
-and typeofexpr(Value(v),theta,gamma) = typeof(v,theta,gamma)
+and typeofexpr(Value(v),theta) = typeof(v,theta)
 
-| 	typeofexpr(Variable(x),theta,gamma) = typeofexpr(Substitution.get(x,gamma),theta,gamma) 
+	(* should not occur as all bound variables are substituted for
+	   but if free variable, throw exception *)
+| 	typeofexpr(Variable(x),theta) = raise FreeVariable
 
-| 	typeofexpr(ArithExpr(oper,e1,e2),theta,gamma) =
-
-	(case typeofexpr(e1,theta,gamma) of
+| 	typeofexpr(ArithExpr(oper,e1,e2),theta) = (case typeofexpr(e1,theta) of
 	  
-			(NONE,theta1) => (NONE,theta1)
-		  | (SOME t1,theta1) => (case typeofexpr(e2,theta1,gamma) of
+	  (NONE,theta1) => (NONE,theta1)
+	| (SOME t1,theta1) => (case typeofexpr(e2,theta1) of
 		  
-			    (NONE,theta2) => (NONE,theta2)
-			  | (SOME t2,theta2) => typeOp(ArithOper(oper),t1,t2,theta2)))
+		  (NONE,theta2) => (NONE,theta2)
+		| (SOME t2,theta2) => typeOp(ArithOper(oper),t1,t2,theta2)))
 				
-|	typeofexpr(BoolExpr(oper,e1,e2),theta,gamma) =
-
-	(case typeofexpr(e1,theta,gamma) of 
+|	typeofexpr(BoolExpr(oper,e1,e2),theta) = (case typeofexpr(e1,theta) of 
 	
-		  (NONE,theta1) => (NONE,theta1)
-		| (SOME(t1),theta1) => (case typeofexpr(e2,theta1,gamma) of
+	  (NONE,theta1) => (NONE,theta1)
+	| (SOME(t1),theta1) => (case typeofexpr(e2,theta1) of
 		
-			  (NONE,theta2) => (NONE,theta2)
-			| (SOME(t2),theta2) => typeOp(BoolOper(oper),t1,t2,theta2)))
+		  (NONE,theta2) => (NONE,theta2)
+		| (SOME(t2),theta2) => typeOp(BoolOper(oper),t1,t2,theta2)))
 
-| 	typeofexpr(ExpressionPair(e1,e2),theta,gamma) =
-
-	(case typeofexpr(e1,theta,gamma) of 
+| 	typeofexpr(ExpressionPair(e1,e2),theta) = (case typeofexpr(e1,theta) of 
 	
-		  (NONE,theta1) => (NONE,theta1)
-		| (SOME(t1),theta1) => (case typeofexpr(e2,theta1,gamma) of
+	  (NONE,theta1) => (NONE,theta1)
+	| (SOME(t1),theta1) => (case typeofexpr(e2,theta1) of
 		
-			  (NONE,theta2) => (NONE,theta2)
-			| (SOME(t2),theta2) => (SOME (Pair(t1,t2)),theta2)))
+		  (NONE,theta2) => (NONE,theta2)
+		  (* get the latest type substitution for t1, after calculating t2 *)
+		| (SOME(t2),theta2) => (SOME (Pair(resolveChainTheta(t1,theta2),t2)),theta2)))
 
-|	typeofexpr(c as Case(e1,VariablePair(x1,x2),e2),theta,gamma) =
+|	typeofexpr(c as Case(e1,VariablePair(x1,x2),e2),theta) = (case typeofexpr(e1,theta) of 
 
-	let val dom = Substitution.domain(gamma);	
-		val fvRan = fv(Substitution.range(gamma))
-	in  
-	if ((element(dom,x1) orelse element(dom,x2)) orelse 
-		(element(fvRan,x1) orelse element(fvRan,x2)))
+	(* should always be capture avoiding as substitutions in any higher level
+	   expressions from evaluate function will have made alpha variant *)
 		
-	then (* not capture avoiding - get alpha variant version *)
-		typeofexpr(alphaVariant(c,getCounterAndUpdate(),[x1,x2]),theta,gamma)
+	  (SOME (THole(TypeHole(ArithTypeVar(_)))),theta1) => (NONE,theta1)
 	
-	else (case typeofexpr(e1,theta,gamma) of 
+	| (SOME (THole(TypeHole(tyvar))),theta1) => 
+		let val typevar_type = case tyvar of 
+				  TypeVar(_)    	 => TYPE_VAR
+				| EqualityTypeVar(_) => EQUALITY_TYPE_VAR
+				| ArithTypeVar(_)  	 => ARITH_TYPE_VAR;
+				(* arith cannot occur - matched above, but here for non-exhaustive warnings *)
+			val t1 = generateFreshTypeVar(typevar_type,theta1);
+			val t2 = generateFreshTypeVar(typevar_type,theta1);
+			val gent1 = Value(gen(t1,theta1));
+			val gent2 = Value(gen(t2,theta1));
+			val subExpr = substitute(e2,[(x1,gent1),(x2,gent2)]);
+			val theta2 = Substitution.union(theta1,TypeHole(tyvar),Pair(t1,t2))
+		in typeofexpr(subExpr,theta2) end
 		
-		  (SOME (THole(TypeHole(ArithTypeVar(_)))),theta1) => (NONE,theta1)
-	
-		| (SOME (THole(TypeHole(tyvar))),theta1) => 
-			let val typevar_type = case tyvar of 
-					  TypeVar(_)    	 => TYPE_VAR
-					| EqualityTypeVar(_) => EQUALITY_TYPE_VAR
-					| ArithTypeVar(_)  	 => ARITH_TYPE_VAR;
-					(* arith cannot occur - matched above, but here for non-exhaustive warnings *)
-				val t1 = generateFreshTypeVar(typevar_type,theta1);
-				val t2 = generateFreshTypeVar(typevar_type,theta1);
-				val gent1 = Value(gen(t1,theta1))
-				val gent2 = Value(gen(t2,theta1))
-				val gamma1 = Substitution.union(Substitution.union(gamma,x1,gent1),x2,gent2)
-				val subExpr = substitute(e2,gamma1);
-				val theta2 = Substitution.union(theta1,TypeHole(tyvar),Pair(t1,t2))
-			in typeofexpr(subExpr,theta2,gamma1) end
-		
-		| (SOME (Pair(t1,t2)),theta1) => 
-			let val gent1 = Value(gen(t1,theta1))
-				val gent2 = Value(gen(t2,theta1)) 
-				val gamma1 = Substitution.union(Substitution.union(gamma,x1,gent1),x2,gent2)
-				val subExpr = substitute(e2,gamma1)
-			in typeofexpr(subExpr,theta1,gamma1) end
+	| (SOME (Pair(t1,t2)),theta1) => 
+		let val gent1 = Value(gen(t1,theta1))
+			val gent2 = Value(gen(t2,theta1)) 
+			val gamma = [(x1,gent1),(x2,gent2)]
+			val subExpr = substitute(e2,gamma)
+		in typeofexpr(subExpr,theta1) end
 		 
-		| (_,theta1) => (NONE,theta1))
+	| (_,theta1) => (NONE,theta1))
 		
-	end
+|	typeofexpr(Condition(e1,e2,e3),theta) = (case typeofexpr(e1,theta) of 
 	
-|	typeofexpr(Condition(e1,e2,e3),theta,gamma) =
-	
-	(case typeofexpr(e1,theta,gamma) of 
-	
-		  (NONE,theta1) => (NONE,theta1)
-		| (SOME(t1),theta1) => 
+	  (NONE,theta1) => (NONE,theta1)
+	| (SOME(t1),theta1) => 
 		
-		let fun calculateReturn(theta1) = (case typeofexpr(e2,theta1,gamma) of
+		let fun calculateReturn(theta1) = (case typeofexpr(e2,theta1) of
 		(* In the cases where we failed to type the two sub expressions to the exact
 		   same type, just return the original type substitution map passed in *)
-		
-			  (NONE,theta2) => (SOME (generateFreshTypeVar(TYPE_VAR,theta2)),theta1)
-			| (SOME(t2),theta2) => (case typeofexpr(e3,theta2,gamma) of
 			
+			  (NONE,theta2) => (SOME (generateFreshTypeVar(TYPE_VAR,theta2)),theta1)
+			| (SOME(t2),theta2) => (case typeofexpr(e3,theta2) of
+				
 				  (NONE,theta3) => (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta1)
 				| (SOME(t3),theta3) => 
-					
+						
 					if (t2=t3) 
 					then (SOME t2,theta3)
 					else (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta1)))
 					
 		in (case t1 of
-		
-			  Bool => calculateReturn(theta1)
-			  
-			| THole(TypeHole(TypeVar(a))) => calculateReturn(Substitution.union(theta1,TypeHole(TypeVar(a)),Bool))
-				
-			| THole(TypeHole(EqualityTypeVar(a))) => calculateReturn(Substitution.union(theta1,TypeHole(EqualityTypeVar(a)),Bool))
-				
-			| _ => (NONE, theta1))
 			
-		end);
+			  Bool => calculateReturn(theta1)
+				  
+			| THole(TypeHole(TypeVar(a))) => calculateReturn(Substitution.union(theta1,TypeHole(TypeVar(a)),Bool))
+					
+			| THole(TypeHole(EqualityTypeVar(a))) => calculateReturn(Substitution.union(theta1,TypeHole(EqualityTypeVar(a)),Bool))
+					
+			| _ => (NONE, theta1))
+				
+		end)
+		
+|	typeofexpr(App(e1,e2),theta) = (case typeofexpr(e1,theta) of 
+
+	  (SOME (Fun(tA,tB)),theta1) => (case typeofexpr(e2,theta1) of 
+	
+			  (NONE,theta2) => (SOME tB,theta2)
+			  (* even in the case we cannot type t2, return same type tb as its already known *)
+			  
+			| (SOME tC,theta2) => 
+				(* even in the case not equal, return same type tb as its already known *)
+				if tA=tC 
+				then (SOME tB,theta2)
+				else (SOME tB,theta2))
+			
+	| (SOME (THole(TypeHole(TypeVar(a)))),theta1) => (case typeofexpr(e2,theta1) of 
+		
+		  (NONE,theta2) => (NONE,theta2)
+			  
+		| (SOME tC,theta2) => 
+		
+			let val freshType = generateFreshTypeVar(TYPE_VAR,theta2)
+			in (case unify([THole(TypeHole(TypeVar(a))),Fun(tC,freshType)],theta2) of 
+			
+				  NONE => (NONE,theta2)
+				| SOME theta3 => (SOME freshType,theta3))
+			end)
+		
+	| (_,theta1) => (NONE,theta1));

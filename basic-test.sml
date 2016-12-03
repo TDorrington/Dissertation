@@ -22,6 +22,7 @@ val c = (ValueHole(TypeVar("c")));
 val d = (ValueHole(TypeVar("d")));
 val e = (ValueHole(TypeVar("e")));
 val f = (ValueHole(TypeVar("f")));
+val g = (ValueHole(TypeVar("g")));
 
 val sigma = [ (a,VHole(SimpleHole(b))), (b,VHole(SimpleHole(c))), (c,N(3)) ];
 
@@ -45,23 +46,26 @@ val sigma = [(a,VHole(ConditionHole(VHole(SimpleHole(b)),
 				BoolExpr(MORE,Value(N(10)),Value(VHole(SimpleHole(d))))))),
 			 (b,VHole(CaseHole(VHole(SimpleHole(e)),VariablePair(Var("x"),Var("y")),
 							   BoolExpr(LESS,Variable(Var("x")),ArithExpr(TIMES,Value(N(2)),Variable(Var("y"))))))),
-			 (e,ValuePair(N(1),N(2))),
-			 (d,VHole(BinaryOp(ArithOper(SUBTRACT),VHole(SimpleHole(f)),N(5))))];
+			 (e,ValuePair(Func(Var("x"),Int,Value(VHole(SimpleHole(g)))),N(2))),
+			 (d,VHole(BinaryOp(ArithOper(SUBTRACT),VHole(SimpleHole(f)),N(5)))),
+			 (g,ValuePair(N(3),B(true)))];
 			 
 prettyPrintValue(resolveChainSigma(VHole(SimpleHole(a)),sigma));
-(* v[ if v[case (1,2) of (x,y) -> x < 2*y] then (3 < v['c]) else (10 > (v['f]-5)) *)
+(* v[ if v[case (fx x:int => (3,true),2) of (x,y) -> x < 2*y] then (3 < v['c]) else (10 > (v['f]-5)) *)
 
 val a' = (TypeHole(TypeVar("a")));
 val b' = (TypeHole(TypeVar("b")));
 val c' = (TypeHole(TypeVar("c")));
 val d' = (TypeHole(TypeVar("d")));
+val e' = (TypeHole(TypeVar("e")));
 
 val theta = [(a',Pair(Pair(THole(b'),Int),Pair(Real,Pair(Bool,THole(c'))))),
 			 (b',Pair(Real,THole(d'))),
-			 (c',Bool)];
+			 (c',Fun(Bool,THole(e'))),
+			 (e',Fun(Int,Int))];
 			 
-resolveChainTheta(THole(a'),theta);
-(* ( ( (Real * 'd) * Int ) * ( Real * (Bool * Bool) ) ) *)
+prettyPrintType(resolveChainTheta(THole(a'),theta));
+(* ( ( (Real * 'd) * Int ) * ( Real * (Bool * (Bool -> (Int->Int))) ) ) *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR LIST HELPERS *)
@@ -158,6 +162,29 @@ Case(
    case (case (3,4) of (x4,y4)->(x4+y4,x4*y4)) of (x3,y3) -> x3-y3
 *)
 
+prettyPrintE(substitute(Value(Func(Var("x"),Int,ArithExpr(TIMES,Value(N(2)),Variable(Var("x"))))),sub));
+(* fn x5:int => 2*x5 *)
+
+prettyPrintE(substitute(Value(Func(Var("x"),Int,
+	Value(Func(Var("y"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))))),sub));
+(* fn x6:int => fn y7:int => x6+y7 *)
+
+prettyPrintE(substitute(Value(Func(Var("a"),Int,
+	ArithExpr(PLUS,
+		Variable(Var("x")),
+		Value(Func(Var("b"),Int,
+			ArithExpr(PLUS,ArithExpr(PLUS,Variable(Var("y")),Variable(Var("a"))),Variable(Var("b")))))))),sub));
+(* fn a:int => 3 + fn b:int => 4 + a +b *)
+
+prettyPrintE(substitute(App(
+	Value(Func(Var("a"),Int,
+		ArithExpr(PLUS,
+			Variable(Var("x")),
+			Value(Func(Var("b"),Int,
+				ArithExpr(PLUS,ArithExpr(PLUS,Variable(Var("y")),Variable(Var("a"))),Variable(Var("b")))))))),
+	ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),sub));
+(* (fn a:int => 3 + fn b:int => 4 + a +b)(3+4) *)
+
 val va' = VHole(SimpleHole(ValueHole(TypeVar("a"))));
 val vb' = VHole(SimpleHole(ValueHole(TypeVar("b"))));
 val vc' = VHole(SimpleHole(ValueHole(TypeVar("c"))));
@@ -229,7 +256,16 @@ fvExpr(Case(Value(ValuePair(N(3),N(3))),
 fvExpr(Case(Value(ValuePair(N(3),N(3))),
 			VariablePair(Var("x"),Var("y")),
 			ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))); (* [ ] *)
+			
+fvExpr(Value(Func(Var("x"),Int,ArithExpr(TIMES,Value(N(2)),Variable(Var("x")))))); (* [ ] *)
+fvExpr(Value(Func(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y")))))); (* [ y ] *)
+
+fvExpr(Value(Func(Var("x"),Int,Value(Func(Var("y"),Int,
+	   ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))))); (* [ ] *)
 		
+fvExpr(Value(Func(Var("x"),Int,Value(Func(Var("y"),Int,
+	   ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("z")),Variable(Var("y"))))))))); (* [ z ] *)
+	   
 fvExpr(Value(va')); (* [ ] *)
 fvExpr(Value(ValuePair(va',vb'))); (* [ ] *)
 fvExpr(Value(ValuePair(N(3),N(4)))); (* [ ] *)
@@ -270,6 +306,23 @@ gen(THole(TypeHole(TypeVar("a"))),
 	 (TypeHole(TypeVar("b")),Int),
 	 (TypeHole(ArithTypeVar("a")),Pair(Int,Int))]);
 (* (1, (1,1)) *)
+
+gen(Fun(Int,Int),[]); (* fn x:int => 1 *)
+gen(Fun(Bool,Real),[]); (* fn x:bool => 1.0 *)
+
+prettyPrintValue(gen(Fun(Pair(Bool,Bool),Pair(Pair(Bool,Bool),Pair(Real,Real))),[]));
+(* fn x:(bool * bool) => ( (true,true), (1.0,1.0) ) *)
+
+prettyPrintValue(gen(Fun(Fun(Int,Int),Fun(Bool,Bool)),[]));
+(* fn x:(int->int) => fn x:bool => true *)
+
+prettyPrintValue(gen(Fun(Fun(Fun(Int,Int),Fun(Real,Real)),
+						 Fun(Pair(Int,Pair(Real,Bool)),Pair(Bool,Bool))),[]));
+(* fn x: ( int->int -> real->real ) => fn x:(int*(real*bool)) => (true,true) *)
+
+prettyPrintValue(gen(Fun(Fun(THole(TypeHole(TypeVar("a"))),THole(TypeHole(TypeVar("b")))),
+						 Fun(Fun(Bool,Bool),THole(TypeHole(EqualityTypeVar("a"))))),[]));
+(* fn x: ('a -> 'b) => fn x : (bool -> bool) => v[''a] *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TETS CASES FOR UNIFY *)
@@ -322,6 +375,23 @@ unifyTest( [a',b'',c'''], [(a'1,Int)]);				(* [ (''b -> Int), ('''c -> Int), ('a
 unifyTest( [a',b'',c'''], [(a'1,Int), (b''1,Int)]); (* [ ('a -> Int), (''b -> Int), ('''c -> Int) ] *)
 unifyTest( [a',b'',c'''], [(a'1,Real)]); 			(* FAIL *)
 
+unifyTest( [Fun(Int,Int),Fun(Int,Int)], [] ); (* [ ] *)
+unifyTest( [Fun(Real,Real),Fun(Real,Int)], []); (* FAIL *)
+unifyTest( [Fun(Fun(Int,Int),Fun(Int,Int)),Fun(Fun(Int,Int),Fun(Int,Int))],[]); (* [ ] *)
+unifyTest( [Fun(Fun(Int,Int),Fun(Int,Int)),Fun(Fun(Int,Int),Fun(Bool,Int))],[]); (* FAIL *)
+
+unifyTest( [Fun(Int,a'), Fun(b''',Real) ], [] ); (* [ 'a->Real, '''b->Int ] *)
+
+unifyTest( [Fun(Fun(a''',b''),Fun(Int,Bool)),Fun(Fun(a'',b'),Fun(c''',Bool))],[]);
+(* [ '''a->Int, ''a->Int, 'b->''b, '''c->Int ] *)
+
+unifyTest( [Fun(Int,Int), Fun(a''',a''), a'], []);
+(* [ '''a->int, ''a->int, 'a->('a0->'a1), 'a0->int, 'a1->int, 'a2->'''a, 'a3->''a) *)
+
+unifyTest( [Fun(Int,Int), Fun(a''',a''), a''], []); (* FAIL *)
+
+unifyTest( [Fun(Int,Int), Fun(a''',a''), a'''], []); (* FAIL *)
+
 unifyTest( [Pair(Int,Int),Pair(Int,Int)], []);  	(* [] *)
 unifyTest( [Pair(Int,Int),Pair(Bool,Int)], []);		(* FAIL *)
 unifyTest( [Pair(a',Int),Pair(Real,b')], []);		(* [ ('a -> Real), ('b -> Int) ] *)
@@ -359,37 +429,37 @@ fun prettyPrintTypeOf(NONE,_) = "FAIL"
 |	prettyPrintTypeOf(SOME t,theta) = 
 	prettyPrintType(t) ^ ", theta = [ " ^ prettyPrintTheta(theta) ^ " ]";
 
-prettyPrintTypeOf(typeof(N(3),[],[]));		(* Int *)
-prettyPrintTypeOf(typeof(B(true),[],[]));	(* Bool *)
-prettyPrintTypeOf(typeof(R(3.0),[],[]));	(* Real *)
-prettyPrintTypeOf(typeof(ValuePair(N(3),N(4)),[],[]));			(* (Int,Int) *)
-prettyPrintTypeOf(typeof(ValuePair(B(true),R(5.0)),[],[]));		(* (Bool,Real) *)
+prettyPrintTypeOf(typeof(N(3),[]));		(* Int *)
+prettyPrintTypeOf(typeof(B(true),[]));	(* Bool *)
+prettyPrintTypeOf(typeof(R(3.0),[]));	(* Real *)
+prettyPrintTypeOf(typeof(ValuePair(N(3),N(4)),[]));			(* (Int,Int) *)
+prettyPrintTypeOf(typeof(ValuePair(B(true),R(5.0)),[]));	(* (Bool,Real) *)
 
-prettyPrintTypeOf(typeof(VHole(SimpleHole(ValueHole(TypeVar("a")))),[],[]));			(* 'a   *)
-prettyPrintTypeOf(typeof(VHole(SimpleHole(ValueHole(EqualityTypeVar("a")))),[],[]));	(* ''a  *)
-prettyPrintTypeOf(typeof(VHole(SimpleHole(ValueHole(ArithTypeVar("a")))),[],[]));		(* '''a *)
+prettyPrintTypeOf(typeof(VHole(SimpleHole(ValueHole(TypeVar("a")))),[]));			(* 'a   *)
+prettyPrintTypeOf(typeof(VHole(SimpleHole(ValueHole(EqualityTypeVar("a")))),[]));	(* ''a  *)
+prettyPrintTypeOf(typeof(VHole(SimpleHole(ValueHole(ArithTypeVar("a")))),[]));		(* '''a *)
 
-prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(PLUS),va',vb')),[],[]));	 		(* '''a0, [  'a->'''a0,   'b->'''a0]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(TIMES),va''',vb''')),[],[]));		(* '''a0, ['''a->'''a0, '''b->'''a0]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(SUBTRACT),va''',vb'')),[],[]));	(* Int,   ['''a->Int,    ''b->Int  ]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),va',vb')),[],[])); 		(* Real,  [  'a->Real,    'b->Real ]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),va'',vb')),[],[]));		(* FAIL 							  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),va''',vb')),[],[]));		(* Real,  [ '''a->Real,   'b->Real ]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),va''',vb'')),[],[]));		(* FAIL  							  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(PLUS),va''',va''')),[],[]));		(* '''a,  [ ]						  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(PLUS),va',vb')),[]));	 		(* '''a0, [  'a->'''a0,   'b->'''a0]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(TIMES),va''',vb''')),[]));	(* '''a0, ['''a->'''a0, '''b->'''a0]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(SUBTRACT),va''',vb'')),[]));	(* Int,   ['''a->Int,    ''b->Int  ]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),va',vb')),[])); 		(* Real,  [  'a->Real,    'b->Real ]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),va'',vb')),[]));		(* FAIL 							  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),va''',vb')),[]));		(* Real,  [ '''a->Real,   'b->Real ]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),va''',vb'')),[]));	(* FAIL  							  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(PLUS),va''',va''')),[]));		(* '''a,  [ ]						  *)
 
-prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(EQ),va',vb')),[],[]));				(* Bool, [  'a->''a0,    'b->''a0 ]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(EQ),va''',vb''')),[],[]));			(* Bool, ['''a->Int,   '''b->Int  ]	 *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(EQ),va'',vb''')),[],[]));			(* Bool, ['''a->Int,   '''b->Int  ]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(LESS),va',vb')),[],[]));			(* Bool, [  'a->'''a0, '''b->'''a0]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(MORE),va'',vb''')),[],[]));		(* Bool, [ ''a->Int,  '''b->Int   ]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(LESS_EQ),va''',vb''')),[],[]));	(* Bool, ['''a->'''a0, '''b->'''a0]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(MORE_EQ),va'',vb'')),[],[]));		(* Bool, [ ''a->Int,    ''b->Int  ]  *)
-prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(MORE_EQ),va'',va'')),[],[]));		(* Bool, [ ''a->Int ]  				 *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(EQ),va',vb')),[]));			(* Bool, [  'a->''a0,    'b->''a0 ]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(EQ),va''',vb''')),[]));		(* Bool, ['''a->Int,   '''b->Int  ]	 *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(EQ),va'',vb''')),[]));			(* Bool, ['''a->Int,   '''b->Int  ]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(LESS),va',vb')),[]));			(* Bool, [  'a->'''a0, '''b->'''a0]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(MORE),va'',vb''')),[]));		(* Bool, [ ''a->Int,  '''b->Int   ]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(LESS_EQ),va''',vb''')),[]));	(* Bool, ['''a->'''a0, '''b->'''a0]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(MORE_EQ),va'',vb'')),[]));		(* Bool, [ ''a->Int,    ''b->Int  ]  *)
+prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(MORE_EQ),va'',va'')),[]));		(* Bool, [ ''a->Int ]  				 *)
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(LESS),
 	VHole(BinaryOp(ArithOper(PLUS),va',vb')),
-	VHole(BinaryOp(ArithOper(SUBTRACT),va',vb')))),[],[])); 
+	VHole(BinaryOp(ArithOper(SUBTRACT),va',vb')))),[])); 
 (* 
    v[ ('a+'b) < ('a-'b) ]
    =>
@@ -398,7 +468,7 @@ prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(LESS),
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(TIMES),
 	VHole(BinaryOp(ArithOper(DIVIDE),va',vb')),
-	VHole(BinaryOp(ArithOper(PLUS),va',vb')))),[],[]));
+	VHole(BinaryOp(ArithOper(PLUS),va',vb')))),[]));
 (* 
    v[ ('a/'b) * ('a+'b) ]
    =>
@@ -407,7 +477,7 @@ prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(TIMES),
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(LESS),
 	VHole(BinaryOp(ArithOper(PLUS),va',vb')),
-	VHole(BinaryOp(ArithOper(SUBTRACT),vc',vd')))),[],[])); 
+	VHole(BinaryOp(ArithOper(SUBTRACT),vc',vd')))),[])); 
 (* 
    v[ ('a+'b) < ('c-'d) ]
    =>
@@ -416,7 +486,7 @@ prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(LESS),
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(TIMES),
 	VHole(BinaryOp(ArithOper(DIVIDE),va',vb')),
-	VHole(BinaryOp(ArithOper(PLUS),vc',vd')))),[],[]));
+	VHole(BinaryOp(ArithOper(PLUS),vc',vd')))),[]));
 (* 
    v[ ('a/'b) * ('c+'d) ]
    =>
@@ -425,7 +495,7 @@ prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(TIMES),
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(TIMES),
 	VHole(BinaryOp(ArithOper(DIVIDE),va',vb')),
-	VHole(BinaryOp(BoolOper(EQ),va'',vb'')))),[],[]));
+	VHole(BinaryOp(BoolOper(EQ),va'',vb'')))),[]));
 (* 
    v[ ('a/'b) * (''a=''b) ]
    =>
@@ -434,7 +504,7 @@ prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(TIMES),
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),
 	VHole(BinaryOp(ArithOper(PLUS),va''',vb'')),
-	VHole(BinaryOp(ArithOper(TIMES),va',vb')))),[],[]));
+	VHole(BinaryOp(ArithOper(TIMES),va',vb')))),[]));
 (* 
    v[ ('''a+''b) / ('a*'b) ]
    =>
@@ -443,7 +513,7 @@ prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(DIVIDE),
 	VHole(BinaryOp(ArithOper(PLUS),va''',vb'')),
-	VHole(BinaryOp(ArithOper(TIMES),va''',vb'')))),[],[]));
+	VHole(BinaryOp(ArithOper(TIMES),va''',vb'')))),[]));
 (* 
    v[ ('''a+''b) / ('''a*''b) ]
    =>
@@ -456,66 +526,66 @@ prettyPrintTypeOf(typeof(VHole(BinaryOp(ArithOper(PLUS),
 		VHole(BinaryOp(ArithOper(PLUS),va',va')))),
 	VHole(BinaryOp(ArithOper(PLUS),
 		VHole(BinaryOp(ArithOper(PLUS),va',va')),
-		VHole(BinaryOp(ArithOper(DIVIDE),vb',vb')))))),[],[]));
+		VHole(BinaryOp(ArithOper(DIVIDE),vb',vb')))))),[]));
 (*
    v[ ( ('a+'a) + ('a+'a) ) + ( ('a+'a) + ('b/'b) ) ]
    =>
    Real, ['a->'''a0, '''a0->Real, 'b->Real]
 *)
 
-prettyPrintTypeOf(typeof(VHole(BinaryOp(EXPR_PAIR,va',vb')),[],[]));
+prettyPrintTypeOf(typeof(VHole(BinaryOp(EXPR_PAIR,va',vb')),[]));
 (* 'a * 'b *)
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(EXPR_PAIR,
 	VHole(BinaryOp(EXPR_PAIR,va''',vb''')),
-	VHole(BinaryOp(EXPR_PAIR,va'',vb'')))),[],[]));
+	VHole(BinaryOp(EXPR_PAIR,va'',vb'')))),[]));
 (* ('''a * '''b) * (''a * ''b) *)
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(EQ),
 	VHole(BinaryOp(EXPR_PAIR,N(3),vb''')),
-	VHole(BinaryOp(EXPR_PAIR,N(4),vb'')))),[],[]));
+	VHole(BinaryOp(EXPR_PAIR,N(4),vb'')))),[]));
 (* Bool, ['''b->Int, ''b->Int] *)
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(EQ),
 	VHole(BinaryOp(EXPR_PAIR,N(3),vb''')),
-	VHole(BinaryOp(EXPR_PAIR,R(4.0),vb'')))),[],[]));
+	VHole(BinaryOp(EXPR_PAIR,R(4.0),vb'')))),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeof(VHole(BinaryOp(BoolOper(EQ),
 	VHole(BinaryOp(EXPR_PAIR,va''',vb''')),
-	VHole(BinaryOp(EXPR_PAIR,va'',vb'')))),[],[]));
+	VHole(BinaryOp(EXPR_PAIR,va'',vb'')))),[]));
 (* Bool, ['''a->Int, '''b->Int, ''b->Int, ''a->Int] *)
 
-prettyPrintTypeOf(typeof(VHole(ConditionHole(va',Value(N(3)),Value(N(4)))),[],[]));
+prettyPrintTypeOf(typeof(VHole(ConditionHole(va',Value(N(3)),Value(N(4)))),[]));
 (* Int, ['a->Bool] *)
 
-prettyPrintTypeOf(typeof(VHole(ConditionHole(va',Value(N(3)),Value(R(4.0)))),[],[]));
+prettyPrintTypeOf(typeof(VHole(ConditionHole(va',Value(N(3)),Value(R(4.0)))),[]));
 (* 'a0, ['a->Bool] *)
 
 prettyPrintTypeOf(typeof(VHole(ConditionHole(
 	VHole(BinaryOp(BoolOper(LESS),va',vb')),
-	Value(N(3)),Value(N(4)))),[],[]));
+	Value(N(3)),Value(N(4)))),[]));
 (* Int, ['a->'''a0, 'b->'''a0] *)
 	
 prettyPrintTypeOf(typeof(VHole(ConditionHole(
 	VHole(BinaryOp(EXPR_PAIR,va''',vb''')),
-	Value(N(3)),Value(N(4)))),[],[]));
+	Value(N(3)),Value(N(4)))),[]));
 (* FAIL *)
 
-prettyPrintTypeOf(typeof(VHole(ConditionHole(va'',Value(N(3)),Value(N(4)))),[],[]));
+prettyPrintTypeOf(typeof(VHole(ConditionHole(va'',Value(N(3)),Value(N(4)))),[]));
 (* Int, [''a->Bool] *)
 
-prettyPrintTypeOf(typeof(VHole(ConditionHole(va''',Value(N(3)),Value(N(4)))),[],[]));
+prettyPrintTypeOf(typeof(VHole(ConditionHole(va''',Value(N(3)),Value(N(4)))),[]));
 (* FAIL *)
 
-prettyPrintTypeOf(typeof(VHole(CaseHole(va',VariablePair(Var("x"),Var("y")),Value(N(3)))),[],[]));
+prettyPrintTypeOf(typeof(VHole(CaseHole(va',VariablePair(Var("x"),Var("y")),Value(N(3)))),[]));
 (* 
    v[case 'a of (x,y) -> 3]
    =>
    Int, ['a->('a0,'a1)] 
 *)
 
-prettyPrintTypeOf(typeof(VHole(CaseHole(vb',VariablePair(Var("x"),Var("y")),Variable(Var("x")))),[],[]));
+prettyPrintTypeOf(typeof(VHole(CaseHole(vb',VariablePair(Var("x"),Var("y")),Variable(Var("x")))),[]));
 (* 
    v[case 'b of (x,y) -> x]
    =>
@@ -523,7 +593,7 @@ prettyPrintTypeOf(typeof(VHole(CaseHole(vb',VariablePair(Var("x"),Var("y")),Vari
 *)
 
 prettyPrintTypeOf(typeof(VHole(CaseHole(va',VariablePair(Var("x"),Var("y")),
-	ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),[],[]));
+	ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),[]));
 (* 
    v[case 'a of (x,y) -> x+y]
    =>
@@ -532,7 +602,7 @@ prettyPrintTypeOf(typeof(VHole(CaseHole(va',VariablePair(Var("x"),Var("y")),
 
 prettyPrintTypeOf(typeof(VHole(CaseHole(va''',VariablePair(Var("x"),Var("y")),
 	ArithExpr(PLUS,Variable(Var("x")),
-		ArithExpr(PLUS,Variable(Var("y")),Value(N(3)))))),[],[]));
+		ArithExpr(PLUS,Variable(Var("y")),Value(N(3)))))),[]));
 (* v[case '''a of (x,y) -> x+(y+3)]
    =>
    FAIL
@@ -540,7 +610,7 @@ prettyPrintTypeOf(typeof(VHole(CaseHole(va''',VariablePair(Var("x"),Var("y")),
 
 prettyPrintTypeOf(typeof(VHole(CaseHole(va'',VariablePair(Var("x"),Var("y")),
 	ArithExpr(PLUS,Variable(Var("x")),
-		ArithExpr(PLUS,Variable(Var("y")),Value(N(3)))))),[],[]));
+		ArithExpr(PLUS,Variable(Var("y")),Value(N(3)))))),[]));
 (* v[case '''a of (x,y) -> x+(y+3)]
    =>
    Int, [''a->(''a0,''a1), ''a0->Int, ''a1->Int]
@@ -549,7 +619,7 @@ prettyPrintTypeOf(typeof(VHole(CaseHole(va'',VariablePair(Var("x"),Var("y")),
 prettyPrintTypeOf(typeof(VHole(CaseHole(va'',VariablePair(Var("x"),Var("y")),
 	BoolExpr(EQ,
 		ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),
-		ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y")))))),[],[]));
+		ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y")))))),[]));
 (* 
    v[case ''a of (x,y) -> (x+y)=(x*y)]
    =>
@@ -559,7 +629,7 @@ prettyPrintTypeOf(typeof(VHole(CaseHole(va'',VariablePair(Var("x"),Var("y")),
 prettyPrintTypeOf(typeof(VHole(CaseHole(VHole(BinaryOp(EXPR_PAIR,va''',vb''')),VariablePair(Var("x"),Var("y")),
 	BoolExpr(LESS,
 		ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),
-		ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y")))))),[],[]));
+		ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y")))))),[]));
 (*
    v[case ('''a,'''b) of (x,y) -> (x+y)<(x*y)]
    =>
@@ -567,12 +637,12 @@ prettyPrintTypeOf(typeof(VHole(CaseHole(VHole(BinaryOp(EXPR_PAIR,va''',vb''')),V
 *)
 
 prettyPrintTypeOf(typeof(VHole(CaseHole(va'',VariablePair(Var("x"),Var("y")),
-	ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("y"))))),[],[]));
+	ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("y"))))),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeof(VHole(CaseHole(va',VariablePair(Var("x"),Var("y")),
 	Case(Value(ValuePair(N(3),N(4))),VariablePair(Var("x"),Var("y")),
-		ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))),[],[]));
+		ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))),[]));
 (*
    v[case 'a of (x,y) -> case (3,4) of (x,y) -> x+y]
    =>
@@ -581,68 +651,68 @@ prettyPrintTypeOf(typeof(VHole(CaseHole(va',VariablePair(Var("x"),Var("y")),
 
 prettyPrintTypeOf(typeof(VHole(ConditionHole(
 	VHole(CaseHole(va',VariablePair(Var("x"),Var("y")),Value(va'))),
-	Value(N(3)),Value(N(4)))),[],[]));
+	Value(N(3)),Value(N(4)))),[]));
 (* v[if (case 'a of (x,y) -> 'a) then 3 else 4]
    => 
    FAIL *)
    
 prettyPrintTypeOf(typeof(VHole(ConditionHole(
 	VHole(CaseHole(ValuePair(va',vb'),VariablePair(Var("x"),Var("y")),Value(va'))),
-	Value(N(3)),Value(N(4)))),[],[]));
+	Value(N(3)),Value(N(4)))),[]));
 (* v[if (case 'a of (x,y) -> 'a) then 3 else 4]
    => 
    Int, ['a->Bool] *)
 
-prettyPrintTypeOf(typeofexpr(ArithExpr(PLUS,Value(N(3)),Value(N(4))),[],[])); 			(* Int *) 
-prettyPrintTypeOf(typeofexpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(R(5.0))),[],[])); 	(* Real *)
-prettyPrintTypeOf(typeofexpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(N(3))),[],[])); 		(* FAIL *)
-prettyPrintTypeOf(typeofexpr(ArithExpr(TIMES,Value(R(3.0)),Value(R(5.0))),[],[])); 		(* Real *)
-prettyPrintTypeOf(typeofexpr(ArithExpr(SUBTRACT,Value(B(true)),Value(R(3.0))),[],[])); 	(* FAIL *)
+prettyPrintTypeOf(typeofexpr(ArithExpr(PLUS,Value(N(3)),Value(N(4))),[])); 			(* Int *) 
+prettyPrintTypeOf(typeofexpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(R(5.0))),[])); 	(* Real *)
+prettyPrintTypeOf(typeofexpr(ArithExpr(DIVIDE,Value(R(3.0)),Value(N(3))),[])); 		(* FAIL *)
+prettyPrintTypeOf(typeofexpr(ArithExpr(TIMES,Value(R(3.0)),Value(R(5.0))),[])); 		(* Real *)
+prettyPrintTypeOf(typeofexpr(ArithExpr(SUBTRACT,Value(B(true)),Value(R(3.0))),[])); 	(* FAIL *)
 
-prettyPrintTypeOf(typeofexpr(BoolExpr(LESS,Value(N(3)),Value(N(5))),[],[])); 		(* Bool *)
-prettyPrintTypeOf(typeofexpr(BoolExpr(MORE,Value(R(3.0)),Value(R(6.0))),[],[])); 	(* Bool *)
-prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(N(3)),Value(N(5))),[],[])); 			(* Bool *)
-prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(ValuePair(N(3),B(true))),Value(ValuePair(N(6),B(false)))),[],[])); (* Bool *)
-prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(R(3.0)),Value(R(5.0))),[],[])); 		(* FAIL *)
+prettyPrintTypeOf(typeofexpr(BoolExpr(LESS,Value(N(3)),Value(N(5))),[])); 		(* Bool *)
+prettyPrintTypeOf(typeofexpr(BoolExpr(MORE,Value(R(3.0)),Value(R(6.0))),[])); 	(* Bool *)
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(N(3)),Value(N(5))),[])); 			(* Bool *)
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(ValuePair(N(3),B(true))),Value(ValuePair(N(6),B(false)))),[])); (* Bool *)
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(R(3.0)),Value(R(5.0))),[])); 		(* FAIL *)
 
-prettyPrintTypeOf(typeofexpr(ArithExpr(PLUS,Value(N(3)),Value(va')),[],[])); 		(* Int, ['a->Int] *)
-prettyPrintTypeOf(typeofexpr(ArithExpr(DIVIDE,Value(vb'),Value(R(5.0))),[],[]));	(* Real, ['b->Real] *)
-prettyPrintTypeOf(typeofexpr(ArithExpr(TIMES,Value(va'''),Value(vb'')),[],[])); 	(* Int, ['''a->Int, ''b->Int] *)
-prettyPrintTypeOf(typeofexpr(ArithExpr(DIVIDE,Value(vb''),Value(va''')),[],[]));  	(* FAIL *)
+prettyPrintTypeOf(typeofexpr(ArithExpr(PLUS,Value(N(3)),Value(va')),[])); 		(* Int, ['a->Int] *)
+prettyPrintTypeOf(typeofexpr(ArithExpr(DIVIDE,Value(vb'),Value(R(5.0))),[]));	(* Real, ['b->Real] *)
+prettyPrintTypeOf(typeofexpr(ArithExpr(TIMES,Value(va'''),Value(vb'')),[])); 	(* Int, ['''a->Int, ''b->Int] *)
+prettyPrintTypeOf(typeofexpr(ArithExpr(DIVIDE,Value(vb''),Value(va''')),[]));  	(* FAIL *)
 
-prettyPrintTypeOf(typeofexpr(BoolExpr(LESS,Value(N(3)),Value(va')),[],[])); 		(* Bool, ['a->Int] *)
-prettyPrintTypeOf(typeofexpr(BoolExpr(LESS_EQ,Value(vb'),Value(R(5.0))),[],[])); 	(* Bool, ['b->Real] *)
-prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(va'''),Value(vb'')),[],[])); 		(* Bool, [''b->Int,'''a->Int] *)
-prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(vb'''),Value(va''')),[],[])); 		(* Bool, ['''a->Int,'''b->Int]  *)
+prettyPrintTypeOf(typeofexpr(BoolExpr(LESS,Value(N(3)),Value(va')),[])); 		(* Bool, ['a->Int] *)
+prettyPrintTypeOf(typeofexpr(BoolExpr(LESS_EQ,Value(vb'),Value(R(5.0))),[])); 	(* Bool, ['b->Real] *)
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(va'''),Value(vb'')),[])); 		(* Bool, [''b->Int,'''a->Int] *)
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(vb'''),Value(va''')),[])); 		(* Bool, ['''a->Int,'''b->Int]  *)
 
-prettyPrintTypeOf(typeofexpr(ExpressionPair(Value(N(3)),Value(va')),[],[])); (* Int * 'a *)
+prettyPrintTypeOf(typeofexpr(ExpressionPair(Value(N(3)),Value(va')),[])); (* Int * 'a *)
 prettyPrintTypeOf(typeofexpr(ExpressionPair(
 	ArithExpr(TIMES,Value(va'''),Value(vb'')),
-	BoolExpr(LESS_EQ,Value(vb'),Value(R(5.0)))),[],[])); 
+	BoolExpr(LESS_EQ,Value(vb'),Value(R(5.0)))),[])); 
 (* Int * Bool, ['b->Real, ''b->Int, '''a -> Int] *)
 	
-prettyPrintTypeOf(typeofexpr(Case(Value(ValuePair(N(3),N(4))),VariablePair(Var("x"),Var("y")),Variable(Var("x"))),[],[]));
+prettyPrintTypeOf(typeofexpr(Case(Value(ValuePair(N(3),N(4))),VariablePair(Var("x"),Var("y")),Variable(Var("x"))),[]));
 (* case (3,4) of (x,y) -> x => Int *)
 
 prettyPrintTypeOf(typeofexpr(Case(Value(ValuePair(N(3),N(4))),VariablePair(Var("x"),Var("y")),
-	ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),[],[]));
+	ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),[]));
 (* case (3,4) of (x,y) -> x+y => Int *)
 
 prettyPrintTypeOf(typeofexpr(Case(Value(ValuePair(N(3),N(4))),VariablePair(Var("x"),Var("y")),
 	ArithExpr(PLUS,Variable(Var("x")),
-		ArithExpr(PLUS,Variable(Var("y")),Value(N(3))))),[],[]));
+		ArithExpr(PLUS,Variable(Var("y")),Value(N(3))))),[]));
 (* case (3,4) of (x,y) -> x+(y+3) =>Int *)
 
 prettyPrintTypeOf(typeofexpr(Case(Value(ValuePair(N(3),N(4))),VariablePair(Var("x"),Var("y")),
 	BoolExpr(EQ,
 		ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),
-		ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y"))))),[],[]));
+		ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y"))))),[]));
 (* case (3,4) of (x,y) -> (x+y)=(x*y) => Bool *)
 
 prettyPrintTypeOf(typeofexpr(Case(Value(VHole(BinaryOp(EXPR_PAIR,va''',vb'''))),VariablePair(Var("x"),Var("y")),
 	BoolExpr(LESS,
 		ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),
-		ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y"))))),[],[]));
+		ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y"))))),[]));
 (*
    case v[('''a,'''b)] of (x,y) -> (x+y)<(x*y)]
    =>
@@ -650,12 +720,12 @@ prettyPrintTypeOf(typeofexpr(Case(Value(VHole(BinaryOp(EXPR_PAIR,va''',vb'''))),
 *)
 
 prettyPrintTypeOf(typeofexpr(Case(Value(ValuePair(N(3),R(5.0))),VariablePair(Var("x"),Var("y")),
-	ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("y")))),[],[]));
+	ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("y")))),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeofexpr(Case(Value(va'),VariablePair(Var("x"),Var("y")),
 	Case(Value(ValuePair(N(3),N(4))),VariablePair(Var("x"),Var("y")),
-		ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),[],[]));
+		ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),[]));
 (* 
    case v['a] of (x,y) -> case (3,4) of (x,y) -> x+y 
    => 
@@ -665,7 +735,7 @@ prettyPrintTypeOf(typeofexpr(Case(Value(va'),VariablePair(Var("x"),Var("y")),
 prettyPrintTypeOf(typeofexpr(Case(Value(va'),VariablePair(Var("x"),Var("y")),
 	ArithExpr(PLUS, Variable(Var("x")),
 		Case(Value(ValuePair(N(3),N(4))),VariablePair(Var("x"),Var("y")),
-			ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))),[],[]));
+			ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))),[]));
 (* 
    case v['a] of (x,y) -> x + (case (3,4) of (x,y) -> x+y)
    => 
@@ -679,9 +749,133 @@ prettyPrintTypeOf(typeofexpr(Case(Value(va'),VariablePair(Var("x"),Var("y")),
 				Case(Value(ValuePair(N(3),N(4))),VariablePair(Var("x"),Var("y")),
 					ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),
 		Value(N(3))),
-	Variable(Var("y")))),[],[]));
+	Variable(Var("y")))),[]));
 (* 
    case v['a] of (x,y) -> ((x + (case (3,4) of (x,y) -> x+y))=3) = y
    => 
    Bool, ['a->'a0*'a1, 'a0->Int, 'a1->Bool] 
 *)
+
+prettyPrintTypeOf(typeof(Func(Var("x"),Int,Variable(Var("x"))),[])); (* Int -> Int *)
+
+prettyPrintTypeOf(typeof(
+	Func(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))),[]));
+(* Int -> Int *)
+
+prettyPrintTypeOf(typeof(
+	Func(Var("x"),Real,ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("x")))),[]));
+(* Real -> Real *)
+
+prettyPrintTypeOf(typeof(
+	Func(Var("x"),Int,ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("x")))),[]));
+(* FAIL *)
+
+prettyPrintTypeOf(typeof(Func(Var("x"),Int,
+	Value(Func(Var("y"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))),[]));
+(* Int -> Int -> Int *)
+
+prettyPrintTypeOf(typeof(Func(Var("x"),Int,
+	Value(Func(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))),[]));
+(* Int -> Int -> Int *)
+
+prettyPrintTypeOf(typeof(Func(Var("x"),Int,
+	Value(Func(Var("y"),Bool,BoolExpr(EQ,BoolExpr(EQ,Variable(Var("x")),Value(N(2))),Variable(Var("y")))))),[]));
+(* Int -> Bool -> Bool *)
+
+prettyPrintTypeOf(typeof(Func(Var("x"),Int,
+	Value(Func(Var("y"),Int,BoolExpr(EQ,ArithExpr(TIMES,Variable(Var("x")),Value(N(2))),Variable(Var("y")))))),[]));
+(* Int -> Int -> Bool *)
+
+prettyPrintTypeOf(typeof(
+	Func(Var("x"),Pair(Int,Int),
+		 Case(Variable(Var("x")),VariablePair(Var("x"),Var("y")),
+			  ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),[]));
+(* fn x:(int*int) => case x of (x,y) => (x+y) 
+   =>
+   (int*int) -> int
+*)
+
+prettyPrintTypeOf(typeof(
+	Func(Var("x"),Pair(Pair(Int,Int),Pair(Int,Int)),
+		 Case(Variable(Var("x")),VariablePair(Var("x"),Var("y")),
+			  BoolExpr(EQ,Variable(Var("x")),Variable(Var("y"))))),[]));
+(* fn x:(int*int)*(int*int) => case x of (x,y) => (x=y) 
+   =>
+   (int*int)*(int*int) -> bool
+*)
+
+prettyPrintTypeOf(typeof(
+	Func(Var("x"),Pair(Pair(Int,Bool),Real),
+		 Value(Func(Var("y"),Pair(Pair(a',a''),a'''),
+			Case(Variable(Var("x")),VariablePair(Var("a"),Var("x")),
+				Condition(BoolExpr(LESS,Variable(Var("x")),Value(R(2.0))),
+						  BoolExpr(EQ,Variable(Var("a")),Value(ValuePair(N(2),B(true)))),
+						  BoolExpr(EQ,Variable(Var("y")),Value(ValuePair(ValuePair(N(1),B(false)),N(2))))))))),[]));
+(* fn x:(int*bool)*real =>	
+	fn y:('a*''a)*'''a =>
+		case x of (a,x) ->
+			if (x<2.0) 
+			then a = (2,true)
+			else y = ((1,false),2)
+   =>
+   ((int*bool)*real) -> ((int*bool)*int) -> bool
+ [ '''a -> int, ''a -> bool, 'a -> int ]
+*)
+	
+prettyPrintTypeOf(typeofexpr(App(
+	Value(Func(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Value(N(10))))),
+	Value(N(2))),[]));
+(* int *)
+
+prettyPrintTypeOf(typeofexpr(App(
+	Value(Func(Var("x"),Pair(Pair(Int,Bool),Real),
+		  Value(Func(Var("y"),Pair(Pair(a',a''),a'''),
+			Case(Variable(Var("x")),VariablePair(Var("a"),Var("x")),
+				Condition(BoolExpr(LESS,Variable(Var("x")),Value(R(2.0))),
+						  BoolExpr(EQ,Variable(Var("a")),Value(ValuePair(N(2),B(true)))),
+						  BoolExpr(EQ,Variable(Var("y")),Value(ValuePair(ValuePair(N(1),B(false)),N(2)))))))))),
+	Value(ValuePair(ValuePair(N(2),B(true)),R(2.0)))),[]));
+(* ((int*bool)*int)->bool)
+   [ '''a -> int, ''a -> bool, 'a -> int ] *)
+   
+prettyPrintTypeOf(typeofexpr(App(
+	Value(va'),Value(N(2))),[]));
+(* 'a0, ['a->(int->'a0)] *)
+
+prettyPrintTypeOf(typeofexpr(App(
+	Value(va'),Value(Func(Var("x"),Int,ArithExpr(TIMES,Value(N(2)),Variable(Var("x")))))),[]));
+(* 'a0, ['a->((int->int)->'a0] *)
+
+prettyPrintTypeOf(typeofexpr(App(
+	Value(Func(Var("x"),a',ExpressionPair(Variable(Var("x")),Variable(Var("x"))))),
+	Value(N(2))),[]));
+(* 'a * 'a *)
+	
+prettyPrintTypeOf(typeofexpr(App(
+	Value(va'),Value(va')),[]));
+(* FAIL *)
+
+prettyPrintTypeOf(typeofexpr(App(
+	Value(va'),Value(ValuePair(va',vb'))),[]));
+(* FAIL *)
+
+prettyPrintTypeOf(typeofexpr(App(
+	Value(va'),Value(N(3))),[]));
+(* 'a0,['a->('a1->'a2), 'a2->'a0, 'a1->int] *)
+	
+prettyPrintTypeOf(typeofexpr(App(
+	Value(va''),Value(N(2))),[]));
+(* FAIL *)
+	
+prettyPrintTypeOf(typeofexpr(App(
+	Value(va'''),Value(N(2))),[]));
+(* FAIL *)
+
+prettyPrintTypeOf(typeofexpr(App(
+	Value(B(true)),Value(B(true))),[]));
+(* FAIL *)
+	
+prettyPrintTypeOf(typeofexpr(App(
+	Value(va'),Case(Value(ValuePair(N(1),B(true))),VariablePair(Var("x"),Var("y")),
+				    BoolExpr(EQ,(BoolExpr(EQ,Variable(Var("x")),Value(N(2)))),Variable(Var("y"))))),[]));
+(* 'a0, ['a1->bool, 'a2->'a0, 'a->('a1->'a2)] *)

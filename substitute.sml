@@ -19,7 +19,19 @@ fun substituteValue(v,gamma:variableSub) = (case v of
 			else VHole(CaseHole(substituteValue(v1,gamma),VariablePair(x,y),substitute(e,gamma)))	
 		end
 	
+	| VHole(AppHole(v1,v2)) =>
+		VHole(AppHole(substituteValue(v1,gamma),substituteValue(v2,gamma)))
+	
 	| VHole(SimpleHole(_)) => v
+	
+	| f as Func(x,t,e) =>
+		(* must be capture avoiding *)
+		let val dom = Substitution.domain(gamma);
+			val fvRan = fv(Substitution.range(gamma))
+		in 	if (element(dom,x) orelse element(fvRan,x))
+			then substituteValue(alphaValue(f,getCounterAndUpdate(),[x]),gamma)
+			else Func(x,t,substitute(e,gamma))
+		end
 	
 	| _ => v (* int, bool or real *))
  
@@ -35,6 +47,7 @@ and substitute(e,gamma) = case e of
 	| BoolExpr (boolOper, e1,e2) => BoolExpr (boolOper, substitute(e1,gamma),substitute(e2,gamma))
 	| ExpressionPair(e1,e2) 	 => ExpressionPair(substitute(e1,gamma),substitute(e2,gamma)) 
 	| Condition(e1,e2,e3)		 => Condition(substitute(e1,gamma),substitute(e2,gamma),substitute(e3,gamma))
+	| App(e1,e2)				 => App(substitute(e1,gamma),substitute(e2,gamma))
 	
 	| c as Case (e1,VariablePair(x,y),e2) => 
 		(* Need to perform a capture-avoiding substitution, otherwise perform alpha conversion *)

@@ -23,7 +23,8 @@ datatype t =
 	   Bool					   	    (* boolean   *)
 	 | Int 					   	    (* integer   *)
      | Real					   	    (* real      *)
-	 | Pair of t * t		   	    (* pairs     *)
+	 | Pair of t * t		   	    (* pair      *)
+	 | Fun of t * t					(* function  *)
 	 | THole of typeHole;	        (* type variable *)
 
 (* datatype for operations *) 
@@ -35,7 +36,11 @@ datatype binaryOper = ArithOper of arithOper
 datatype ternaryOper = CASE | CONDITION;
 
 (* variable datatype *)
-datatype var = Var of string;	 
+datatype var = Var of string;
+
+(* thrown if we try to evaluate OR calculate type of OR narrow a free variable
+   i.e. not substituted for in its containing expression *)
+exception FreeVariable;	 
 
 (* pattern datatype *)
 datatype pattern = VariablePair of var * var;
@@ -52,19 +57,22 @@ datatype e =
 	| ExpressionPair of e * e
 	| Case of e * pattern * e			
 	| Condition of e * e * e
+	| App of e * e
 (* value hole datatype *)
 and valHole = 
 	  SimpleHole of simpleValueHole
 	| BinaryOp of binaryOper * v * v
 	| ConditionHole of v * e * e
 	| CaseHole of v * pattern * e
+	| AppHole of v * v
 (* value datatype *)
 and v =
 	   N of int				
   	 | B of bool			
      | R of real			  
-	 | ValuePair of v * v		
-	 | VHole of valHole; 
+	 | ValuePair of v * v
+	 | Func of var * t * e 
+	 | VHole of valHole;
 	
 (* possibly stuck expression datatype *)
 datatype expression = Stuck | Expression of e; 
@@ -75,7 +83,7 @@ type typeSub = (typeHole, t) Substitution.map; 		   (* theta: type holes -> type
 type variableSub = (var, e)  Substitution.map; 		   (* gamma: variables -> expressions 	  *)
 
 (* configuration datatype *)
-datatype config = Config of expression * valSub * typeSub * variableSub;
+datatype config = Config of expression * valSub * typeSub;
 
 (* Integer that is used to generate fresh type variables or fresh variables
    Fresh type variables will be the string "a" with the global counter appended onto it
