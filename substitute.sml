@@ -1,72 +1,80 @@
-fun substituteValue(v,gamma:variableSub) = (case v of 
+(* Takes expression and variable -> expression map, gamma 
+   If there is a mapping x->e in gamma, it substitutes all occurrences of x for e in the 
+   expression passed to the function,
+   ensuring such substitutions are capture-avoiding in the case & function clauses *)
 
-	  ValuePair(v1,v2) => 
-		ValuePair(substituteValue(v1,gamma),substituteValue(v2,gamma)) 
-	
-	| VHole(BinaryOp(oper,v1,v2)) =>
-		VHole(BinaryOp(oper,substituteValue(v1,gamma),substituteValue(v2,gamma)))
-	
-	| VHole(ConditionHole(v1,e1,e2)) =>
-		VHole(ConditionHole(substituteValue(v1,gamma),substitute(e1,gamma),substitute(e2,gamma)))
-	
-	| hole as VHole(CaseHole(v1,VariablePair(x,y),e)) => 
-		(* must be capture avoiding *)
-		let val dom = Substitution.domain(gamma);
-			val fvRan = fv(Substitution.range(gamma))
-		in 	if ((element(dom,x) orelse element(dom,y)) orelse 
-			    (element(fvRan,x) orelse element(fvRan,y)))
-			then substituteValue(alphaValue(hole,getCounterAndUpdate(),[x,y]),gamma)
-			else VHole(CaseHole(substituteValue(v1,gamma),VariablePair(x,y),substitute(e,gamma)))	
-		end
-	
-	| VHole(AppHole(v1,v2)) =>
-		VHole(AppHole(substituteValue(v1,gamma),substituteValue(v2,gamma)))
-	
-	| VHole(SimpleHole(_)) => v
-	
-	| f as Func(x,t,e) =>
-		(* must be capture avoiding *)
-		let val dom = Substitution.domain(gamma);
-			val fvRan = fv(Substitution.range(gamma))
-		in 	if (element(dom,x) orelse element(fvRan,x))
-			then substituteValue(alphaValue(f,getCounterAndUpdate(),[x]),gamma)
-			else Func(x,t,substitute(e,gamma))
-		end
-	
-	| _ => v (* int, bool or real *))
- 
-and substitute(e,gamma) = case e of 
+fun substitute(a,[]) = a
 
-	  Value(v) => Value(substituteValue(v,gamma))
-	
-	| Variable(a) => if Substitution.contains(a,gamma)
-					 then Substitution.get(a,gamma)
-					 else Variable(a)
+|	substitute(a,gamma:variableSub) =
 
-	| ArithExpr(arithOper,e1,e2) => ArithExpr(arithOper,substitute(e1,gamma),substitute(e2,gamma))
-	| BoolExpr (boolOper, e1,e2) => BoolExpr (boolOper, substitute(e1,gamma),substitute(e2,gamma))
-	| ExpressionPair(e1,e2) 	 => ExpressionPair(substitute(e1,gamma),substitute(e2,gamma)) 
-	| Condition(e1,e2,e3)		 => Condition(substitute(e1,gamma),substitute(e2,gamma),substitute(e3,gamma))
-	| App(e1,e2)				 => App(substitute(e1,gamma),substitute(e2,gamma))
-	
-	| c as Case (e1,VariablePair(x,y),e2) => 
-		(* Need to perform a capture-avoiding substitution, otherwise perform alpha conversion *)
-		   
-		let val dom = Substitution.domain(gamma);
-			val fvRan = fv(Substitution.range(gamma))
-		in
-			if ((element(dom,x) orelse element(dom,y)) orelse 
-				(element(fvRan,x) orelse element(fvRan,y)))
-			then(* Need to generate an alpha invariant version of the case expression
-				   and then call substitute again
-				   We pass in the unique integer we want to append to all variable names
-				   and the list of variables to change is the binding variables in the case
-				   expression: x and y *)
-				substitute(alphaVariant(c,getCounterAndUpdate(),[x,y]),gamma)
-			
-			else(* Substitution is capture-avoiding
-				   Recursively substitute in body of case expression *)
-				Case(substitute(e1,gamma),VariablePair(x,y),substitute(e2,gamma))
+	let fun substVal(v) = (case v of 
+
+			  Concrete(_) => v 
+			| Fun(x,t,e) => 
+				(* must be capture avoiding *)
+				if (element(Substitution.domain(gamma),x) orelse 
+					element(fv(Substitution.range(gamma)),x))
+				then (* non-exhaustive, but will always return value *)
+					 let val Value(v) = substExpr(alphaVariant(Value(v),getCounterAndUpdate(),[x]))
+				     in v end
+				else Fun(x,t,substExpr(e))
 				
-		end;
+			| VHole(hole) => substHole(hole)
+			| VRecord(r) => VRecord(substVRecord(r)))
+			
+		and substHole(hole) = (case hole of 
+			 
+			  SimpleHole(_) => VHole(hole)
+			| BinaryOpHole(oper,v1,v2) => VHole(BinaryOpHole(oper,substVal(v1),substVal(v2)))
+			| ConditionHole(v1,e1,e2) => VHole(ConditionHole(substVal(v1),substExpr(e1),substExpr(e2)))
+			| CaseHole(v1,pat,e) => 
+				(* must be capture avoiding *)
+				let val dom = Substitution.domain(gamma);
+					val fvRan = fv(Substitution.range(gamma));
+					val fvPattern = fvPat(pat)
+				(* only change variable names for those clashing in gamma *)
+				in (case union(listElement(dom,fvPattern),listElement(fvRan,fvPattern)) of
+					  [] => VHole(CaseHole(substVal(v1),pat,substExpr(e)))	
+					| l => (* non-exhaustive, but will always return value *)
+							let val Value(h) = substExpr(alphaVariant(Value(VHole(hole)),getCounterAndUpdate(),l))
+							in h end)
+				end
+	
+			| AppHole(v1,v2) => VHole(AppHole(substVal(v1),substVal(v2)))
+			| RecordHole(r) => VHole(RecordHole(substVRecord(r))))
+		
+		and substExpr(e) = (case e of 
+		
+			  Value(v) => Value(substVal(v))
+			| Variable(x) => substVariable(x)
+			| ArithExpr(arithOper,e1,e2) => ArithExpr(arithOper,substExpr(e1),substExpr(e2))
+			| BoolExpr(boolOper,e1,e2) => BoolExpr(boolOper,substExpr(e1),substExpr(e2))
+			| Case (e1,pat,e2) => 
+				(* must be capture avoiding *) 
+				let val dom = Substitution.domain(gamma);
+					val fvRan = fv(Substitution.range(gamma));
+					val fvPattern = fvPat(pat)
+				(* only change variable names for those clashing in gamma *)
+				in (case union(listElement(dom,fvPattern), listElement(fvRan,fvPattern)) of
+					  [] => Case(substExpr(e1),pat,substExpr(e2))
+					| l => substExpr(alphaVariant(e,getCounterAndUpdate(),l)))
+				end
+				
+			| Condition(e1,e2,e3) => Condition(substExpr(e1),substExpr(e2),substExpr(e3))
+			| App(e1,e2) => App(substExpr(e1),substExpr(e2))
+			| Record(r) => Record(substERecord(r)))
+				
+	and substVariable(x) = if Substitution.contains(x,gamma)
+						   then Substitution.get(x,gamma)
+					       else Variable(x)
+						   
+	and substERecord(r) = (case r of 
+			  []		    => r
+			| (lab1,e1)::r1 => (lab1,substExpr(e1))::substERecord(r1))
+			
+	and substVRecord(r) = (case r of 
+			  [] 			=> r
+			| (lab1,v1)::r1 => (lab1,substVal(v1))::substVRecord(r1))
+		
+	in substExpr(a) end;
 		

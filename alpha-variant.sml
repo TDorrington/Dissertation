@@ -1,46 +1,62 @@
 (* Takes an expression and returns an alpha-variant version
    Also takes a list of variables, vars, which we only need change; we cannot change all variables
-   as we only want to change those variables bound in the closest fun/case binding *)
+   as we only want to change those variables bound in the closest fun/case binding
+   clashing with the current variable->expression substitution, gamma *)
 
-fun alphaVariable(Var(s),n,vars) = 
+fun alphaVariant(a,n,vars) =
 
-	if element(vars,Var(s)) 
-	then Var(s^Int.toString(n))
-	else Var(s);
+	let fun alphaVariable(Var(s)) = 
 
-fun alphaValue(v,n,vars) = (case v of 
-
-	  ValuePair(v1,v2) => 
-		ValuePair(alphaValue(v1,n,vars),alphaValue(v2,n,vars))
-			  
-	| VHole(BinaryOp(oper,v1,v2)) => 
-		VHole(BinaryOp(oper,alphaValue(v1,n,vars),alphaValue(v2,n,vars)))
-					
-	| VHole(ConditionHole(v1,e1,e2)) => 
-		VHole(ConditionHole(alphaValue(v1,n,vars),alphaVariant(e1,n,vars),alphaVariant(e2,n,vars))) 
-					
-	| VHole(CaseHole(v1,VariablePair(x,y),e)) =>
-		VHole(CaseHole(v1,VariablePair(alphaVariable(x,n,vars),alphaVariable(y,n,vars)),alphaVariant(e,n,vars)))
+			if element(vars,Var(s)) 
+			then Var(s^Int.toString(n))
+			else Var(s)
 	
-	| VHole(AppHole(v1,v2)) =>
-		VHole(AppHole(alphaValue(v1,n,vars),alphaValue(v2,n,vars)))
-	
-	| VHole(SimpleHole(_)) => v
-	
-	| Func(x,t,e) => Func(alphaVariable(x,n,vars),t,alphaVariant(e,n,vars))
+		and alphaPat(pat) = (case pat of 
 		
-	| _ => v (* int, bool or real *))
+			  PWildcard => PWildcard
+			| PVar(x) => PVar(alphaVariable(x))
+			| PVal(_) => pat
+			| PRecord(r) => PRecord(alphaPRecord(r)))
+		
+		and alphaVRecord(r) = (case r of 
+			  [] 			=> r
+			| (lab1,v1)::r1 => (lab1,alphaValue(v1))::alphaVRecord(r1))
+		
+		and alphaERecord(r) = (case r of 
+			  [] 			=> r
+			| (lab1,e1)::r1 => (lab1,alphaExpr(e1))::alphaERecord(r1))
+			
+		and alphaPRecord(r) = (case r of 
+			  [] 			  => r
+			| (lab1,pat1)::r1 => (lab1,alphaPat(pat1))::alphaPRecord(r1))
 	
-and alphaVariant(e,n,vars) = (case e of 
+		and alphaHole(hole) = (case hole of 
+		
+			  SimpleHole(_) => VHole(hole)
+			| BinaryOpHole(oper,v1,v2) => VHole(BinaryOpHole(oper,alphaValue(v1),alphaValue(v2)))
+			| ConditionHole(v1,e1,e2) => VHole(ConditionHole(alphaValue(v1),alphaExpr(e1),alphaExpr(e2))) 
+			(* don't alpha value v1 *)
+			| CaseHole(v1,pat,e) => VHole(CaseHole(v1,alphaPat(pat),alphaExpr(e)))
+			| AppHole(v1,v2) => VHole(AppHole(alphaValue(v1),alphaValue(v2)))
+			| RecordHole(r) => VHole(RecordHole(alphaVRecord(r))))
 	
-	  Value(v) => Value(alphaValue(v,n,vars))
-	| ArithExpr(arithOper,e1,e2) => ArithExpr(arithOper,alphaVariant(e1,n,vars),alphaVariant(e2,n,vars))
-	| BoolExpr (boolOper, e1,e2) => BoolExpr (boolOper, alphaVariant(e1,n,vars),alphaVariant(e2,n,vars))
-	| ExpressionPair(e1,e2) => ExpressionPair(alphaVariant(e1,n,vars),alphaVariant(e2,n,vars))
-	| Condition(e1,e2,e3) => Condition(alphaVariant(e1,n,vars),alphaVariant(e2,n,vars),alphaVariant(e3,n,vars))
-	| Case(e1,VariablePair(x,y),e2) =>
-		(* do not touch the expression e1, as we may want to substitute free variables in there *)
-		Case(e1,VariablePair(alphaVariable(x,n,vars),alphaVariable(y,n,vars)),alphaVariant(e2,n,vars))
-	| App(e1,e2) => App(alphaVariant(e1,n,vars),alphaVariant(e2,n,vars))
-	| Variable(x) => Variable(alphaVariable(x,n,vars)));
-						
+		and alphaValue(v) = (case v of 
+			  
+			  Concrete(_) => v
+			| Fun(x,t,e) => Fun(alphaVariable(x),t,alphaExpr(e))
+			| VHole(hole) => alphaHole(hole)
+			| VRecord(r) => VRecord(alphaVRecord(r)))
+		
+		and alphaExpr(e) = (case e of 
+	
+			  Value(v) => Value(alphaValue(v))
+			| Variable(x) => Variable(alphaVariable(x))
+			| ArithExpr(arithOper,e1,e2) => ArithExpr(arithOper,alphaExpr(e1),alphaExpr(e2))
+			| BoolExpr(boolOper,e1,e2) => BoolExpr(boolOper,alphaExpr(e1),alphaExpr(e2))
+			(* don't alpha expr e1 *)
+			| Case(e1,pat,e2) => Case(e1,alphaPat(pat),alphaExpr(e2))
+			| Condition(e1,e2,e3) => Condition(alphaExpr(e1),alphaExpr(e2),alphaExpr(e3))
+			| App(e1,e2) => App(alphaExpr(e1),alphaExpr(e2))
+			| Record(r) => Record(alphaERecord(r)))
+			
+	in alphaExpr(a) end;

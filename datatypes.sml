@@ -6,10 +6,10 @@ datatype typeVar =
 				(* Type Variables *)
 				  TypeVar of string			
 
-				 (* Equality Type Variables: int, bool, string and pairs & lists of these *)
+				 (* Equality Type Variables: int, bool, and records over these *)
 				 | EqualityTypeVar of string	
 				 
-				 (* New Arithmetic Type Variable: int or real, NOT pairs & lists of these *)
+				 (* New Arithmetic Type Variable: int or real, NOT records over these *)
 				 | ArithTypeVar of string;  
 			
 (* Enumeration associated with type variables *)
@@ -18,32 +18,27 @@ datatype typeVarEnum = TYPE_VAR | EQUALITY_TYPE_VAR | ARITH_TYPE_VAR;
 (* Type hole datatype *)
 datatype typeHole = TypeHole of typeVar;	
 
+(* Variable datatype *)
+datatype var = Var of string;
+
+(* thrown if we try to evaluate OR calculate type of OR narrow a free variable
+   i.e. not substituted for in its containing expression *)
+exception FreeVariable;	
+
 (* Types datatype *)
 datatype t =
-	   Bool					   	    (* boolean   *)
-	 | Int 					   	    (* integer   *)
-     | Real					   	    (* real      *)
-	 | Pair of t * t		   	    (* pair      *)
-	 | Fun of t * t					(* function  *)
-	 | THole of typeHole;	        (* type variable *)
+	  Bool					   	     (* boolean    	  *)
+	| Int 					   	     (* integer   	  *)
+    | Real					   	     (* real      	  *)
+	| TFun of t * t					 (* function  	  *)
+	| TRecord of t Record.dictionary (* record 		  *)
+	| THole of typeHole      	     (* type variable *)
 
 (* datatype for operations *) 
 datatype arithOper = PLUS | SUBTRACT | TIMES | DIVIDE;
 datatype boolOper  = LESS | MORE | LESS_EQ | MORE_EQ | EQ;
 datatype binaryOper = ArithOper of arithOper 
-				    | BoolOper  of boolOper 
-				    | EXPR_PAIR;
-datatype ternaryOper = CASE | CONDITION;
-
-(* variable datatype *)
-datatype var = Var of string;
-
-(* thrown if we try to evaluate OR calculate type of OR narrow a free variable
-   i.e. not substituted for in its containing expression *)
-exception FreeVariable;	 
-
-(* pattern datatype *)
-datatype pattern = VariablePair of var * var;
+				    | BoolOper  of boolOper;
 
 (* datatype of a simple value hole, v['a] *)
 datatype simpleValueHole = ValueHole of typeVar;
@@ -54,25 +49,39 @@ datatype e =
 	| Variable of var 
 	| ArithExpr of arithOper * e * e     
 	| BoolExpr of boolOper * e * e 
-	| ExpressionPair of e * e
-	| Case of e * pattern * e			
+	| Case of e * pat * e			
 	| Condition of e * e * e
 	| App of e * e
+	| Record of e Record.dictionary	
+
 (* value hole datatype *)
-and valHole = 
+and valhole = 
 	  SimpleHole of simpleValueHole
-	| BinaryOp of binaryOper * v * v
+	| BinaryOpHole of binaryOper * v * v
 	| ConditionHole of v * e * e
-	| CaseHole of v * pattern * e
+	| CaseHole of v * pat * e 	(* v * (pat * e)  list *)
 	| AppHole of v * v
+	| RecordHole of v Record.dictionary    
+	  
+(* concrete values datatype: integers, reals and booleans, or tuples over these *)
+and concretev =
+	  N of int
+	| B of bool
+	| R of real
+	
 (* value datatype *)
 and v =
-	   N of int				
-  	 | B of bool			
-     | R of real			  
-	 | ValuePair of v * v
-	 | Func of var * t * e 
-	 | VHole of valHole;
+	  Concrete of concretev
+	| Fun of var * t * e 
+	| VHole of valhole
+	| VRecord of v Record.dictionary
+	
+(* pattern datatype *)
+and pat = 
+	  PWildcard							(* _ wildcard     *)
+	| PVar of var						(* variable       *)
+	| PVal of concretev					(* concrete value *)
+	| PRecord of pat Record.dictionary;	(* record pattern *)
 	
 (* possibly stuck expression datatype *)
 datatype expression = Stuck | Expression of e; 
@@ -95,23 +104,3 @@ val globalCounter = ref 0;
 fun getCounterAndUpdate() = 
 	let val current = !globalCounter
 	in (globalCounter := !globalCounter + 1);current end;
-
-(* Generates a fresh type variable of the form depending on enumeration argument 
-   (i.e. general type variable, equality type variable, or arithmetic type variable)
-   We also need to check the generated type variable is neither in the domain or range
-   of the current substitution. If it is, keep re-calling function *)
-fun generateFreshTypeVar(typeVarEnum,theta:typeSub) =
-
-	let val freshTypeVar = case typeVarEnum of
-	
-		  TYPE_VAR => TypeHole(TypeVar("a" ^ Int.toString(getCounterAndUpdate())))
-		  
-		| EQUALITY_TYPE_VAR => TypeHole(EqualityTypeVar("a" ^ Int.toString(getCounterAndUpdate())))
-		
-		| ARITH_TYPE_VAR => TypeHole(ArithTypeVar("a" ^ Int.toString(getCounterAndUpdate())))
-
-	in 
-		if element(Substitution.domain(theta),freshTypeVar) orelse element(Substitution.range(theta),THole(freshTypeVar))
-		then generateFreshTypeVar(typeVarEnum,theta)
-		else THole(freshTypeVar)
-	end;

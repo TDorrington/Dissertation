@@ -2,64 +2,85 @@
    returns a function from a pair of two values to a possibly-stuck expression *)
 val rec operationWrap = fn oper =>
 
-   (fn (N(n1),N(n2)) => (case oper of 
-		  ArithOper(PLUS) 	  => Expression(Value(N(n1+n2)))
-		| ArithOper(SUBTRACT) => Expression(Value(N(n1-n2)))
-		| ArithOper(TIMES)    => Expression(Value(N(n1*n2)))
+   (fn (Concrete(N(n1)),Concrete(N(n2))) => (case oper of 
+		  ArithOper(PLUS) 	  => Expression(Value(Concrete(N(n1+n2))))
+		| ArithOper(SUBTRACT) => Expression(Value(Concrete(N(n1-n2))))
+		| ArithOper(TIMES)    => Expression(Value(Concrete(N(n1*n2))))
 		| ArithOper(DIVIDE)   => Stuck
-		| BoolOper(LESS)      => Expression(Value(B(n1<n2)))
-		| BoolOper(LESS_EQ)   => Expression(Value(B(n1<=n2)))
-		| BoolOper(MORE)      => Expression(Value(B(n1>n2)))
-		| BoolOper(MORE_EQ)   => Expression(Value(B(n1>=n2)))
-		| BoolOper(EQ)        => Expression(Value(B(n1=n2)))
-		| EXPR_PAIR			  => Stuck)
+		| BoolOper(LESS)      => Expression(Value(Concrete(B(n1<n2))))
+		| BoolOper(LESS_EQ)   => Expression(Value(Concrete(B(n1<=n2))))
+		| BoolOper(MORE)      => Expression(Value(Concrete(B(n1>n2))))
+		| BoolOper(MORE_EQ)   => Expression(Value(Concrete(B(n1>=n2))))
+		| BoolOper(EQ)        => Expression(Value(Concrete(B(n1=n2)))))
 		
-    | (R(r1),R(r2)) => (case oper of 
-		  ArithOper(PLUS)     => Expression(Value(R(r1+r2)))
-		| ArithOper(SUBTRACT) => Expression(Value(R(r1-r2)))
-		| ArithOper(TIMES)    => Expression(Value(R(r1*r2)))
-		| ArithOper(DIVIDE)   => Expression(Value(R(r1/r2)))
-		| BoolOper(LESS)      => Expression(Value(B(r1<r2)))
-		| BoolOper(LESS_EQ)   => Expression(Value(B(r1<=r2)))
-		| BoolOper(MORE)      => Expression(Value(B(r1>r2)))
-		| BoolOper(MORE_EQ)   => Expression(Value(B(r1>=r2)))
-		| BoolOper(EQ)		  => Stuck
-		| EXPR_PAIR		      => Stuck)
+    | (Concrete(R(r1)),Concrete(R(r2))) => (case oper of 
+		  ArithOper(PLUS)     => Expression(Value(Concrete(R(r1+r2))))
+		| ArithOper(SUBTRACT) => Expression(Value(Concrete(R(r1-r2))))
+		| ArithOper(TIMES)    => Expression(Value(Concrete(R(r1*r2))))
+		| ArithOper(DIVIDE)   => Expression(Value(Concrete(R(r1/r2))))
+		| BoolOper(LESS)      => Expression(Value(Concrete(B(r1<r2))))
+		| BoolOper(LESS_EQ)   => Expression(Value(Concrete(B(r1<=r2))))
+		| BoolOper(MORE)      => Expression(Value(Concrete(B(r1>r2))))
+		| BoolOper(MORE_EQ)   => Expression(Value(Concrete(B(r1>=r2))))
+		| BoolOper(EQ)		  => Stuck)
 		 
-	| (B(b1), B(b2)) => (case oper of 
-		  BoolOper(EQ) => Expression(Value(B(b1=b2)))
+	| (Concrete(B(b1)), Concrete(B(b2))) => (case oper of 
+		  BoolOper(EQ) => Expression(Value(Concrete(B(b1=b2))))
 		| _ 		   => Stuck)
 	 
-	| (va as ValuePair(va1,va2), vb as ValuePair(vb1,vb2)) => (case oper of
-		  BoolOper(EQ) => (case (operationWrap(oper) (va1,vb1), operationWrap(oper) (va2,vb2)) of
-							
-			  (Expression(Value(B(b1))),Expression(Value(B(b2)))) => Expression(Value(B(b1 andalso b2)))
-			| (Expression(_),Expression(_)) => Expression(Value(VHole(BinaryOp(oper,va,vb))))
-			| _	=> Stuck)
-			
-		| _ 		   => Stuck)
+	| (VRecord(r1),VRecord(r2)) => (case oper of
 	
-	| (VHole(hole), v2) => Expression(Value(VHole(BinaryOp(oper,VHole(hole),v2))))
+		  BoolOper(EQ) => 
+		    (* Perform operationWrap recursively on each pair of values for corresponding labels
+			   If all return boolean, then return conjunction of all booleans
+			   Otherwise return as binary op value hole, v[record1 = record2] *)
+			let fun iterOperationWrap(l1,l2) = (case (l1,l2) of 
+				
+				  ([],[]) => Expression(Value(Concrete(B(true))))
+				| ([],_)  => Stuck
+				| (_,[])  => Stuck
+				| ((lab1,v1)::rest1,(lab2,v2)::rest2) =>
+					if lab1=lab2
+					then (case (operationWrap oper (v1,v2)) of
+						
+						  Expression(Value(Concrete(B(b1)))) => (case iterOperationWrap(rest1,rest2) of 
+								  Expression(Value(Concrete(B(b2)))) => Expression(Value(Concrete(B(b1 andalso b2))))
+ 								| Expression(_) => Expression(Value(VHole(BinaryOpHole(oper,VRecord(r1),VRecord(r2)))))
+								| Stuck => Stuck)
+						  
+						(* If doesn't evaluate to boolean, carrying on evaluating the rest of the
+						   equal labels pairs, just in case one of the pairs gets stuck *)
+						| Expression(_) => (case iterOperationWrap(rest1,rest2) of 
+							  Expression(_) => Expression(Value(VHole(BinaryOpHole(oper,VRecord(r1),VRecord(r2)))))
+							| Stuck => Stuck)
+						
+						| Stuck => Stuck)
+						
+					else Stuck)
+		
+			in iterOperationWrap(Record.sort(r1),Record.sort(r2)) end
+			
+		| _ => Stuck)
+	
+	| (VHole(hole), v2) => Expression(Value(VHole(BinaryOpHole(oper,VHole(hole),v2))))
 	 
-	| (v1, VHole(hole)) => Expression(Value(VHole(BinaryOp(oper,v1,VHole(hole)))))
+	| (v1, VHole(hole)) => Expression(Value(VHole(BinaryOpHole(oper,v1,VHole(hole)))))
 	
 	| _ => Stuck);	
 	
 (* Rules for arithmetic and boolean operations *)
-fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t) : config = 
-	
-	(case evaluate(narrow(v1,t,sigma,theta)) of 
+fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t) = (case evaluate(narrow(v1,t,sigma,theta)) of 
 	  
-		  Config(Expression(Value(n1)),sigma1,theta1) => (case evaluate(narrow(v2,t,sigma1,theta1)) of 
+	  Config(Expression(Value(n1)),sigma1,theta1) => (case evaluate(narrow(v2,t,sigma1,theta1)) of 
 
-				  (* rule E-OP-GOOD *)
-				  Config(Expression(Value(n2)),sigma2,theta2) => Config(oper(n1,n2),sigma2,theta2)
+		  (* rule E-OP-GOOD *)
+		  Config(Expression(Value(n2)),sigma2,theta2) => Config(oper(n1,n2),sigma2,theta2)
 				
-				 (* rule E-OP-BAD2 *)
-				| Config(_,sigma2,theta2) => Config(Stuck,sigma2,theta2))
+		 (* rule E-OP-BAD2 *)
+		| Config(_,sigma2,theta2) => Config(Stuck,sigma2,theta2))
 		
-		 (* rule E-OP-BAD1 *)
-		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+	 (* rule E-OP-BAD1 *)
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 						
 and elabPhraseOperation(v1,v2,sigma,theta,oper) =
 	
@@ -67,58 +88,82 @@ and elabPhraseOperation(v1,v2,sigma,theta,oper) =
 	in (case (v1,v2) of 
 	
 	  (* op : int * int -> int/bool *)
-	  (N(_),N(_)) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Int)
-	| (N(_),VHole(_)) => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Int)
-	| (VHole(_),N(_)) => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Int)
+	  (Concrete(N(_)),Concrete(N(_))) => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Int)
+	| (Concrete(N(_)),VHole(_)) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Int)
+	| (VHole(_),Concrete(N(_))) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Int)
 		
 	  (* op : real * real -> real/bool *)
-	| (R(_),R(_)) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Real)
-	| (R(_),VHole(_)) => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Real)
-	| (VHole(_),R(_)) => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Real)
+	| (Concrete(R(_)),Concrete(R(_))) => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Real)
+	| (Concrete(R(_)),VHole(_))		  => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Real)
+	| (VHole(_),Concrete(R(_))) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Real)
 		
 	(* = : bool * bool -> bool *)
-	| (B(_),B(_))     => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Bool)
-	| (B(_),VHole(_)) => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Bool)
-	| (VHole(_),B(_)) => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Bool)
+	| (Concrete(B(_)),Concrete(B(_))) => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Bool)
+	| (Concrete(B(_)),VHole(_)) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Bool)
+	| (VHole(_),Concrete(B(_))) 	  => elabPhraseOperationEvaluate(v1,v2,sigma,theta,wrapper,Bool)
 		
-	(* For value pair arguments, can only be operator equal
-	   Recursively call this function on each of the pair arguments *)
-	| (ValuePair(va1,va2),ValuePair(vb1,vb2)) => 
-		if oper = BoolOper(EQ) 
-		then let val Config(e1,sigma1,theta1) = elabPhraseOperation(va1,vb1,sigma,theta,oper);
-			     val Config(e2,sigma2,theta2) = elabPhraseOperation(va2,vb2,sigma1,theta1,oper)
-				 in (case (e1,e2) of
+	(* For record arguments, can only be operator equal
+	   Recursively call this function on each of the pairs of values for corresponding labels *)
+	| (VRecord(r1),VRecord(r2)) =>	
+	
+		if oper = BoolOper(EQ)
+		
+		then let fun iterElabEvaluate(l1,l2,sigma,theta) = (case (l1,l2) of 
+		
+			  ([],[]) => Config(Expression(Value(Concrete(B(true)))),sigma,theta)
+			| ([],_)  => Config(Stuck,sigma,theta)
+			| (_,[])  => Config(Stuck,sigma,theta)
+			| ((lab1,v1)::rest1,(lab2,v2)::rest2) => 
+				if lab1=lab2
+				then (case elabPhraseOperation(v1,v2,sigma,theta,oper) of
+							
+					  Config(Expression(Value(Concrete(B(b1)))),sigma1,theta1) => (case iterElabEvaluate(rest1,rest2,sigma1,theta1) of 
+					  
+							  Config(Expression(Value(Concrete(B(b2)))),sigma2,theta2) =>
+								Config(Expression(Value(Concrete(B(b1 andalso b2)))),sigma2,theta2)
+							
+							| Config(Expression(_),sigma2,theta2) =>
+								Config(Expression(Value(VHole(BinaryOpHole(BoolOper(EQ),
+									resolveChainSigma(VRecord(r1),sigma2),
+									resolveChainSigma(VRecord(r2),sigma2))))),sigma2,theta2)
+									
+							| Config(Stuck,sigma2,theta2) => Config(Stuck,sigma2,theta2))
 					
-					  (Expression(Value(B(b1))),Expression(Value(B(b2)))) => 
-						Config(Expression(Value(B(b1 andalso b2))),sigma2,theta2)
+					(* If doesn't evaluate to boolean, still go on to evaluate the rest of the equal labels pairs
+					   just to have a sigma and gamma to resolveChain the original records
+					   before putting into a compound value hole,
+					   or to see if another equal labels pair gets stuck *)
+					| Config(Expression(_),sigma1,theta1) => (case iterElabEvaluate(rest1,rest2,sigma1,theta1) of 
+					
+						  Config(Expression(_),sigma2,theta2) =>
+							Config(Expression(Value(VHole(BinaryOpHole(BoolOper(EQ),
+								resolveChainSigma(VRecord(r1),sigma2),
+								resolveChainSigma(VRecord(r2),sigma2))))),sigma2,theta2)
+						  
+						| Config(Stuck,sigma2,theta2) => Config(Stuck,sigma2,theta2))
+							
+					| Config(Stuck,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 						
-					| (Expression(_),Expression(_)) => 
-						Config(Expression(Value(VHole(BinaryOp(BoolOper(EQ),resolveChainSigma(v1,sigma2),resolveChainSigma(v2,sigma2))))),sigma2,theta2)
-					
-					| _ => Config(Stuck,sigma2,theta2))
-					
-				end
+				else Config(Stuck,sigma,theta))
 				
+		in iterElabEvaluate(Record.sort(r1),Record.sort(r2),sigma,theta) end
+		
 		else Config(Stuck,sigma,theta)
-		
-	| (ValuePair(_,_),VHole(_)) => (case typeof(v1,theta) of 
+			
+	| (VRecord(_),VHole(_)) => (case typeof(v1,theta) of 
 	
 		  (NONE,_) => Config(Stuck,sigma,theta)
-		| (SOME(pairType),theta1) => 
+		| (SOME(recordType),theta1) => (case evaluate(narrow(v2,recordType,sigma,theta1)) of 
 		
-			(case evaluate(narrow(v2,pairType,sigma,theta1)) of 
-		
-				  Config(Expression(Value(v2narrow)),sigma2,theta2) => 
-					elabPhraseOperation(v1,v2narrow,sigma2,theta2,oper)
+			  Config(Expression(Value(v2narrow)),sigma2,theta2) => 
+				elabPhraseOperation(v1,v2narrow,sigma2,theta2,oper)
 					
-				| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
+			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
 		
-	| (VHole(_),ValuePair(_,_)) => (case typeof(v2,theta) of 
+	| (VHole(_),VRecord(_)) => (case typeof(v2,theta) of 
 	
 		  (NONE,_) => Config(Stuck,sigma,theta)
-		| (SOME(pairType),theta1) => 
-		
-			(case evaluate(narrow(v1,pairType,sigma,theta1)) of 
+		| (SOME(recordType),theta1) => (case evaluate(narrow(v1,recordType,sigma,theta1)) of 
 			
 			  Config(Expression(Value(v1narrow)),sigma2,theta2) => 
 				elabPhraseOperation(v1narrow,v2,sigma2,theta2,oper)
@@ -126,6 +171,7 @@ and elabPhraseOperation(v1,v2,sigma,theta,oper) =
 			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
 			
 	| (VHole(_),VHole(_)) =>
+	
 		let val (t,theta1) = (case oper of 
 		
 			  ArithOper(DIVIDE) => (Real,theta)
@@ -190,78 +236,75 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 		elabPhraseOperation(v1,v2,sigma,theta,BoolOper(oper))
  
 (* (context-op-2) for arithmetic expressions *)	  
-|	evaluate (Config(Expression(ArithExpr(oper,Value(v1),e2)),sigma,theta)) =
-
-	(case evaluate(Config(Expression(e2),sigma,theta)) of 
+|	evaluate (Config(Expression(ArithExpr(oper,Value(v1),e2)),sigma,theta)) = (case evaluate(Config(Expression(e2),sigma,theta)) of 
 		
-		  Config(Expression(Value(v2)),sigma1,theta1) =>
-			evaluate(Config(Expression(ArithExpr(oper,Value(v1),Value(v2))),sigma1,theta1))
+	  Config(Expression(Value(v2)),sigma1,theta1) =>
+		evaluate(Config(Expression(ArithExpr(oper,Value(v1),Value(v2))),sigma1,theta1))
 			
-		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 	
 (* (context-op-2) for boolean expressions *)	 
-|	evaluate (Config(Expression(BoolExpr(oper,Value(v1),e2)),sigma,theta)) =
-
-	(case evaluate(Config(Expression(e2),sigma,theta)) of 
+|	evaluate (Config(Expression(BoolExpr(oper,Value(v1),e2)),sigma,theta)) = (case evaluate(Config(Expression(e2),sigma,theta)) of 
 		
-		  Config(Expression(Value(v2)),sigma1,theta1) =>
-			evaluate(Config(Expression(BoolExpr(oper,Value(v1),Value(v2))),sigma1,theta1))
+	  Config(Expression(Value(v2)),sigma1,theta1) =>
+		evaluate(Config(Expression(BoolExpr(oper,Value(v1),Value(v2))),sigma1,theta1))
 			
-		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
   
 (* (context-op-1) for arithmetic expressions *)	 
-|	evaluate (Config(Expression(ArithExpr(oper,e1,e2)),sigma,theta)) =
-
-	(case evaluate(Config(Expression(e1),sigma,theta)) of 
-			  
-		 Config(Expression(Value(v1)),sigma1,theta1) =>
-			evaluate(Config(Expression(ArithExpr(oper,Value(v1),e2)),sigma1,theta1))
+|	evaluate (Config(Expression(ArithExpr(oper,e1,e2)),sigma,theta)) = (case evaluate(Config(Expression(e1),sigma,theta)) of 
+		  
+	 Config(Expression(Value(v1)),sigma1,theta1) =>
+		evaluate(Config(Expression(ArithExpr(oper,Value(v1),e2)),sigma1,theta1))
 			
-		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 	
 (* (context-op-1) for boolean expressions *)	
-|	evaluate (Config(Expression(BoolExpr(oper,e1,e2)),sigma,theta)) =
-
-	(case evaluate(Config(Expression(e1),sigma,theta)) of 
+|	evaluate (Config(Expression(BoolExpr(oper,e1,e2)),sigma,theta)) = (case evaluate(Config(Expression(e1),sigma,theta)) of 
 		
-		  Config(Expression(Value(v1)),sigma1,theta1) =>
-			evaluate(Config(Expression(BoolExpr(oper,Value(v1),e2)),sigma1,theta1))
+	  Config(Expression(Value(v1)),sigma1,theta1) =>
+		evaluate(Config(Expression(BoolExpr(oper,Value(v1),e2)),sigma1,theta1))
 			
-		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 
-(* Resolves the slight loophole that <v,v> can be both an expression and a value *)
-(* (context-value-pair) *)
-|	evaluate (Config(Expression(ExpressionPair(Value(v1),Value(v2))),sigma,theta)) =
+(* Takes a record of expressions and turns into a value record of values
+   Label-expression pairs evaluated in a left-to-right manner
+   returning list of label-value pairs *)
+(* (context-record) *)
+|	evaluate (Config(Expression(Record(r)),sigma,theta)) = 
 
-		evaluate(Config(Expression(Value(ValuePair(v1,v2))),sigma,theta))
+	let fun iterEvaluate(r,sigma,theta) = (case r of 
 	
-(* Handles (context-pair-2), where left hand expression in pair a value *)
-|  	evaluate (Config(Expression(ExpressionPair(Value(v1),e2)),sigma,theta)) =
-
-	(case evaluate(Config(Expression(e2),sigma,theta)) of 
+		  [] => (SOME [],sigma,theta)
+		  
+		| (lab,Value(v))::rest => (case iterEvaluate(rest,sigma,theta) of 
 		
-		  Config(Expression(Value(v2)),sigma1,theta1) =>
-			evaluate(Config(Expression(ExpressionPair(Value(v1),Value(v2))),sigma1,theta1))
-			
-		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
-
-(* Handles (context-pair-1), where both expressions in a pair not a value *)
-|  	evaluate (Config(Expression(ExpressionPair(e1,e2)),sigma,theta)) =
-
-	(case evaluate(Config(Expression(e1),sigma,theta)) of 
+			  (SOME l,sigma1,theta1) => (SOME ((lab,v)::l),sigma1,theta1)
+			| (NONE,sigma1,theta1)   => (NONE,sigma1,theta1))
 		
-		  Config(Expression(Value(v1)),sigma1,theta1) =>
-			evaluate(Config(Expression(ExpressionPair(Value(v1),e2)),sigma1,theta1))
-			
-		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+		| (lab,e)::rest => (case evaluate(Config(Expression(e),sigma,theta)) of 
+		
+			  Config(Expression(Value(v)),sigma1,theta1) => (case iterEvaluate(rest,sigma1,theta1) of 
+			  
+				  (SOME l,sigma2,theta2) => (SOME ((lab,v)::l),sigma2,theta2)
+				| (NONE,sigma2,theta2)   => (NONE,sigma2,theta2))
+			 
+			| Config(_,sigma1,theta1) => (NONE,sigma1,theta1)))
+				
+	in (case iterEvaluate(r,sigma,theta) of 
 	
+		  (SOME l,sigma1,theta1) => evaluate(Config(Expression(Value(VRecord(l))),sigma1,theta1))
+		| (NONE,sigma1,theta1)   => Config(Stuck,sigma1,theta1))
+		
+	end
+		  
 (* Implements evaluation & type inference rules for if expression with boolean operand a value *)
 (* i.e. implements rules (E-IF-GOOD1), (E-IF-GOOD2), (E-IF-BAD) *)
 |  evaluate (Config(Expression(Condition(Value(v),e1,e2)),sigma,theta)) =
 
 	(case evaluate(narrow(v,Bool,sigma,theta)) of 
 	
-		  Config(Expression(Value(B(b))),sigma1,theta1) =>
+		  Config(Expression(Value(Concrete(B(b)))),sigma1,theta1) =>
 		
 			if b 
 				 (* rule E-IF-GOOD1 *)
@@ -272,7 +315,7 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 		
 		(* rule E-IF-HOLE *)
 		| Config(Expression(Value(newV)),sigma1,theta1) =>
-			Config(Expression(Value(VHole(ConditionHole(newV,e1,e2)))),sigma1,theta1)
+			evaluate(Config(Expression(Value(VHole(ConditionHole(newV,e1,e2)))),sigma1,theta1))
 
 		(* rule E-IF-BAD *)
 		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
@@ -287,83 +330,88 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 			
 		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
  
-(* Implements evaluation & type inference rules for case-pair expression with first operand a value *)
+(* Implements evaluation & type inference rules for case expression with first operand a value *)
 (* i.e. implement rules (E-CASE-PAIR-GOOD) and (E-CASE-PAIR-BAD) *) 
-|  evaluate (Config(Expression(Case(Value(v),VariablePair(x1,x2),e)),sigma,theta)) =
+|  evaluate (Config(Expression(Case(Value(v),pat,e)),sigma,theta)) =
 
-	let val alpha1 = generateFreshTypeVar(TYPE_VAR,theta);
-		val alpha2 = generateFreshTypeVar(TYPE_VAR,theta);
-	in (case evaluate(narrow(v,Pair(alpha1,alpha2),sigma,theta)) of 
-
-		  (* rule E-CASE-PAIR-GOOD *)
-		  Config(Expression(Value(ValuePair(v1,v2))),sigma1,theta1) =>
+	(* To get type we need to narrow e1 to, look at form of pattern *)
+	let fun narrowType(pat) = (case pat of 
+			
+		  PRecord(r)   => 
+			let fun iterCalcNarrowType(r) = (case r of 
+			  [] => []
+			| (lab1,pat1)::r1 => (lab1,narrowType(pat1))::iterCalcNarrowType(r1))
+			in TRecord(iterCalcNarrowType(r)) end
 					
-			let val gamma = [ (x1,Value(v1)), (x2,Value(v2)) ]
-			in evaluate(Config(Expression(substitute(e,gamma)),sigma1,theta1)) end
+		(* Do not restrict to concrete types, e.g. PVal(N(_)) => Int,
+		   because if we are narrowing a value hole, we don't want to narrow
+		   it to a generated value from gen because, for example,
+		   case v['a] of 3 -> ...
+		   will get stuck since v['a] will be narrowed to 1
+		   gen always returns 1 *)
+		| _ => generateFreshTypeVar(TYPE_VAR,theta))
+	
+	in (case evaluate(narrow(v,narrowType(pat),sigma,theta)) of 
+
+		  Config(Expression(Value(v1narrow)),sigma1,theta1) => (case match(Value(v1narrow),pat,sigma1,theta1,[]) of 
+		  
+			(* E-CASE-BAD2 *)
+			  Fail => Config(Stuck,sigma1,theta1)
+			  
+			(* E-CASE-HOLE *)
+			| Hole h => evaluate(Config(Expression(Value(VHole(CaseHole(VHole(h),pat,e)))),sigma1,theta1))
 			
-		(* rule E-CASE-HOLE *)
-		| Config(Expression(Value(v1)),sigma1,theta1) =>
-		
-			Config(Expression(Case(Value(v1),VariablePair(x1,x2),e)),sigma1,theta1)
-			
-		(* rule E-CASE-PAIR-BAD *)
+			(* E-CASE-GOOD *)
+			| Success (sigma2,theta2,gamma) => evaluate(Config(Expression(substitute(e,gamma)),sigma2,theta2)))
+					
+		(* E-CASE-BAD2 *)
 		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 		
    end
    
 (* (context-case-pair), i.e. where left-hand pair an expression *)
-| 	evaluate (Config(Expression(Case(e1,pat,e2)),sigma,theta)) =
-
-	(case evaluate(Config(Expression(e1),sigma,theta)) of 
+| 	evaluate (Config(Expression(Case(e1,pat,e2)),sigma,theta)) = (case evaluate(Config(Expression(e1),sigma,theta)) of 
 	
-		  Config(Expression(Value(v1)),sigma1,theta1) =>
-			evaluate(Config(Expression(Case(Value(v1),pat,e2)),sigma1,theta1))
+		  Config(Expression(Value(v1)),sigma1,theta1) => evaluate(Config(Expression(Case(Value(v1),pat,e2)),sigma1,theta1))
 			
 		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 
 (* Implements evaluation & type inference rules for application expression with both operands a value *)
 (* i.e. implement rules (E-APP-GOOD) and (E-APP-BAD) *) 			
-| 	evaluate (Config(Expression(App(Value(v1),Value(v2))),sigma,theta)) =
-
-	(case typeof(v2,theta) of 
+| 	evaluate (Config(Expression(App(Value(v1),Value(v2))),sigma,theta)) = (case typeof(v2,theta) of 
 	
-		  (NONE,_) => Config(Stuck,sigma,theta)
-		| (SOME t1,theta1) => 
+	  (NONE,_) => Config(Stuck,sigma,theta)
+	| (SOME t1,theta1) => 
 				
-			let val freshType = generateFreshTypeVar(TYPE_VAR,theta1);
-				val narrowType = Fun(t1,freshType);
+		let val freshType = generateFreshTypeVar(TYPE_VAR,theta1);
+			val narrowType = TFun(t1,freshType);
 				
-			in (case evaluate(narrow(v1,narrowType,sigma,theta1)) of
+		in (case evaluate(narrow(v1,narrowType,sigma,theta1)) of
 				
-				  (* Rule E-APP-GOOD *)
-				  Config(Expression(Value(Func(x,t,e))),sigma2,theta2) =>
-					evaluate(Config(Expression(substitute(e,[(x,Value(v2))])),sigma2,theta2))
+			  (* Rule E-APP-GOOD *)
+			  Config(Expression(Value(Fun(x,t,e))),sigma2,theta2) =>
+				evaluate(Config(Expression(substitute(e,[(x,Value(v2))])),sigma2,theta2))
 					
-				(* Rule E-APP-HOLE *)
-				| Config(Expression(Value(v1narrow)),sigma2,theta2) => 
-					Config(Expression(Value(VHole(AppHole(v1narrow,v2)))),sigma2,theta2)
+			(* Rule E-APP-HOLE *)
+			| Config(Expression(Value(v1narrow)),sigma2,theta2) => 
+				evaluate(Config(Expression(Value(VHole(AppHole(v1narrow,v2)))),sigma2,theta2))
 					
-				(* rule E-APP-BAD *)
-				| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+			(* rule E-APP-BAD *)
+			| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 				
-			end)
+		end)
 
 (* context-app-1 *)
-| 	evaluate (Config(Expression(App(Value(v1),e2)),sigma,theta)) =
-
-	(case evaluate(Config(Expression(e2),sigma,theta)) of 
+| 	evaluate (Config(Expression(App(Value(v1),e2)),sigma,theta)) = (case evaluate(Config(Expression(e2),sigma,theta)) of 
 		
-		 Config(Expression(Value(v2)),sigma1,theta1) =>
-			evaluate(Config(Expression(App(Value(v1),Value(v2))),sigma1,theta1))
+	 Config(Expression(Value(v2)),sigma1,theta1) => evaluate(Config(Expression(App(Value(v1),Value(v2))),sigma1,theta1))
 			
-		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 			
 (* context-app-2 *)
-| 	evaluate (Config(Expression(App(e1,e2)),sigma,theta)) =
+| 	evaluate (Config(Expression(App(e1,e2)),sigma,theta)) = (case evaluate(Config(Expression(e1),sigma,theta)) of
 
-	(case evaluate(Config(Expression(e1),sigma,theta)) of
+	 Config(Expression(Value(v1)),sigma1,theta1) => evaluate(Config(Expression(App(Value(v1),e2)),sigma1,theta1))
 
-		 Config(Expression(Value(v1)),sigma1,theta1) =>
-			evaluate(Config(Expression(App(Value(v1),e2)),sigma1,theta1))
-	
-		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1));
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1));
+		

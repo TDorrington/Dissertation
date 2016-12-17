@@ -1,65 +1,76 @@
-(* Gets the string attached to type variable datatype
-   We use the notation that 'a = TypeVar("a"), ''b = EqualityTypeVar("b"), and 
-   '''c = ArithmeticTypeVar("c") *)
 fun getTypeVariableString(TypeVar(s)) = "'" ^ s
 |  	getTypeVariableString(EqualityTypeVar(s)) = "''" ^ s
 |	getTypeVariableString(ArithTypeVar(s)) = "'''" ^ s;
 
-(* Returns string representation of operation as infix for boolean and arithmetic operators
-   in the binaryOper datatype (no clause for EXPR_PAIR)
-   with formatting, i.e. space either side of operator *)
 fun getOperString(ArithOper(oper)) = (case oper of 
 	  PLUS => " + "
 	| SUBTRACT => " - "
 	| TIMES => " * "
 	| DIVIDE => " / ")
-
 |	getOperString(BoolOper(oper)) = (case oper of
 	  LESS => " < "
 	| MORE => " > "
 	| LESS_EQ => " <= "
 	| MORE_EQ => " >= "
-	| EQ => " = ")
+	| EQ => " = ");
+
+fun prettyPrintTRecord([]) = ""
+|	prettyPrintTRecord([(Lab(s),t)]) = s ^ ":" ^ prettyPrintType(t)
+|	prettyPrintTRecord((Lab(s),t)::r) = s ^ ":" ^ prettyPrintType(t) ^ ", " ^ prettyPrintTRecord(r)
 	
-|	getOperString(_) = " ";
+and prettyPrintType (t) = (case t of 
+	  Int  => "int"
+	| Real => "real"
+	| Bool => "bool"
+	| TFun(t1,t2) => "(" ^ prettyPrintType(t1) ^ " -> " ^ prettyPrintType(t2) ^ ")"
+	| TRecord(r) => "{" ^ prettyPrintTRecord(r) ^ "}"
+	| THole(TypeHole(t')) => getTypeVariableString(t'));
 
-(* Get string representing the type *)
-fun prettyPrintType (t) =
-	case t of Int  => "int"
-			| Real => "real"
-			| Bool => "bool"
-			| Fun(t1,t2) => "(" ^ prettyPrintType(t1) ^ " -> " ^ prettyPrintType(t2) ^ ")"
-			| Pair(t1,t2) => "(" ^ prettyPrintType(t1) ^ " * " ^ prettyPrintType(t2) ^ ")"
-			| THole(TypeHole(t')) => getTypeVariableString(t');
+fun prettyPrintCVRecord([]) = ""
+|	prettyPrintCVRecord([(Lab(s),cv)]) = s ^ "=" ^ prettyPrintConcreteVal(cv)
+|	prettyPrintCVRecord((Lab(s),cv)::r) = s ^ "=" ^ prettyPrintConcreteVal(cv) ^ ", " ^
+										prettyPrintCVRecord(r)
+			
+and prettyPrintConcreteVal(N(n)) = Int.toString(n)
+|	prettyPrintConcreteVal(B(b)) = Bool.toString(b)
+|	prettyPrintConcreteVal(R(r)) = Real.toString(r);
+			
+fun prettyPrintPRecord([]) = ""
+|	prettyPrintPRecord([(Lab(s),pat)]) = s ^ "=" ^ prettyPrintPattern(pat)
+|	prettyPrintPRecord((Lab(s),pat)::r) = s ^ "=" ^ prettyPrintPattern(pat) ^ ", " ^ 
+											  prettyPrintPRecord(r)
+		
+and prettyPrintPattern(PVar(Var(s))) = s
+|	prettyPrintPattern(PVal(cv)) = prettyPrintConcreteVal(cv)
+|	prettyPrintPattern(PRecord(r)) = "{" ^ prettyPrintPRecord(r) ^ "}"
+|	prettyPrintPattern(PWildcard) = "_";
 
-fun prettyPrintPattern(VariablePair(Var(x1),Var(x2))) = "( " ^ x1 ^ " , " ^ x2 ^ " )"; 
+fun prettyPrintHole(hole) = (case hole of 
+
+	   SimpleHole(ValueHole(t)) => "v[" ^ getTypeVariableString(t) ^ "]"
+	 | BinaryOpHole(oper,v1,v2) =>
+		"v[ " ^ prettyPrintValue(v1) ^ getOperString(oper) ^ prettyPrintValue(v2) ^ " ]"
+	 | ConditionHole(v,e1,e2) =>
+		"v[ if " ^ prettyPrintValue(v) ^ " then " ^ prettyPrintExpression(Expression(e1)) ^ 
+		" else " ^ prettyPrintExpression(Expression(e2)) ^ " ]"
+	 | CaseHole(v,pat,e) =>
+		"v[ case " ^ prettyPrintValue(v) ^ " of " ^
+			prettyPrintPattern(pat) ^ " -> " ^ prettyPrintExpression(Expression(e)) ^ " ]"
+	| AppHole(v1,v2) =>
+		"v[ " ^ prettyPrintValue(v1) ^ " " ^ prettyPrintValue(v2) ^ " ]"
+	| RecordHole(r) => "v[ {" ^ prettyPrintVRecord(r) ^ "} ]")
+
+and prettyPrintVRecord([]) = ""
+|	prettyPrintVRecord([(Lab(s),v)]) = s ^ "=" ^ prettyPrintValue(v)
+|	prettyPrintVRecord((Lab(s),v)::r) = s ^ "=" ^ prettyPrintValue(v) ^ ", " ^ 
+										  prettyPrintVRecord(r)
+	
+and prettyPrintValue(Concrete(cv)) = prettyPrintConcreteVal(cv)
+|	prettyPrintValue(Fun(Var(s),t,e)) = "fn " ^ s ^ ":" ^ prettyPrintType(t) ^ " => " ^ prettyPrintExpression(Expression(e))
+|	prettyPrintValue(VHole(hole)) = prettyPrintHole(hole)
+|	prettyPrintValue(VRecord(r)) = "{" ^ prettyPrintVRecord(r) ^ "}"
 		
-(* Gets the string representation of a value *)
-fun prettyPrintValue (v) =
-	(case v of N(n) => Int.toString(n)
-		     | R(r) => Real.toString(r)
-			 | B(b) => Bool.toString(b)
-			 | Func(Var(s),t,e) => "fn " ^ s ^ " : " ^ prettyPrintType(t) ^ " => " ^ prettyPrintExpression(Expression(e))
-			 | ValuePair(v1,v2) => "(" ^ prettyPrintValue(v1) ^ "," ^ prettyPrintValue(v2) ^ ")"
-			 | VHole(SimpleHole(ValueHole(t))) => "v[" ^ getTypeVariableString(t) ^ "]"
-			 | VHole(BinaryOp(EXPR_PAIR,v1,v2)) =>
-				"v[ (" ^ prettyPrintValue(v1) ^ " , " 
-					   ^ prettyPrintValue(v2) ^ " ]"
-			 | VHole(BinaryOp(oper,v1,v2)) =>
-				"v[ " ^ prettyPrintValue(v1) ^ getOperString(oper)
-				      ^ prettyPrintValue(v2) ^ " ]"
-			 | VHole(ConditionHole(v,e1,e2)) =>
-				"v[ if " ^ prettyPrintValue(v) ^ " then " ^
-					prettyPrintExpression(Expression(e1)) ^ " else " ^ prettyPrintExpression(Expression(e2)) ^ " ]"
-			 | VHole(CaseHole(v,pat,e)) =>
-				"v[ case " ^ prettyPrintValue(v) ^ " of " ^
-					prettyPrintPattern(pat) ^ " -> " ^ prettyPrintExpression(Expression(e)) ^ " ]"
-			| VHole(AppHole(v1,v2)) =>
-				"v[ " ^ prettyPrintValue(v1) ^ " " ^ prettyPrintValue(v2) ^ " ]")
-		
-(* Pretty prints a possibly stuck expression *)
 and prettyPrintExpression(Stuck) = "Stuck"
-
 | 	prettyPrintExpression(Expression(e)) = (case e of 
 	
 	  Value(v) => prettyPrintValue(v)
@@ -68,42 +79,40 @@ and prettyPrintExpression(Stuck) = "Stuck"
 							   prettyPrintExpression(Expression(e2))
 	| BoolExpr(oper,e1,e2) =>  prettyPrintExpression(Expression(e1)) ^ getOperString(BoolOper(oper))  ^ 
 							   prettyPrintExpression(Expression(e2))
-	| ExpressionPair(e1,e2) => "( " ^ prettyPrintExpression(Expression(e1)) ^ " , " ^ prettyPrintExpression(Expression(e2)) ^ " )"
 	| Case(e1,pat,e3) => 
 		"case " ^ prettyPrintExpression(Expression(e1)) ^ " of " ^ prettyPrintPattern(pat) ^
 		" -> " ^ prettyPrintExpression(Expression(e3))
-	| App(e1,e2) => "( " ^ prettyPrintExpression(Expression(e1)) ^ " ) ( " ^ prettyPrintExpression(Expression(e2)) ^ " )"
 	| Condition(e1,e2,e3) => 
 		"if " ^ prettyPrintExpression(Expression(e1)) ^ " then  " ^ prettyPrintExpression(Expression(e2)) ^ " else " ^
-		prettyPrintExpression(Expression(e3)));
+		prettyPrintExpression(Expression(e3))
+	| App(e1,e2) => "(" ^ prettyPrintExpression(Expression(e1)) ^ ") (" ^ prettyPrintExpression(Expression(e2)) ^ ")"
+	| Record(r) => "{" ^ prettyPrintERecord(r) ^ "}")
 	
+and prettyPrintERecord([]) = ""
+|	prettyPrintERecord([(Lab(s),e)]) = s ^ "=" ^ prettyPrintExpression(Expression(e))
+|	prettyPrintERecord((Lab(s),e)::r) = s ^ "=" ^ prettyPrintExpression(Expression(e)) ^ ", " ^ 
+									  prettyPrintERecord(r);
 	
-(* Pretty print for (value hole -> value) substitution, sigma 
-   The output string is not surrounded by [ ... ] - this is done in top level pretty print
-   function to avoid declaring a recursive function within this one
-   Simply returns comma separated list of form v[alpha] -> v *)
 fun prettyPrintSigma ([]) = ""
-
 |   prettyPrintSigma ([(ValueHole(a),b)]) = 
-	(* Handles last element so we don't add a comma at end of list *)
-		prettyPrintValue(VHole(SimpleHole(ValueHole(a)))) ^ " -> " ^ prettyPrintValue(b)
-		
+		prettyPrintHole(SimpleHole(ValueHole(a))) ^ " -> " ^ prettyPrintValue(b)
 |	prettyPrintSigma ((ValueHole(a),b)::l) =
-		prettyPrintValue(VHole(SimpleHole(ValueHole(a)))) ^ " -> " ^ prettyPrintValue(b) ^
+		prettyPrintHole(SimpleHole(ValueHole(a))) ^ " -> " ^ prettyPrintValue(b) ^
 		", " ^ prettyPrintSigma(l);	
 
-(* Pretty print for (type hole -> type) substitution, theta *)
 fun prettyPrintTheta([]) = ""
-
 | 	prettyPrintTheta([(TypeHole(a),b)]) =
 		prettyPrintType(THole(TypeHole(a))) ^ " -> " ^ prettyPrintType(b)
-		
 |	prettyPrintTheta((TypeHole(a),b)::l) =
 		prettyPrintType(THole(TypeHole(a))) ^ " -> " ^ prettyPrintType(b) ^
 		", " ^ prettyPrintTheta(l);
-		
-(* Top level pretty print to print out a configuration
-   in a user-readable format *)
+
+fun prettyPrintGamma([]) = ""
+|	prettyPrintGamma([(Var(x),e)]) =
+		x ^ " -> " ^ prettyPrintExpression(Expression(e))
+| 	prettyPrintGamma((Var(x),e)::l) =
+		x ^ " -> " ^ prettyPrintExpression(Expression(e)) ^ ", " ^ prettyPrintGamma(l);
+	
 fun prettyPrintConfig(Config(e,sigma,theta)) =
 		"\n\nFinal expression = " ^ prettyPrintExpression(e) ^ "\n" ^ 
 		"Final value substitution = [" ^ prettyPrintSigma(sigma) ^ "]\n" ^ 
