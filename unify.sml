@@ -1,5 +1,5 @@
-	(* Takes two type variables, i.e. either TypeVar, EqualityTypeVar or ArithTypeVar
-       which must be equal, and returns a list of pairs which are equivalent constraints *)
+(* Takes two type variables, i.e. either TypeVar, EqualityTypeVar or ArithTypeVar
+   which must be equal, and returns a list of pairs which are equivalent constraints *)
 local fun getNewConstraints(TypeHole(a),TypeHole(b)) = (case (a,b) of
 
 			(TypeVar(_),_) => [(THole(TypeHole(a)), THole(TypeHole(b)))]

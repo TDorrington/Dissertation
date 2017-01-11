@@ -26,16 +26,6 @@ structure Substitution : SUBSTITUTION =
 		    case   m of [] => raise SubException
 		    	| (y,z)::l => if x=y then z else get(x,l);
 
-		(* updates map to replace pair (x,z), for some z, to have (x,y) *)
-		fun update(m, x, y) = 
-			case   m of [] => raise SubException 
-			    | (a,b)::l => if a=x then (a,y)::l else (a,b)::update(l,x,y);
-		
-		(* removes a map from the substitution given by x *)
-		fun remove(m,x) =
-			case   m of [] => raise SubException
-				| (a,b)::l => if a=x then l else (a,b)::remove(l,x)
-		
 		(* returns domain of substitution *)
 		fun domain(m) = 
 			case 	 m of [] => []

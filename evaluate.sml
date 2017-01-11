@@ -69,9 +69,9 @@ val rec operationWrap = fn oper =>
 	| _ => Stuck);	
 	
 (* Rules for arithmetic and boolean operations *)
-fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t) = (case evaluate(narrow(v1,t,sigma,theta)) of 
+fun elabPhraseOperationEvaluate (v1, v2, sigma, theta, oper, t) = (case evaluate(narrow(v1,t,sigma,theta,[])) of 
 	  
-	  Config(Expression(Value(n1)),sigma1,theta1) => (case evaluate(narrow(v2,t,sigma1,theta1)) of 
+	  Config(Expression(Value(n1)),sigma1,theta1) => (case evaluate(narrow(v2,t,sigma1,theta1,[])) of 
 
 		  (* rule E-OP-GOOD *)
 		  Config(Expression(Value(n2)),sigma2,theta2) => Config(oper(n1,n2),sigma2,theta2)
@@ -153,7 +153,7 @@ and elabPhraseOperation(v1,v2,sigma,theta,oper) =
 	| (VRecord(_),VHole(_)) => (case typeof(v1,theta) of 
 	
 		  (NONE,_) => Config(Stuck,sigma,theta)
-		| (SOME(recordType),theta1) => (case evaluate(narrow(v2,recordType,sigma,theta1)) of 
+		| (SOME(recordType),theta1) => (case evaluate(narrow(v2,recordType,sigma,theta1,[])) of 
 		
 			  Config(Expression(Value(v2narrow)),sigma2,theta2) => 
 				elabPhraseOperation(v1,v2narrow,sigma2,theta2,oper)
@@ -163,7 +163,7 @@ and elabPhraseOperation(v1,v2,sigma,theta,oper) =
 	| (VHole(_),VRecord(_)) => (case typeof(v2,theta) of 
 	
 		  (NONE,_) => Config(Stuck,sigma,theta)
-		| (SOME(recordType),theta1) => (case evaluate(narrow(v1,recordType,sigma,theta1)) of 
+		| (SOME(recordType),theta1) => (case evaluate(narrow(v1,recordType,sigma,theta1,[])) of 
 			
 			  Config(Expression(Value(v1narrow)),sigma2,theta2) => 
 				elabPhraseOperation(v1narrow,v2,sigma2,theta2,oper)
@@ -302,7 +302,7 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 (* i.e. implements rules (E-IF-GOOD1), (E-IF-GOOD2), (E-IF-BAD) *)
 |  evaluate (Config(Expression(Condition(Value(v),e1,e2)),sigma,theta)) =
 
-	(case evaluate(narrow(v,Bool,sigma,theta)) of 
+	(case evaluate(narrow(v,Bool,sigma,theta,[])) of 
 	
 		  Config(Expression(Value(Concrete(B(b)))),sigma1,theta1) =>
 		
@@ -332,47 +332,39 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
  
 (* Implements evaluation & type inference rules for case expression with first operand a value *)
 (* i.e. implement rules (E-CASE-PAIR-GOOD) and (E-CASE-PAIR-BAD) *) 
-|  evaluate (Config(Expression(Case(Value(v),pat,e)),sigma,theta)) =
-
-	(* To get type we need to narrow e1 to, look at form of pattern *)
-	let fun narrowType(pat) = (case pat of 
-			
-		  PRecord(r)   => 
-			let fun iterCalcNarrowType(r) = (case r of 
-			  [] => []
-			| (lab1,pat1)::r1 => (lab1,narrowType(pat1))::iterCalcNarrowType(r1))
-			in TRecord(iterCalcNarrowType(r)) end
-					
-		(* Do not restrict to concrete types, e.g. PVal(N(_)) => Int,
-		   because if we are narrowing a value hole, we don't want to narrow
-		   it to a generated value from gen because, for example,
-		   case v['a] of 3 -> ...
-		   will get stuck since v['a] will be narrowed to 1
-		   gen always returns 1 *)
-		| _ => generateFreshTypeVar(TYPE_VAR,theta))
+|  evaluate (Config(Expression(c as Case(Value(v),patExprList)),sigma,theta)) =
 	
-	in (case evaluate(narrow(v,narrowType(pat),sigma,theta)) of 
+	(* Narrow the whole expression to some type variable. This 
+	   a) narrows the value we are case-ing on
+	   b) checks type of value and type of all patterns agree (i.e. matchTypesLists)
+	   c) type of all expression branches agree *)
+	   
+	(* Don't follow this call to narrowExpr by evaluate like other calls to narrow
+	   We want the case expression back (hence why matching non-exhaustive below *)
+	(case narrowExpr(c,generateFreshTypeVar(TYPE_VAR,theta),sigma,theta,[]) of 
 
-		  Config(Expression(Value(v1narrow)),sigma1,theta1) => (case match(Value(v1narrow),pat,sigma1,theta1,[]) of 
+		  Config(Expression(Case(v1narrow,patExprList)),sigma1,theta1) => (case evaluate(Config(Expression(v1narrow),sigma1,theta1)) of 
 		  
-			(* E-CASE-BAD2 *)
-			  Fail => Config(Stuck,sigma1,theta1)
-			  
-			(* E-CASE-HOLE *)
-			| Hole h => evaluate(Config(Expression(Value(VHole(CaseHole(VHole(h),pat,e)))),sigma1,theta1))
-			
-			(* E-CASE-GOOD *)
-			| Success (sigma2,theta2,gamma) => evaluate(Config(Expression(substitute(e,gamma)),sigma2,theta2)))
+			  Config(Expression(v1narrow),sigma1,theta1) => (case match(v1narrow,patExprList,sigma1,theta1,[]) of 
+		  
+				(* E-CASE-BAD2 *)
+				  Fail => Config(Stuck,sigma1,theta1)
+				  
+				(* E-CASE-HOLE *)
+				| Hole h => evaluate(Config(Expression(Value(VHole(CaseHole(VHole(h),patExprList)))),sigma1,theta1))
+				
+				(* E-CASE-GOOD *)
+				| Success (expr,sigma2,theta2,gamma) => evaluate(Config(Expression(substitute(expr,gamma)),sigma2,theta2)))
+				
+			| _ => Config(Stuck,sigma1,theta1))
 					
 		(* E-CASE-BAD2 *)
 		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
-		
-   end
    
 (* (context-case-pair), i.e. where left-hand pair an expression *)
-| 	evaluate (Config(Expression(Case(e1,pat,e2)),sigma,theta)) = (case evaluate(Config(Expression(e1),sigma,theta)) of 
+| 	evaluate (Config(Expression(Case(e1,patExprList)),sigma,theta)) = (case evaluate(Config(Expression(e1),sigma,theta)) of 
 	
-		  Config(Expression(Value(v1)),sigma1,theta1) => evaluate(Config(Expression(Case(Value(v1),pat,e2)),sigma1,theta1))
+		  Config(Expression(Value(v1)),sigma1,theta1) => evaluate(Config(Expression(Case(Value(v1),patExprList)),sigma1,theta1))
 			
 		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 
@@ -386,7 +378,7 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 		let val freshType = generateFreshTypeVar(TYPE_VAR,theta1);
 			val narrowType = TFun(t1,freshType);
 				
-		in (case evaluate(narrow(v1,narrowType,sigma,theta1)) of
+		in (case evaluate(narrow(v1,narrowType,sigma,theta1,[])) of
 				
 			  (* Rule E-APP-GOOD *)
 			  Config(Expression(Value(Fun(x,t,e))),sigma2,theta2) =>

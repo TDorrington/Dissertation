@@ -1,5 +1,6 @@
 (* Matches a value's type against a pattern
-   Returns variable substitution (in an option data type) and type hole substitution *)
+   Returns variable substitution (in an option data type) and type hole substitution
+   as well as the expression that matched which we need to calculate the resulting type of *)
 fun matchTypes(t,pat,gamma,theta) = (case pat of 
 
 	  PWildcard => SOME (gamma,theta)
@@ -54,7 +55,27 @@ fun matchTypes(t,pat,gamma,theta) = (case pat of
 			in matchTypes(genType,pat,gamma,theta1) end
 		
 		| _ => NONE));
+	
+(* Matches a single type against a list of patterns,
+   i.e. matches that type against each pattern individually
+   Used in typeof to calculate type of case expression
+   For 'case e of pat1=>e1 | pat2=>e1 | ... | patn=>en'
+   Calculate type of e, say t
+   Then we call matchTypesList(t,[(pat1,e1),...,(patn,en)])
+   and iteratively called matchTypes(t,pati)
+   We return (if successful) a list of (e_i,sub_i) pairs, where 
+   expression e_i =ei, and substitution sub_i = result of matchTypes(t,pati) *)
+fun matchTypesList(t,patExprList,gamma,theta) = (case patExprList of 
+
+	  [] => SOME ([],theta)
+	| (pat1,e1)::l1 => (case matchTypes(t,pat1,gamma,theta) of 
+	
+		  NONE => NONE
+		| SOME (sub1,theta1) => (case matchTypesList(t,l1,gamma,theta1) of 
 		
+			  NONE => NONE
+			| SOME (exprSubList,theta2) => SOME ((e1,sub1)::exprSubList,theta2))));
+	
 (* ----------------------------------------------------------------------------- *)   
 (* Datatype returned from match function 
 	- Fail means we could not match, e.g. match(3,4)
@@ -62,118 +83,144 @@ fun matchTypes(t,pat,gamma,theta) = (case pat of
 	  to the returning code that the case expression containing the match should
 	  be left as a case hole 
 	- Success means we can match the expression and pattern, and returns the 
-	  relevant substitutions *)
+	  relevant substitutions, as well as the expression associated with the
+	  matching pattern *)
 datatype matchResult = Fail
 					 | Hole of valhole
-					 | Success of valSub * typeSub * variableSub;
+					 | Success of e * valSub * typeSub * variableSub;
 					 
-(* Matches an expression and a pattern
-   Returns matchResult datatype instance *)
-fun match(e,pat,sigma,theta,gamma) = (case pat of 
+(* Matches an expression and a list of (pattern-expressions), returning the first
+   such match in the list of patterns 
+   Returns matchResult datatype instance
+   Match will always return the first such match, and will sometimes incorrectly
+   match types, e.g. case 3 of 3 -> 0 | {} -> 1, will match, but in reality
+   it should not since {} is not of type int
+   i.e. when invalid pattern form comes *after* the pattern which matches the expression,
+   it will incorrectly match
+   This is 'okay', however, since any calls to match from evaluate
+   and always preceded by calls to matchTypesList above to check pattern & expression
+   we are case-ing on are first of the correct type *)
+   
+fun match(e,patExprList,sigma,theta,gamma) = (case patExprList of 
 
-	  PWildcard => Success (sigma,theta,gamma)
+	  (PWildcard,expr)::_ => Success (expr,sigma,theta,gamma)
 	
-	| PVar(x) => if Substitution.contains(x,gamma)
-				 then Fail (* x already bound in match *)
-				 else Success (sigma,theta,Substitution.union(gamma,x,e))
+	| (PVar(x),expr)::_ => if Substitution.contains(x,gamma)
+						   then Fail (* x already bound in match *)
+						   else Success (expr,sigma,theta,Substitution.union(gamma,x,e))
 	
-	 (* real constants cannot occur in patterns *)
-	| PVal(R(_)) => Fail
+	 (* real constants cannot occur in patterns, regardless what's left *)
+	| (PVal(R(_)),_)::_ => Fail
 		  
-	| PVal(N(n1)) => (case e of
+	| (PVal(N(n1)),expr)::rest => (case e of
 	
-		  Value(Concrete(N(n2))) => if n1=n2 then Success (sigma,theta,gamma) else Fail
+		  Value(Concrete(N(n2))) => if n1=n2 
+									then Success (expr,sigma,theta,gamma) 
+									else match(e,rest,sigma,theta,gamma)
 		
 		| Value(VHole(SimpleHole(ValueHole(tyvar)))) => (case unify([THole(TypeHole(tyvar)),Int],theta) of 
 		
 			  NONE => Fail
-			| SOME theta1 => Success (Substitution.union(sigma,ValueHole(tyvar),Concrete(N(n1))),theta1,gamma))
+			| SOME theta1 => Success (expr,Substitution.union(sigma,ValueHole(tyvar),Concrete(N(n1))),theta1,gamma))
 		
 		(* Any other compound value hole *)
 		| Value(VHole(h)) => Hole h
 	
-		(* Expressions cannot occur - will all be values
+		(* Expressions cannot occur - will all be values due to contexts & evaluation order
 		   For example, match(3+2,5) cannot be a case
 		   Also, variables will be substituted for *)
 		| _ => Fail)
 		
-	| PVal(B(b1)) => (case e of
+	| (PVal(B(b1)),expr)::rest => (case e of
 	
-		  Value(Concrete(B(b2))) => if b1=b2 then Success (sigma,theta,gamma) else Fail
+		  Value(Concrete(B(b2))) => if b1=b2 
+									then Success (expr,sigma,theta,gamma) 
+									else match(e,rest,sigma,theta,gamma)
 		
 		| Value(VHole(SimpleHole(ValueHole(tyvar)))) => (case unify([THole(TypeHole(tyvar)),Bool],theta) of 
 		
 			  NONE => Fail
-			| SOME theta1 => Success (Substitution.union(sigma,ValueHole(tyvar),Concrete(B(b1))),theta1,gamma))
+			| SOME theta1 => Success (expr,Substitution.union(sigma,ValueHole(tyvar),Concrete(B(b1))),theta1,gamma))
 		
 		(* Any other compound value hole *)
 		| Value(VHole(h)) => Hole h
 		  
-		(* Expressions cannot occur - will all be values
+		(* Expressions cannot occur - will all be values due to contexts & evaluation order
 		   For example, match(3=2,true) cannot be a case
 		   Also, all variables will be substituted for *)
 		| _ => Fail)
 	
-	| PRecord(r) => (case e of 
-		
-		(* Takes an argument of the (v,pat) pairs matched up to this point in the recursive
-		   calls of this function in (lab,v) form 
-		    Used in case we need to generate the value hole of the record to return
-			Processed used in case we need to generate value hole version of input record *)
+	| (PRecord(r),expr)::rest => (case e of 
+	
 		  Value(VRecord(r1)) =>
-			let fun matchLists(l1,l2,sigma,theta,gamma,processed) = (case (l1,l2) of 
+		  
+			let fun matchLists(l1,l2,s,t,g,processed) = (case (l1,l2) of 
 			
-					  ([],[]) => Success (sigma,theta,gamma)
+					  ([],[]) => Success (expr,s,t,g)
+					  
+					  (* If records of different lengths, fail, regardless of other patterns *)
 					| ([],_)  => Fail
 					| (_,[])  => Fail
+					
 					| ((labv,v1)::rest1,(labp,pat1)::rest2) => 
 					
 						if labv=labp 
-						then (case match(Value(v1),pat1,sigma,theta,gamma) of 
-									  
-						  Fail   => Fail
+						
+						(* Associate arbitrary 'expr' with pat1 to make it into 
+						   a (pattern-expression) list *)
+						then (case match(Value(v1),[(pat1,expr)],s,t,g) of 
+									
+						  (* Stop processing this pattern, and look at the other patterns
+						     using the original sigma,theta,gamma *)
+						  Fail   => match(e,rest,sigma,theta,gamma)
 
 						(* Even though we return a hole, keep looking through rest of list
 						   to check none of them fail *)
-						| Hole h => (case matchLists(rest1,rest2,sigma,theta,gamma,processed) of 
+						| Hole h => (case matchLists(rest1,rest2,s,t,g,processed) of 
 							
 							  Fail => Fail
 							| _    => Hole (RecordHole((labv,VHole(h))::rest1)))
 							
-						| Success (sigma1,theta1,gamma1) => (case matchLists(rest1,rest2,sigma1,theta1,gamma1,processed) of 
+						| Success (_,s1,t1,g1) => (case matchLists(rest1,rest2,s1,t1,g1,processed) of 
 						
 							  Hole (RecordHole(r)) => Hole (RecordHole(append((labv,v1)::processed,r)))
-							| s as Success(sigma2,theta2,gamma2) => s
+							
+							(* For success, pass on the expression in case the sub-call
+							   to matchLists re-called match on the next pattern in the list *)
+							| s as Success(e2,s2,t2,g2) => s
+							
 							| _ => Fail))
 							
+						(* If labels are not equal, fail, regardless of other patterns *)
 						else Fail)
 			
 			in matchLists(Record.sort(r1),Record.sort(r),sigma,theta,gamma,[]) end
 		  
 		| Record(r1) => 
 		
-			let fun matchLists(l1,l2,sigma,theta,gamma,processed) = (case (l1,l2) of 
+			let fun matchLists(l1,l2,s,t,g) = (case (l1,l2) of 
 			
-					  ([],[]) => Success (sigma,theta,gamma)
+					  ([],[]) => Success (expr,s,t,g)
 					| ([],_)  => Fail
 					| (_,[])  => Fail
 					| ((labe,e1)::rest1,(labp,pat1)::rest2) => 
 					
 						if labe=labp 
-						then (case match(e1,pat1,sigma,theta,gamma) of 
+						
+						then (case match(e1,[(pat1,expr)],s,t,g) of 
 									  
-						  Fail   => Fail
+						  Fail   => match(e,rest,sigma,theta,gamma)
 						  
 						| Hole _ => Fail
 							
-						| Success (sigma1,theta1,gamma1) => (case matchLists(rest1,rest2,sigma1,theta1,gamma1,processed) of 
+						| Success (_,s1,t1,g1) => (case matchLists(rest1,rest2,s1,t1,g1) of 
 						
-							  s as Success(sigma2,theta2,gamma2) => s
+							  s as Success(e2,s2,t2,g2) => s
 							| _ => Fail))
 							
 						else Fail)
 						
-			in matchLists(Record.sort(r1),Record.sort(r),sigma,theta,gamma,[]) end
+			in matchLists(Record.sort(r1),Record.sort(r),sigma,theta,gamma) end
 		  
 		  
 		| Value(VHole(SimpleHole(ValueHole(ArithTypeVar(_))))) =>  Fail
@@ -188,9 +235,12 @@ fun match(e,pat,sigma,theta,gamma) = (case pat of
 				val genVal = gen(genType,theta);
 				val theta1 = Substitution.union(theta,TypeHole(tyvar),genType);
 				val sigma1 = Substitution.union(sigma,ValueHole(tyvar),genVal)
-			in match(Value(genVal),pat,sigma1,theta1,gamma) end
+			in match(Value(genVal),patExprList,sigma1,theta1,gamma) end
 		
 		| Value(VHole(h)) => Hole h
 		
-		| _ => Fail));
+		| _ => Fail)
+		
+	(* No more pattern-expressions to check *)
+	| _ => Fail);
 		

@@ -49,7 +49,7 @@ datatype e =
 	| Variable of var 
 	| ArithExpr of arithOper * e * e     
 	| BoolExpr of boolOper * e * e 
-	| Case of e * pat * e			
+	| Case of e * (pat * e) list		
 	| Condition of e * e * e
 	| App of e * e
 	| Record of e Record.dictionary	
@@ -59,7 +59,7 @@ and valhole =
 	  SimpleHole of simpleValueHole
 	| BinaryOpHole of binaryOper * v * v
 	| ConditionHole of v * e * e
-	| CaseHole of v * pat * e 	(* v * (pat * e)  list *)
+	| CaseHole of v * (pat * e) list
 	| AppHole of v * v
 	| RecordHole of v Record.dictionary    
 	  

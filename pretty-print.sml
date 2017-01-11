@@ -37,15 +37,19 @@ and prettyPrintConcreteVal(N(n)) = Int.toString(n)
 			
 fun prettyPrintPRecord([]) = ""
 |	prettyPrintPRecord([(Lab(s),pat)]) = s ^ "=" ^ prettyPrintPattern(pat)
-|	prettyPrintPRecord((Lab(s),pat)::r) = s ^ "=" ^ prettyPrintPattern(pat) ^ ", " ^ 
-											  prettyPrintPRecord(r)
+|	prettyPrintPRecord((Lab(s),pat)::r) = s ^ "=" ^ prettyPrintPattern(pat) ^ ", " ^ prettyPrintPRecord(r)
 		
 and prettyPrintPattern(PVar(Var(s))) = s
 |	prettyPrintPattern(PVal(cv)) = prettyPrintConcreteVal(cv)
 |	prettyPrintPattern(PRecord(r)) = "{" ^ prettyPrintPRecord(r) ^ "}"
 |	prettyPrintPattern(PWildcard) = "_";
 
-fun prettyPrintHole(hole) = (case hole of 
+fun prettyPrintPatExprList([]) = " " (* Should never occur *)
+|	prettyPrintPatExprList([(pat1,e1)]) = prettyPrintPattern(pat1) ^ " -> " ^ prettyPrintExpression(Expression(e1))
+|	prettyPrintPatExprList((pat1,e1)::l1) = 
+	prettyPrintPattern(pat1) ^ " -> " ^ prettyPrintExpression(Expression(e1)) ^ " | " ^ prettyPrintPatExprList(l1)
+
+and prettyPrintHole(hole) = (case hole of 
 
 	   SimpleHole(ValueHole(t)) => "v[" ^ getTypeVariableString(t) ^ "]"
 	 | BinaryOpHole(oper,v1,v2) =>
@@ -53,9 +57,8 @@ fun prettyPrintHole(hole) = (case hole of
 	 | ConditionHole(v,e1,e2) =>
 		"v[ if " ^ prettyPrintValue(v) ^ " then " ^ prettyPrintExpression(Expression(e1)) ^ 
 		" else " ^ prettyPrintExpression(Expression(e2)) ^ " ]"
-	 | CaseHole(v,pat,e) =>
-		"v[ case " ^ prettyPrintValue(v) ^ " of " ^
-			prettyPrintPattern(pat) ^ " -> " ^ prettyPrintExpression(Expression(e)) ^ " ]"
+	 | CaseHole(v,patExprList) =>
+		"v[ case " ^ prettyPrintValue(v) ^ " of " ^ prettyPrintPatExprList(patExprList) ^ " ]"
 	| AppHole(v1,v2) =>
 		"v[ " ^ prettyPrintValue(v1) ^ " " ^ prettyPrintValue(v2) ^ " ]"
 	| RecordHole(r) => "v[ {" ^ prettyPrintVRecord(r) ^ "} ]")
@@ -79,9 +82,8 @@ and prettyPrintExpression(Stuck) = "Stuck"
 							   prettyPrintExpression(Expression(e2))
 	| BoolExpr(oper,e1,e2) =>  prettyPrintExpression(Expression(e1)) ^ getOperString(BoolOper(oper))  ^ 
 							   prettyPrintExpression(Expression(e2))
-	| Case(e1,pat,e3) => 
-		"case " ^ prettyPrintExpression(Expression(e1)) ^ " of " ^ prettyPrintPattern(pat) ^
-		" -> " ^ prettyPrintExpression(Expression(e3))
+	| Case(e1,patExprList) => 
+		"case " ^ prettyPrintExpression(Expression(e1)) ^ " of " ^ prettyPrintPatExprList(patExprList)
 	| Condition(e1,e2,e3) => 
 		"if " ^ prettyPrintExpression(Expression(e1)) ^ " then  " ^ prettyPrintExpression(Expression(e2)) ^ " else " ^
 		prettyPrintExpression(Expression(e3))

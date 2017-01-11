@@ -65,14 +65,15 @@ val sigma = [(a,VHole(ConditionHole(VHole(SimpleHole(b)),
 			    BoolExpr(LESS,Value(Concrete(N(3))),Value(VHole(SimpleHole(c)))),
 				BoolExpr(MORE,Value(Concrete(N(10))),Value(VHole(SimpleHole(d))))))),
 			 (b,VHole(CaseHole(VHole(SimpleHole(e)),
-							   PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
-							   BoolExpr(LESS,Variable(Var("x")),ArithExpr(TIMES,Value(Concrete(N(2))),Variable(Var("y"))))))),
+							   [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
+							     BoolExpr(LESS,Variable(Var("x")),ArithExpr(TIMES,Value(Concrete(N(2))),Variable(Var("y"))))),
+							     (PVal(N(2)),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))]))),
 			 (e,VRecord([(Lab("a"),Fun(Var("x"),Int,Value(VHole(SimpleHole(g))))),(Lab("b"),Concrete(N(2)))])),
 			 (d,VHole(BinaryOpHole(ArithOper(SUBTRACT),VHole(SimpleHole(f)),Concrete(N(5))))),
 			 (g,VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(B(true)))]))];
 			 
 prettyPrintValue(resolveChainSigma(VHole(SimpleHole(a)),sigma));
-(* v[ if v[ case {a=fx x:int => {1=3, 2=true}, b=2} of {a=x, b=y} -> x < 2 * y ] 
+(* v[ if v[ case {a=fx x:int => {1=3, 2=true}, b=2} of {a=x, b=y} -> x < 2 * y | 2 -> x + x] 
       then 3 < v['c] 
 	  else 10 > v[ v['f] - 5 ] ] *)
 
@@ -133,11 +134,117 @@ element([1],1);			 (* true *)
 element([1],2);			 (* false *)
 element([1,2,3,4,5],6);	 (* false *)
 
-listElement([1,2,3],[0,1]);					(* true  *)
-listElement([1,2,3],[0,4]);					(* false *)
-listElement([1,2,3],[1,2]); 				(* true  *)
-listElement([0,1,2,3,4,5,6,7,8,9,10],[10]);	(* true  *)
-listElement([0,1,2,3,4,5,6,7,8,9,10],[11,12,13,14,15,16,17,18,19,20]); (* false *)
+listElement([1,2,3],[0,1]);					(* [1]   *)
+listElement([1,2,3],[0,4]);					(* []    *)
+listElement([1,2,3],[1,2]); 				(* [1,2] *)
+listElement([0,1,2,3,4,5,6,7,8,9,10],[10]);	(* [10]  *)
+listElement([0,1,2,3,4,5,6,7,8,9,10],[11,12,13,14,15,16,17,18,19,20]); (* [] *)
+
+allElementsEqual([1,1,1,1,1]);	(* true *)
+allElementsEqual([1,1,1,1,2]);	(* false *)
+allElementsEqual([1,1]);		(* true *)
+allElementsEqual([true,true,true,true]);				(* true *)
+allElementsEqual([false,true,true,true]);				(* false *)
+allElementsEqual([true,true,false,true,true]);			(* false *)
+allElementsEqual([9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9]);	(* true *)
+allElementsEqual([9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,3]);	(* false *)
+
+(* ----------------------------------------------------------------------------------- *)
+(* TEST CASES FOR FREE VARIABLES *)
+
+fv[Value(Concrete(N(3)))]; 	(* [] *)
+fv[Value(VRecord([]))];		(* [] *)
+
+fv[Value(VRecord([(Lab("1"),Concrete(N(2))),
+				  (Lab("2"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))),
+				  (Lab("3"),Concrete(R(2.0)))]))];
+(* [] *)
+				  
+fv[Variable(Var("x"))]; (* [ x ] *)
+fv[ArithExpr(PLUS,Value(Concrete(N(3))),Value(Concrete(N(3))))]; 	(* [ ]   *)
+fv[BoolExpr(EQ,Variable(Var("y")),Value(Concrete(N(3))))]; 			(* [ y ] *)
+
+fv[ArithExpr(TIMES,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),
+					   ArithExpr(PLUS,Variable(Var("a")),Variable(Var("b"))))]; 
+(* [ x y a b ] *)
+					   
+fv[ArithExpr(TIMES,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))),
+					   ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))]; 
+(* [ x ] *)
+
+fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3)))])),
+			  [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),Value(Concrete(B(true)))),
+			   (PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVal(N(2)))]),Value(Concrete(B(false))))])]; 
+(* [ ] *)
+
+fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3)))])),
+			  [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),Variable(Var("x"))),
+			   (PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])];
+(* [ ] *)
+
+fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3)))])),
+			  [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),Variable(Var("z"))),
+			   (PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),Variable(Var("a")))])]; 
+(* [ z, a ] *)
+
+fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3)))])),
+			  [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y"))),(Lab("c"),PVar(Var("e")))]),ArithExpr(PLUS,Variable(Var("z")),Variable(Var("a")))),
+			   (PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),ArithExpr(PLUS,Variable(Var("b")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("x")))))])]; 
+(* [ a, z, b ] *)
+
+fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3)))])),
+			  [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y"))),(Lab("c"),PVar(Var("e")))]),
+			    ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])]; 
+(* [ ] *)
+			
+fv[Value(Fun(Var("x"),Int,ArithExpr(TIMES,Value(Concrete(N(2))),Variable(Var("x")))))]; (* [ ]   *)
+fv[Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y")))))];	(* [ y ] *)
+
+fv[Value(Fun(Var("x"),Int,Value(Fun(Var("y"),Int,
+	     ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))))]; (* [ ] *)
+		
+fv[Value(Fun(Var("x"),Int,Value(Fun(Var("y"),Int,
+	     ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("z")),Variable(Var("y"))))))))]; (* [ z ] *)
+	
+val va' = VHole(SimpleHole(ValueHole(TypeVar("a"))));
+val vb' = VHole(SimpleHole(ValueHole(TypeVar("b"))));
+val vc' = VHole(SimpleHole(ValueHole(TypeVar("c"))));
+val vd' = VHole(SimpleHole(ValueHole(TypeVar("d"))));
+val ve' = VHole(SimpleHole(ValueHole(TypeVar("e"))));
+val vf' = VHole(SimpleHole(ValueHole(TypeVar("f"))));
+	
+fv[Value(va')]; (* [ ] *)
+fv[Value(VRecord([(Lab("1"),va'),(Lab("2"),vb')]))]; (* [ ] *)
+fv[Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(4)))]))]; (* [ ] *)
+fv[Value(VHole(BinaryOpHole(ArithOper(PLUS),va',vb')))]; (* [] *)
+fv[Value(VHole(RecordHole([(Lab("a"),Concrete(N(3))),(Lab("b"),va'),(Lab("c"),vc')])))]; (* [] *)
+
+fv[Value(VHole(CaseHole(
+	VHole(CaseHole(va',
+				   [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("z")))),
+					(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("z")))]),ArithExpr(TIMES,Variable(Var("z")),Variable(Var("a"))))])),
+	[(PRecord([(Lab("1"),PVar(Var("a"))),(Lab("2"),PVar(Var("b")))]),
+	  Record([(Lab("i"),Record([(Lab("one"),Variable(Var("a"))),(Lab("two"),Variable(Var("c")))])),
+		    (Lab("j"),Record([(Lab("10"),Variable(Var("d"))),(Lab("20"),Variable(Var("d")))]))])),
+	 (PRecord([(Lab("1"),PVar(Var("a"))),(Lab("2"),PVar(Var("b")))]),
+	  ArithExpr(TIMES,ArithExpr(PLUS,Variable(Var("a")),Variable(Var("b"))),Variable(Var("f"))))])))];
+(* [ z, c, d, a, f] *)
+
+fv[
+	Value(VHole(ConditionHole(
+		VHole(CaseHole(va',[(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),Value(va'))])),
+		Value(Concrete(N(3))),
+		Value(Concrete(N(4)))))),
+
+	
+	App(Value(Fun(Var("x"),Int,
+			  Condition(Value(Concrete(B(true))),
+					    Record([(Lab("i"),Value(Concrete(N(2)))),
+							    (Lab("j"),Value(Fun(Var("x"),Int,ArithExpr(TIMES,Value(Concrete(N(2))),Variable(Var("x"))))))]),
+					    Record([(Lab("i"),Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("y")),Value(Concrete(N(2))))))),
+						    	(Lab("j"),Record([(Lab("1"),Variable(Var("a"))),(Lab("2"),Variable(Var("b")))]))])))),
+		Variable(Var("z")))];
+(* [ z, a, y, b] *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR SUBSTITUTE AND ALPHAVARIANT *)
@@ -158,54 +265,96 @@ prettyPrintE(substitute(Condition(Value(Concrete(B(true))),Variable(Var("x")),
 
 prettyPrintE(substitute(Case(
 			Value(VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(N(4)))])),
-			PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
-			ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z"))))),
+			[(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
+			  ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z")))))]),
 sub)); 
-(* case {1=3,2=4} of {1=x0,2=y} -> x0+y+z *)
-	
+(* case {1=3,2=4} of {1=x,2=y} -> x+y+z 
+   =>
+   case {1=3,2=4} of {1=x0,2=y} -> x0+y+z *)
+   
 prettyPrintE(substitute(Case(
 			Value(VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(N(4)))])),
-			PRecord([(Lab("1"),PVar(Var("y"))),(Lab("2"),PVar(Var("z")))]),
-			ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z"))))),
+			[(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
+			  ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z"))))),
+			 (PRecord([(Lab("1"),PVar(Var("y"))),(Lab("2"),PVar(Var("z")))]),
+			  ArithExpr(PLUS,Variable(Var("y")),ArithExpr(PLUS,Variable(Var("z")),Variable(Var("x")))))]),
 sub)); 
-(* case {1=3,2=4} of {1=y,2=z} -> 3+y+z *)
+(* (case {1=3,2=4} of {1=x,2=y} -> x+y+z 
+				    | {1=y,2=z} -> y+z+x ) [3/x]
+   =>
+   case {1=3,2=4} of {1=x1,2=y} -> x1+y+z
+				   | {1=y,2=z}  -> y+z+3 *)
+	
+prettyPrintE(substitute(Case(
+			Record([(Lab("1"),Value(Concrete(N(3)))),(Lab("2"),Variable(Var("x")))]),
+			[(PRecord([(Lab("1"),PVar(Var("y"))),(Lab("2"),PVar(Var("z")))]),
+			 ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z")))))]),
+			
+sub)); 
+(* case {1=3,2=3} of {1=y,2=z} -> 3+y+z *)
+
+prettyPrintE(substitute(Case(
+	Variable(Var("x")),
+	[(PRecord([(Lab("1"),PVar(Var("x")))]),
+	  Case(Variable(Var("x")),
+		   [(PRecord([(Lab("i"),PVar(Var("y")))]),Variable(Var("x"))),
+		    (PRecord([(Lab("j"),PVar(Var("x")))]),Variable(Var("x")))])),
+	 (PRecord([(Lab("2"),PVar(Var("y")))]),Variable(Var("x")))]),sub));
+(* case 3 of {1=x2}->case x2 of {i=y} -> x2 | {j=x2}->x2
+		   | {2=y} -> 3 *)
 	
 val sub = [ (Var("x"),Value(Concrete(N(3)))), (Var("y"),Value(Concrete(N(4)))) ];
 
 prettyPrintE(substitute(Case(
 			Value(VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(N(4)))])),
-			PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("z")))]),
-			ArithExpr(SUBTRACT,Variable(Var("y")),ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("z"))))),
-sub)); (* case {1=3,2=4} of {1=x1,2=z} -> 4 - (x1/z) *)
+			[(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("z")))]),
+			  ArithExpr(SUBTRACT,Variable(Var("y")),ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("z"))))),
+			 (PRecord([(Lab("1"),PVar(Var("a"))),(Lab("2"),PVar(Var("b")))]),
+			  ArithExpr(PLUS,ArithExpr(PLUS,Variable(Var("a")),Variable(Var("x"))),Variable(Var("y")))),
+			 (PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
+			  ArithExpr(PLUS,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),Variable(Var("z"))))
+			]),
+sub));
+(* (case {1=3,2=4} of {1=x,2=z} -> y+x+z
+				    | {1=a,2=b} -> a+x+y
+				    | {1=x,2=y} -> x+y+z)[3/x,4/y]
+=>
+   case {1=3,2=4} of {1=x3,2=z}  -> 4-(x3/z)
+				   | {1=a,2=b}   -> a+3+4
+				   | {1=x4,2=y4} -> x4+y4+z *)
 
 prettyPrintE(substitute(ArithExpr(PLUS,
 	ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y"))),
 	Case(Value(VRecord([(Lab("1"),Concrete(N(1))),(Lab("2"),Concrete(N(2)))])),
-		 PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
-		 ArithExpr(SUBTRACT,
+		 [(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
+		   ArithExpr(SUBTRACT,
 			ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y"))),
 			Case(Value(VRecord([(Lab("1"),Concrete(N(1))),(Lab("2"),Concrete(N(2))),(Lab("3"),Concrete(N(3)))])),
-				 PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y"))),(Lab("3"),PVar(Var("z")))]),
-				 ArithExpr(SUBTRACT,
+				 [(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y"))),(Lab("3"),PVar(Var("z")))]),
+				   ArithExpr(SUBTRACT,
 						ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x"))),
 						Case(Value(VRecord([(Lab("1"),Concrete(N(1))),(Lab("2"),Concrete(N(2)))])),
-							 PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
-							 BoolExpr(EQ,Variable(Var("x")),Variable(Var("y"))))))))),sub));
-(* 3*4 + case {1=1,2=2} of {1=x2,2=y2} -> 
-	x2*y2 - case {1=1,2=2} of {1=x2,2=y2,3=z} -> 
-		x2*x2 - case {1=1,2=2} of {1=x2,2=y2} -> x2=y2 *)
+							 [(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
+							   BoolExpr(EQ,Variable(Var("x")),Variable(Var("y"))))])))]))),
+			(PRecord([(Lab("3"),PVar(Var("a"))),(Lab("4"),PVar(Var("y")))]),
+			 ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("a")),Variable(Var("y")))))])),sub));
+(* 3*4 + case {1=1,2=2} of {1=x5,2=y5} -> x5*y5 - case {1=1,2=2,3=3} of {1=x5,2=y5,3=z} -> x5*x5 - case {1=1,2=2} of {1=x5,2=y5} -> x5=y5
+						 | {3=a,4=y6} -> 3+a+y6	 *)
+						 
+val sub2 = [ (Var("x"),Value(Concrete(N(3)))), (Var("y"),Value(Concrete(N(4)))), (Var("z"),Value(Concrete(N(5)))) ];
 
 prettyPrintE(substitute(Case(
 	Case(Record([(Lab("a"),Variable(Var("x"))),(Lab("b"),Variable(Var("y")))]),
-		 PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
-		 Record([(Lab("1"),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),
-				 (Lab("2"),ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y"))))])),
-	PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
-	ArithExpr(SUBTRACT,Variable(Var("x")),Variable(Var("y")))),sub));
+		 [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
+		   Record([(Lab("1"),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),
+				   (Lab("2"),ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y")))),
+				   (Lab("3"),ArithExpr(TIMES,Variable(Var("z")),Variable(Var("z"))))]))]),
+	[(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y"))),(Lab("3"),PVar(Var("z")))]),
+	  ArithExpr(SUBTRACT,Variable(Var("x")),ArithExpr(SUBTRACT,Variable(Var("y")),Variable(Var("z")))))]),sub2));
 						
-(* (case (case (x,y) of (x,y) -> (x+y,x*y)) of (x,y) -> x-y)[3/x][4/y]
+(* (case (case {a=x,b=y} of {a=x,b=y} -> {1=x+y,2=x*y,3=z*z}) of {1=x,2=y,3=z} -> x-z-y)[3/x,4/y,5/z]
    => 
-   case (case {a=3,b=4} of {a=x4,b=y4}-> {1=x4+y4,2=x4*y4}) of {1=x3,2=y3} -> x3-y3
+   case (case {a=3,b=4} of {a=x7,b=y7}-> {1=x7+y7,2=x7*y7,3=5*5}) of {1=x8,2=y8,3=z8} -> x8-y8-z8
 *)
 
 prettyPrintE(substitute(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Value(Concrete(N(2))),Variable(Var("x"))))),sub));
@@ -233,18 +382,21 @@ prettyPrintE(substitute(App(
 
 prettyPrintE(substitute(Record([
 	(Lab("a"),Variable(Var("x"))),
-	(Lab("c"),App(Value(Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),Value(Concrete(N(2))))),
+	(Lab("c"),App(Value(Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),Variable(Var("x")))),
 	(Lab("d"),Case(Record([(Lab("1"),Variable(Var("x"))),(Lab("2"),Variable(Var("z"))),(Lab("3"),Value(Concrete(R(2.0))))]),
-				   PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y"))),(Lab("3"),PVar(Var("z")))]),
-				   BoolExpr(LESS,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),Variable(Var("z")))))]),sub));
-(* ( {a = x, 
-	  b = #one {one=x,two=y},
-	  c = (fn x:int => x+y) 2,
-	  d = case {1=x,2=z,3=2.0} of {1=x,2=y,3=z} -> x+y < z } ) [3/x, 4/y]
+				   [(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y"))),(Lab("3"),PVar(Var("z")))]),
+				     BoolExpr(LESS,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),Variable(Var("z")))),
+					(PRecord([(Lab("4"),PVar(Var("x"))),(Lab("5"),PVar(Var("a"))),(Lab("6"),PVar(Var("b")))]),
+					 BoolExpr(LESS,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("a"))),Variable(Var("y"))))]))]),sub));
+(* ( {a = x,
+	  c = (fn x:int => x+y) x,
+	  d = case {1=x,2=z,3=2.0} of {1=x,2=y,3=z} -> x+y < z
+								| {4=x,5=a,y=b} -> x+a < y) [3/x, 4/y]
 	=>
 	 {a = 3,
-	  c = (fn x8:int => x8+4) 2,
-	  d = case {1=3,2=z,3=2.0} of {1=x9,2=y9,3=z} -> x9+y9 < z} *)
+	  c = (fn x8:int => x8+4) 3,
+	  d = case {1=3,2=z,3=2.0} of {1=x9,2=y9,3=z} -> x9+y9 < z
+								| {4=x9,5=a,y=b}  -> x9+a  < 4} *)
 	  
 prettyPrintE(substitute(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(R(3.0)))])),[])); 
 (* {a=3,b=3.0}) *)				   
@@ -278,15 +430,15 @@ prettyPrintE(substitute(Value(VHole(ConditionHole(va',
 (* v[if 'a then 3+4 else (3<4)=(3>4)] *)
 
 prettyPrintE(substitute(Value(VHole(CaseHole(va',
-		   PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("z")))]),
-		   ArithExpr(PLUS,Variable(Var("x")),
-					 ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z"))))))),sub));
-(* v[case 'a of {1=x10,2=z} -> x10+4+z *)
+		   [(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("z")))]),
+		     ArithExpr(PLUS,Variable(Var("x")),
+					   ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z")))))]))),sub));
+(* v[case 'a of {1=x10,2=z} -> x10+4+z] *)
 
 prettyPrintE(substitute(Value(VHole(CaseHole(
-	VHole(CaseHole(va',PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),
-	PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
-	ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))),sub));
+	VHole(CaseHole(va',[(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])),
+	[(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
+	  ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))]))),sub));
 (* v[case (case 'a of {1=x,2=y}->x+y) of {1=x,2=y} -> x+y]
    =>
    v[case (case 'a of {1=x12,2=y12} -> x12+y12) of {1=x11,b=11} -> z11+y11]
@@ -297,98 +449,46 @@ prettyPrintE(substitute(Value(VHole(RecordHole([
 	(Lab("b"),VHole(BinaryOpHole(ArithOper(DIVIDE),va',vb')))]))),sub));
 (* v[ {a='a, b='a/'b} ] *)
 
-(* ----------------------------------------------------------------------------------- *)
-(* TEST CASES FOR FREE VARIABLES *)
-
-fv[Value(Concrete(N(3)))]; 	(* [] *)
-fv[Value(VRecord([]))];		(* [] *)
-
-fv[Value(VRecord([(Lab("1"),Concrete(N(2))),
-				  (Lab("2"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))),
-				  (Lab("3"),Concrete(R(2.0)))]))];
-(* [] *)
-				  
-fv[Variable(Var("x"))]; (* [ x ] *)
-fv[ArithExpr(PLUS,Value(Concrete(N(3))),Value(Concrete(N(3))))]; 	(* [ ]   *)
-fv[BoolExpr(EQ,Variable(Var("y")),Value(Concrete(N(3))))]; 			(* [ y ] *)
-
-fv[ArithExpr(TIMES,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),
-					   ArithExpr(PLUS,Variable(Var("a")),Variable(Var("b"))))]; 
-(* [ x y a b ] *)
-					   
-fv[ArithExpr(TIMES,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))),
-					   ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))]; 
-(* [ x ] *)
-
-fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3)))])),
-			  PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
-			  Value(Concrete(B(true))))]; 
-(* [ ] *)
-
-fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3)))])),
-			  PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
-			  Variable(Var("x")))];
-(* [ ] *)
-
-fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3))),(Lab("c"),Concrete(R(2.0)))])),
-			  PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y"))),(Lab("c"),PVar(Var("z")))]),
-			  Variable(Var("y")))]; 
-(* [ ] *)
-
-fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3)))])),
-			  PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
-			  Variable(Var("z")))]; 
-(* [ z ] *)
-
-fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3)))])),
-			  PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y"))),(Lab("c"),PVar(Var("e")))]),
-			  ArithExpr(PLUS,Variable(Var("z")),Variable(Var("a"))))]; 
-(* [ a, z ] *)
-
-fv[Case(Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(3)))])),
-			  PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y"))),(Lab("c"),PVar(Var("e")))]),
-			  ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))]; 
-(* [ ] *)
+val sub = [ (Var("x"),Value(Concrete(N(3)))), (Var("y"),Value(Concrete(N(4)))),
+			(Var("z"),Value(Concrete(N(5)))), (Var("t"),Value(Concrete(N(6)))) ];
 			
-fv[Value(Fun(Var("x"),Int,ArithExpr(TIMES,Value(Concrete(N(2))),Variable(Var("x")))))]; (* [ ]   *)
-fv[Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y")))))];	(* [ y ] *)
-
-fv[Value(Fun(Var("x"),Int,Value(Fun(Var("y"),Int,
-	     ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))))]; (* [ ] *)
-		
-fv[Value(Fun(Var("x"),Int,Value(Fun(Var("y"),Int,
-	     ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("z")),Variable(Var("y"))))))))]; (* [ z ] *)
-	   
-fv[Value(va')]; (* [ ] *)
-fv[Value(VRecord([(Lab("1"),va'),(Lab("2"),vb')]))]; (* [ ] *)
-fv[Value(VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(N(4)))]))]; (* [ ] *)
-fv[Value(VHole(BinaryOpHole(ArithOper(PLUS),va',vb')))]; (* [] *)
-fv[Value(VHole(RecordHole([(Lab("a"),Concrete(N(3))),(Lab("b"),va'),(Lab("c"),vc')])))]; (* [] *)
-
-fv[Value(VHole(CaseHole(
-	VHole(CaseHole(va',
-				   PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
-				   ArithExpr(PLUS,Variable(Var("x")),Variable(Var("z"))))),
-	PRecord([(Lab("1"),PVar(Var("a"))),(Lab("2"),PVar(Var("b")))]),
-	Record([(Lab("i"),Record([(Lab("one"),Variable(Var("a"))),(Lab("two"),Variable(Var("c")))])),
-		    (Lab("j"),Record([(Lab("10"),Variable(Var("d"))),(Lab("20"),Variable(Var("d")))]))]))))];
-(* [ z, c, d] *)
-
-fv[
-	Value(VHole(ConditionHole(
-		VHole(CaseHole(va',PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),Value(va'))),
-		Value(Concrete(N(3))),
-		Value(Concrete(N(4)))))),
-
+prettyPrintE(substitute(
+	Case(Record([(Lab("a"),BoolExpr(EQ,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("t"))),
+									   ArithExpr(TIMES,Variable(Var("y")),Variable(Var("f"))))),
+				 (Lab("b"),BoolExpr(LESS,Variable(Var("z")),Variable(Var("e"))))]),
+		 [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVal(B(true)))]),ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("f"))))),
+		  (PRecord([(Lab("a"),PVal(B(true))),(Lab("b"),PVar(Var("z")))]),ArithExpr(PLUS,Variable(Var("z")),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("t"))))),
+		  (PRecord([(Lab("a"),PVal(B(false))),(Lab("b"),PVar(Var("f")))]),ArithExpr(TIMES,Variable(Var("f")),Variable(Var("f")))),
+		  (PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),ArithExpr(TIMES,Variable(Var("x")),ArithExpr(TIMES,Variable(Var("y")),Variable(Var("t")))))]),sub));
 	
-	App(Value(Fun(Var("x"),Int,
-			  Condition(Value(Concrete(B(true))),
-					    Record([(Lab("i"),Value(Concrete(N(2)))),
-							    (Lab("j"),Value(Fun(Var("x"),Int,ArithExpr(TIMES,Value(Concrete(N(2))),Variable(Var("x"))))))]),
-					    Record([(Lab("i"),Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("y")),Value(Concrete(N(2))))))),
-						    	(Lab("j"),Record([(Lab("1"),Variable(Var("a"))),(Lab("2"),Variable(Var("b")))]))])))),
-		Variable(Var("z")))];
-(* [ z, a, y, b] *)
+		 
+(* case { a = (x+t)=(y*f), b = z<e } of {a=x,b=true}  -> x+y+f
+									  | {a=true,b=z}  -> z+x+t
+									  | {a=false,b=f} -> f*f
+									  | {a=x,b=y}     -> x*y*t
+   =>
+   case { a = (3+6)=(4*f), b = 5<e } of {a=x0,b=true} -> x0+4+f
+									  | {a=true,b=z0} -> z0+3+6
+									  | {a=false,b=f} -> f*f
+									  | {a=x0,b=y0}   -> x0*y0*6 *)
+									  
+prettyPrintE(substitute(Value(Fun(Var("x"),Int,Case(
+	Variable(Var("x")),
+	[(PRecord([(Lab("1"),PVar(Var("x")))]),
+	  Case(ArithExpr(TIMES,Variable(Var("x")),Variable(Var("t"))),
+		   [(PRecord([(Lab("i"),PVar(Var("y")))]),Variable(Var("x"))),
+		    (PRecord([(Lab("j"),PVar(Var("x")))]),Variable(Var("x"))),
+			(PRecord([(Lab("k"),PVar(Var("t")))]),ArithExpr(TIMES,Variable(Var("z")),Variable(Var("t"))))])),
+	 (PRecord([(Lab("2"),PVar(Var("y")))]),Variable(Var("x"))),
+	 (PRecord([(Lab("3"),PVar(Var("a")))]),ArithExpr(TIMES,Variable(Var("t")),Variable(Var("z"))))]))),sub));
+(* fn x:int => case x of {1=x} -> case x*t of {i=y} -> x | {j=x} -> x | {k=t} -> z*t
+					   | {2=y} -> x
+					   | {3=a} -> t * z
+   =>
+   fn x21:int => case x21 of {1=x21} -> case x21*6 of {i=y22}->x21 | {j=x21}->x21 | {k=t23}->5*t23
+						   | {2=y24} -> x21
+						   | {3=a} -> 6*5
+*)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR GEN *)
@@ -607,352 +707,3 @@ unifyTest( [a''',TRecord([(Lab("i"),Int)])], []);
 unifyTest( [a'',TRecord([(Lab("i"),a'''),(Lab("j"),b'''),(Lab("k"),c'''),(Lab("l"),d''')])], []);
 (* [ ''a87 -> int, '''a -> int, ''a88 -> int, '''b -> int, ''a89 -> int, '''c -> int, 
      ''a90 -> int, '''d -> int, ''a -> {i:''a87, j:''a88, k:''a89, l:''a90} ] *)
-	 
-(* ------------------------------------------------------------------------------------ *)
-(* TESTS FOR MATCH *)
-
-fun prettyPrintMatch(c) = (case c of
-	  NONE => "FAIL"
-	| SOME (gamma,theta) => 
-		"[ " ^ prettyPrintGamma(gamma) ^ "] , [" ^ prettyPrintTheta(theta) ^ " ]");
-	
-prettyPrintMatch(matchTypes(Int,PWildcard,[],[]));				(* [], [] *)
-prettyPrintMatch(matchTypes(Bool,PWildcard,[],[]));				(* [], [] *)
-prettyPrintMatch(matchTypes(Real,PWildcard,[],[]));				(* [], [] *)
-prettyPrintMatch(matchTypes(TFun(Int,Int),PWildcard,[],[]));	(* [], [] *)
-prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PWildcard,[],[]));				(* [], [] *)
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PWildcard,[],[]));		(* [], [] *)
-prettyPrintMatch(matchTypes(THole(TypeHole(ArithTypeVar("a"))),PWildcard,[],[]));			(* [], [] *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int),(Lab("b"),Real)]),PWildcard,[],[]));	(* [], [] *)
-
-prettyPrintMatch(matchTypes(Int,PVar(Var("x")),[],[]));				(* [x->1], []    *)
-prettyPrintMatch(matchTypes(Bool,PVar(Var("x")),[],[]));			(* [x->true], [] *)
-prettyPrintMatch(matchTypes(Real,PVar(Var("x")),[],[]));			(* [x->1.0], []  *)
-prettyPrintMatch(matchTypes(TFun(Int,Int),PVar(Var("x")),[],[]));	(* [x->fn x:int=>1], [] *)
-prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PVar(Var("x")),[],[]));				(* [x->v['a]], []       *)
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PVar(Var("x")),[],[]));		(* [x->v[''a]], []      *)
-prettyPrintMatch(matchTypes(THole(TypeHole(ArithTypeVar("a"))),PVar(Var("x")),[],[]));			(* [x->v['''a]], []     *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int),(Lab("b"),Real)]),PVar(Var("x")),[],[]));	(* [x->{a=1,b=1.0}], [] *)
-
-prettyPrintMatch(matchTypes(Int,PVal(N(3)),[],[]));				(* [], [] *)
-prettyPrintMatch(matchTypes(Bool,PVal(N(3)),[],[]));			(* FAIL *)
-prettyPrintMatch(matchTypes(Real,PVal(N(3)),[],[]));			(* FAIL *)
-prettyPrintMatch(matchTypes(TFun(Int,Int),PVal(N(3)),[],[]));	(* FAIL *)
-prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PVal(N(3)),[],[]));				(* [], ['a->int]   *)
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PVal(N(3)),[],[]));		(* [], [''a->int]  *)
-prettyPrintMatch(matchTypes(THole(TypeHole(ArithTypeVar("a"))),PVal(N(3)),[],[]));			(* [], ['''a->int] *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int),(Lab("b"),Real)]),PVal(N(3)),[],[]));	(* FAIL *)
-
-prettyPrintMatch(matchTypes(Int,PVal(R(3.0)),[],[]));				(* FAIL *)
-prettyPrintMatch(matchTypes(Bool,PVal(R(3.0)),[],[]));				(* FAIL *)
-prettyPrintMatch(matchTypes(Real,PVal(R(3.0)),[],[]));				(* FAIL *)
-prettyPrintMatch(matchTypes(TFun(Int,Int),PVal(R(3.0)),[],[]));		(* FAIL *)
-prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PVal(R(3.0)),[],[]));				(* FAIL *)
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PVal(R(3.0)),[],[]));		(* FAIL *)
-prettyPrintMatch(matchTypes(THole(TypeHole(ArithTypeVar("a"))),PVal(R(3.0)),[],[]));		(* FAIL *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int),(Lab("b"),Real)]),PVal(R(3.0)),[],[]));	(* FAIL *)
-
-prettyPrintMatch(matchTypes(Int,PVal(B(true)),[],[]));				(* FAIL *)
-prettyPrintMatch(matchTypes(Bool,PVal(B(true)),[],[]));				(* [], [] *)
-prettyPrintMatch(matchTypes(Real,PVal(B(true)),[],[]));				(* FAIL *)
-prettyPrintMatch(matchTypes(TFun(Int,Int),PVal(B(true)),[],[]));	(* FAIL *)
-prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PVal(B(true)),[],[]));				(* [], ['a->bool]  *)
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PVal(B(true)),[],[]));		(* [], [''a->bool] *)
-prettyPrintMatch(matchTypes(THole(TypeHole(ArithTypeVar("a"))),PVal(B(true)),[],[]));			(* FAIL *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int),(Lab("b"),Real)]),PVal(B(true)),[],[]));	(* FAIL *)
-
-prettyPrintMatch(matchTypes(Int,PRecord([]),[],[]));			(* FAIL *)
-prettyPrintMatch(matchTypes(Bool,PRecord([]),[],[]));			(* FAIL *)
-prettyPrintMatch(matchTypes(Real,PRecord([]),[],[]));			(* FAIL *)
-prettyPrintMatch(matchTypes(TFun(Int,Int),PRecord([]),[],[]));	(* FAIL *)
-prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PRecord([]),[],[]));				(* [], ['a->{}]  *)
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PRecord([]),[],[]));		(* [], [''a->{}] *)
-prettyPrintMatch(matchTypes(THole(TypeHole(ArithTypeVar("a"))),PRecord([]),[],[]));			(* FAIL *)
-prettyPrintMatch(matchTypes(TRecord([]),PRecord([]),[],[]));								(* [], [] *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int),(Lab("b"),Real)]),PRecord([]),[],[]));	(* FAIL *)
-
-prettyPrintMatch(matchTypes(Int,PRecord([(Lab("a"),PWildcard)]),[],[]));				(* FAIL *)
-prettyPrintMatch(matchTypes(TFun(Int,Int),PRecord([(Lab("a"),PWildcard)]),[],[]));		(* FAIL *)
-prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PRecord([(Lab("1"),PWildcard)]),[],[]));
-(* [], ['a->{1:'a0}]  *)
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PRecord([(Lab("1"),PWildcard)]),[],[]));		
-(* [], [''a->{1:''a0}] *)
-prettyPrintMatch(matchTypes(THole(TypeHole(ArithTypeVar("a"))),PRecord([(Lab("1"),PWildcard)]),[],[]));		
-(* FAIL *)
-prettyPrintMatch(matchTypes(TRecord([]),PRecord([(Lab("1"),PWildcard)]),[],[]));								
-(* FAIL *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("1"),Int)]),PRecord([(Lab("1"),PWildcard)]),[],[]));	
-(* [], [] *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int)]),PRecord([(Lab("1"),PWildcard)]),[],[]));	
-(* FAIL *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("1"),Int),(Lab("2"),Real)]),PRecord([(Lab("1"),PWildcard)]),[],[]));	
-(* FAIL *)
-
-prettyPrintMatch(matchTypes(Int,PRecord([(Lab("a"),PVar(Var("x")))]),[],[]));				(* FAIL *)
-prettyPrintMatch(matchTypes(TFun(Int,Int),PRecord([(Lab("a"),PVar(Var("x")))]),[],[]));		(* FAIL *)
-prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PRecord([(Lab("1"),PVar(Var("x")))]),[],[]));
-(* [x->v['a0]], ['a->{1:'a0}]  *)
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PRecord([(Lab("1"),PVar(Var("x")))]),[],[]));		
-(* [x->v['a0]], [''a->{1:''a0}] *)
-prettyPrintMatch(matchTypes(THole(TypeHole(ArithTypeVar("a"))),PRecord([(Lab("1"),PVar(Var("x")))]),[],[]));		
-(* FAIL *)
-prettyPrintMatch(matchTypes(TRecord([]),PRecord([(Lab("1"),PVar(Var("x")))]),[],[]));								
-(* FAIL *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("1"),Int)]),PRecord([(Lab("1"),PVar(Var("x")))]),[],[]));	
-(* [x->1], [] *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int)]),PRecord([(Lab("1"),PVar(Var("x")))]),[],[]));	
-(* FAIL *)
-prettyPrintMatch(matchTypes(TRecord([(Lab("1"),Int),(Lab("2"),Real)]),PRecord([(Lab("1"),PVar(Var("x")))]),[],[]));	
-(* FAIL *)
-
-prettyPrintMatch(matchTypes(Int,PRecord([(Lab("a"),PVal(N(3)))]),[],[]));				(* FAIL *)
-prettyPrintMatch(matchTypes(TFun(Int,Int),PRecord([(Lab("a"),PVal(N(3)))]),[],[]));		(* FAIL *)
-
-prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PRecord([(Lab("1"),PVal(N(3)))]),[],[]));
-(* [], ['a->{1:'a0}, 'a0->int]  *)
-
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PRecord([(Lab("1"),PVal(N(3)))]),[],[]));		
-(* [], [''a->{1:''a0}, ''a0->int] *)
-
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PRecord([(Lab("1"),PVal(B(false)))]),[],[]));		
-(* [], [''a->{1:''a0}, ''a0->bool] *)
-
-prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PRecord([(Lab("1"),PVal(R(3.0)))]),[],[]));		
-(* FAIL *)
-
-prettyPrintMatch(matchTypes(THole(TypeHole(ArithTypeVar("a"))),PRecord([(Lab("1"),PVal(N(3)))]),[],[]));		
-(* FAIL *)
-
-prettyPrintMatch(matchTypes(TRecord([]),PRecord([(Lab("1"),PVal(N(3)))]),[],[]));								
-(* FAIL *)
-
-prettyPrintMatch(matchTypes(TRecord([(Lab("1"),Int)]),PRecord([(Lab("1"),PVal(N(3)))]),[],[]));	
-(* [], [] *)
-
-prettyPrintMatch(matchTypes(TRecord([(Lab("1"),Bool)]),PRecord([(Lab("1"),PVal(N(3)))]),[],[]));	
-(* FAIL *)
-
-prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int)]),PRecord([(Lab("1"),PVal(N(3)))]),[],[]));	
-(* FAIL *)
-
-prettyPrintMatch(matchTypes(TRecord([(Lab("1"),Int),(Lab("2"),Real)]),PRecord([(Lab("1"),PVal(N(3)))]),[],[]));	
-(* FAIL *)
-
-prettyPrintMatch(matchTypes(
-	TRecord([(Lab("1"),Int),(Lab("2"),Bool),(Lab("3"),TFun(Int,Real)),(Lab("4"),THole(TypeHole(ArithTypeVar("a"))))]),
-	PRecord([(Lab("1"),PWildcard),(Lab("2"),PVal(B(false))),(Lab("3"),PVar(Var("x"))),(Lab("4"),PVar(Var("y")))]),
-	[],[]));
-(* [y->v['''a],x->fn x:int=>1.0], [] *)
-
-prettyPrintMatch(matchTypes(
-	TRecord([(Lab("1"),Int),(Lab("2"),Bool),(Lab("3"),TFun(Int,Real)),(Lab("4"),THole(TypeHole(ArithTypeVar("a"))))]),
-	PRecord([(Lab("1"),PWildcard),(Lab("2"),PVal(B(false))),(Lab("3"),PVar(Var("x"))),(Lab("4"),PVar(Var("x")))]),
-	[],[]));
-(* FAIL *)
-
-prettyPrintMatch(matchTypes(
-	TRecord([(Lab("1"),Int),(Lab("2"),Bool),(Lab("3"),TFun(Int,Real)),(Lab("5"),THole(TypeHole(ArithTypeVar("a"))))]),
-	PRecord([(Lab("1"),PWildcard),(Lab("2"),PVal(B(false))),(Lab("3"),PVar(Var("x"))),(Lab("4"),PVar(Var("y")))]),
-	[],[]));
-(* FAIL *)
-
-prettyPrintMatch(matchTypes(
-	TRecord([(Lab("1"),TRecord([(Lab("a"),Int),(Lab("b"),TFun(Int,a'))])),(Lab("2"),Int)]),
-	PRecord([(Lab("1"),PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))])),(Lab("2"),PVar(Var("z")))]),
-	[],[]));
-(* [z->1, y->fn x:int => v['a], x->1], [] *)
-
-fun prettyPrintMatchE(result) = (case result of 
-	  Fail => "FAIL"
-	| Hole h => "HOLE of " ^ prettyPrintHole(h)
-	| Success (s,t,g) => "[ " ^ prettyPrintSigma(s) ^ " ], [ " ^ prettyPrintTheta(t) 
-		^ " ], [ " ^ prettyPrintGamma(g) ^ " ]");
-		
-prettyPrintMatchE(match(Value(Concrete(N(2))),PWildcard,[],[],[]));			(* [], [], [] *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),PWildcard,[],[],[]));		(* [], [], [] *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),PWildcard,[],[],[]));		(* [], [], [] *)
-
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),PWildcard,[],[],[]));	
-(* [], [], [] *)
-
-prettyPrintMatchE(match(Value(va'),PWildcard,[],[],[]));			(* [], [], [] *)
-prettyPrintMatchE(match(Value(va''),PWildcard,[],[],[]));			(* [], [], [] *)
-prettyPrintMatchE(match(Value(va'''),PWildcard,[],[],[]));			(* [], [], [] *)
-
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),PWildcard,[],[],[]));	
-(* [], [], [] *)
-
-prettyPrintMatchE(match(Value(Concrete(N(2))),PVar(Var("x")),[],[],[]));		(* [], [], [x->2]    *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),PVar(Var("x")),[],[],[]));		(* [], [], [x->true] *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),PVar(Var("x")),[],[],[]));		(* [], [], [x->2.0]  *)
-
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),PVar(Var("x")),[],[],[]));	
-(* [], [], [x->fn x:int => 2] *)
-
-prettyPrintMatchE(match(Value(va'),PVar(Var("x")),[],[],[]));			(* [], [], [x->v['a]]   *)
-prettyPrintMatchE(match(Value(va''),PVar(Var("x")),[],[],[]));			(* [], [], [x->v[''a]]  *)
-prettyPrintMatchE(match(Value(va'''),PVar(Var("x")),[],[],[]));			(* [], [], [x->v['''a]] *)
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),PVar(Var("x")),[],[],[]));	
-(* [], [], [x->{a=2,b=v['a]}] *)
-
-prettyPrintMatchE(match(Value(Concrete(N(2))),PVal(R(2.0)),[],[],[]));			(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(R(3.0))),PVal(R(2.0)),[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),PVal(R(2.0)),[],[],[]));		(* FAIL *)
-
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),PVal(R(2.0)),[],[],[]));	
-(* FAIL *)
-
-prettyPrintMatchE(match(Value(va'),PVal(R(2.0)),[],[],[]));		(* FAIL *)
-
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),PVal(R(2.0)),[],[],[]));	
-(* FAIL *)
-
-prettyPrintMatchE(match(Value(Concrete(N(2))),PVal(N(2)),[],[],[]));		(* [], [], []  *)
-prettyPrintMatchE(match(Value(Concrete(N(3))),PVal(N(2)),[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(N(2))),PVal(N(3)),[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),PVal(N(2)),[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),PVal(N(2)),[],[],[]));		(* FAIL  *)
-
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),PVal(N(2)),[],[],[]));	
-(* FAIL *)
-
-prettyPrintMatchE(match(Value(va'),PVal(N(2)),[],[],[]));			(* [v['a]->2],   ['a>int],    [] *)
-prettyPrintMatchE(match(Value(va''),PVal(N(2)),[],[],[]));			(* [v[''a]->2],  [''a->int],  [] *)
-prettyPrintMatchE(match(Value(va'''),PVal(N(2)),[],[],[]));			(* [v['''a]->2], ['''a->int], [] *)
-
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),PVal(N(2)),[],[],[]));	
-(* FAIL *)
-
-prettyPrintMatchE(match(Value(Concrete(N(2))),PVal(B(true)),[],[],[]));			(* FAIL  *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),PVal(B(true)),[],[],[]));		(* [], [], [] *)
-prettyPrintMatchE(match(Value(Concrete(B(false))),PVal(B(true)),[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),PVal(B(false)),[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(B(false))),PVal(B(false)),[],[],[]));	(* [], [], [] *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),PVal(B(false)),[],[],[]));		(* FAIL  *)
-
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),PVal(B(false)),[],[],[]));	
-(* FAIL *)
-
-prettyPrintMatchE(match(Value(va'),PVal(B(false)),[],[],[]));			(* [v['a]->false],   ['a>bool],    [] *)
-prettyPrintMatchE(match(Value(va''),PVal(B(false)),[],[],[]));			(* [v[''a]->false],  [''a->bool],  [] *)
-prettyPrintMatchE(match(Value(va'''),PVal(B(false)),[],[],[]));			(* FAIL *)
-
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),PVal(B(false)),[],[],[]));	
-(* FAIL *)
-
-prettyPrintMatchE(match(Value(Concrete(N(2))),PRecord([]),[],[],[]));			(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),PRecord([]),[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),PRecord([]),[],[],[]));			(* FAIL *)
-
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),PRecord([]),[],[],[]));	
-(* FAIL *)
-
-prettyPrintMatchE(match(Value(va'),PRecord([]),[],[],[]));			(* [v['a]->{}], ['a->{}], [] *)
-prettyPrintMatchE(match(Value(va''),PRecord([]),[],[],[]));			(* [v[''a]->{}], [''a->{}], [] *)
-prettyPrintMatchE(match(Value(va'''),PRecord([]),[],[],[]));		(* FAIL*)
-prettyPrintMatchE(match(Record([]),PRecord([]),[],[],[]));			(* [], [], [] *)
-prettyPrintMatchE(match(Value(VRecord([])),PRecord([]),[],[],[]));	(* [], [], [] *)
-
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),PRecord([]),[],[],[]));	
-(* FAIL *)
-
-prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(R(3.0))),(Lab("c"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))])),
-	PRecord([(Lab("a"),PVal(N(2))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PWildcard)]),
-	[],[],[]));
-(* [], [], [x->3.0] *)
-
-prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(R(3.0))),(Lab("c"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))])),
-	PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PWildcard)]),
-	[],[],[]));
-(* FAIL *)
-
-prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(R(3.0))),(Lab("c"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))])),
-	PRecord([(Lab("a"),PVar(Var("y"))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z")))]),
-	[],[],[]));
-(* [], [], [x->3.0,y->2,z->fn x:int=>x+x] *)
-
-prettyPrintMatchE(match(
-	Value(va'),
-	PRecord([(Lab("a"),PVar(Var("y"))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z")))]),
-	[],[],[]));
-(* [v['a]->{a=v['a0],b=v['a1],c=v['a2]}], ['a->{a:'a0,b:'a1,c:'a2}], [x->v['a1],y->v['a0],z->v['a2]] *)
-
-prettyPrintMatchE(match(
-	Value(va''),
-	PRecord([(Lab("a"),PVar(Var("y"))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z")))]),
-	[],[],[]));
-(* [v[''a]->{a=v[''a0],=:v[''a1],c=v[''a2]}], [''a->{a:''a0,b:''a1,c:''a2}], [x->v[''a1],y->v[''a0],z->v[''a2]] *)
-
-prettyPrintMatchE(match(
-	Value(va'''),
-	PRecord([(Lab("a"),PVar(Var("y"))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z")))]),
-	[],[],[]));
-(* FAIL *)
-
-prettyPrintMatchE(match(
-	Value(va'''),
-	PRecord([(Lab("a"),PVar(Var("y"))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z")))]),
-	[],[],[]));
-(* FAIL *)
-
-prettyPrintMatchE(match(
-	Record([(Lab("a"),Value(Concrete(N(3)))),
-			(Lab("b"),Value(VRecord([(Lab("1"),Fun(Var("x"),Real,ArithExpr(TIMES,Value(Concrete(R(2.0))),Variable(Var("x"))))),
-									 (Lab("2"),Concrete(B(true)))]))),
-			(Lab("c"),Value(va')),
-			(Lab("d"),Value(VHole(BinaryOpHole(ArithOper(PLUS),vb',vc'))))]),
-	PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z"))),(Lab("d"),PWildcard)]),
-	[],[],[]));
-(* [], [], [z->v['a], x->{1=fn x:real=>2.0*x, 2=true}] *)
-
-prettyPrintMatchE(match(
-	Record([(Lab("a"),Value(Concrete(N(3)))),
-			(Lab("b"),Value(VRecord([(Lab("1"),Fun(Var("x"),Real,ArithExpr(TIMES,Value(Concrete(R(2.0))),Variable(Var("x"))))),
-									 (Lab("2"),Concrete(B(true)))]))),
-			(Lab("c"),Value(va')),
-			(Lab("d"),Value(VHole(BinaryOpHole(ArithOper(PLUS),vb',vc'))))]),
-	PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z"))),(Lab("d"),PVar(Var("y")))]),
-	[],[],[]));
-(* [], [], [y->v[v['b]+v['c]], z->v['a], x->{1=fn x:real=>2.0*x, 2=true}] *)
-
-prettyPrintMatchE(match(
-	Value(VRecord([
-			(Lab("a"),Concrete(N(3))),
-			(Lab("b"),VRecord([(Lab("1"),Fun(Var("x"),Real,ArithExpr(TIMES,Value(Concrete(R(2.0))),Variable(Var("x"))))),
-									 (Lab("2"),Concrete(B(true)))])),
-			(Lab("c"),va'),
-			(Lab("d"),VHole(BinaryOpHole(ArithOper(PLUS),vb',vc')))])),
-	PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z"))),(Lab("d"),PVal(N(2)))]),
-	[],[],[]));
-(* HOLE of v[ {a=3, b={1=fn x:real => 2.0*x, 2=true}, c=v['a], d=v[ v['b] + v['c] ]} ] *)
-
-prettyPrintMatchE(match(
-	Value(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3))))))]),
-	PRecord([(Lab("a"),PVal(N(3)))]),[],[],[]));
-(* HOLE of v[a=v[if v['a] then 2 else 3]}] *)
-
-prettyPrintMatchE(match(
-	Value(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3)))))),
-				  (Lab("b"),VHole(ConditionHole(vb',Value(Concrete(B(true))),Value(Concrete(B(false))))))]),
-	PRecord([(Lab("a"),PVal(N(3)))]),[],[],[]));
-(* FAIL *)
-
-prettyPrintMatchE(match(
-	Value(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3)))))),
-				  (Lab("b"),VHole(ConditionHole(vb',Value(Concrete(B(true))),Value(Concrete(B(false))))))]),
-	PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVal(B(false)))]),[],[],[]));
-(* HOLE of v[ {a=v[if v['a] then 2 else 3], b=v[if v['b] then true else false]}]*)
-
-prettyPrintMatchE(match(
-	Value(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3)))))),
-				  (Lab("b"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Value(Concrete(N(3))))))]),
-	PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVal(B(false)))]),[],[],[]));
-(* HOLE of v[ {a=v[if v['a] then 2 else 3], b=fn x:int => x+3}]*)
-
-prettyPrintMatchE(match(
-	Value(VHole(CaseHole(VHole(BinaryOpHole(ArithOper(PLUS),va',vb')),PVal(N(3)),Value(Fun(Var("x"),Int,Value(Concrete(N(2)))))))),
-	PVal(N(2)),[],[],[]));
-(* HOLE of v[ case v[ v['a] + v['b] ] of 3 -> fn x:int=>2 ] *)

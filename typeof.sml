@@ -233,8 +233,8 @@ fun typeofhole (SimpleHole(ValueHole(tyVar)),theta:typeSub) =
 |	typeofhole (BinaryOpHole(BoolOper(oper),v1,v2),theta) =
 	typeofexpr(BoolExpr(oper,Value(v1),Value(v2)),theta)
 	
-|	typeofhole (CaseHole(v,pat,expr),theta) =
-	typeofexpr(Case(Value(v),pat,expr),theta)
+|	typeofhole (CaseHole(v,patExprList),theta) =
+	typeofexpr(Case(Value(v),patExprList),theta)
 
 | 	typeofhole (ConditionHole(v,e2,e3),theta) =
 	typeofexpr(Condition(Value(v),e2,e3),theta)
@@ -319,13 +319,56 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 		  (NONE,theta2) => (NONE,theta2)
 		| (SOME(t2),theta2) => typeOp(BoolOper(oper),t1,t2,theta2)))
 
-|	typeofexpr(c as Case(e1,pat,e2),theta) = (case typeofexpr(e1,theta) of 
-
+(* For 'case e of pat1=>e1 | pat2 => e2 | ... | patn=>en'
+	(i)   get type of e
+	(ii)  match all patterns to type e, forming a list of expression-gamma pairs
+	(iii) calculate all types of resulting expressions in the list
+		  (after performing substitution) to obtain a list of all these types
+	(iv)  if all the types are equal (using ML = operator), return that type
+	      otherwise return a fresh generic type variable 
+	c.f. if-then-else expression about not restricting too early *)
+|	typeofexpr(c as Case(e1,patExprList),theta) = (case typeofexpr(e1,theta) of 
+		
 		  (NONE,theta1) => (NONE,theta1)
-		| (SOME t,theta1) => (case matchTypes(t,pat,[],theta1) of 
+		| (SOME t,theta1) => (case matchTypesList(t,patExprList,[],theta1) of 
 		  
 			  NONE => (NONE,theta1)
-			| SOME (sub,theta2) => typeofexpr(substitute(e2,sub),theta2)))
+			| SOME (exprSubList,theta2) => 
+			
+				(* function to transform expression-substitution pairs
+				   into list of types of those expressions
+				   after performing the relevant substitution *)
+				let fun iterCalcExprType(l,theta) = (case l of 
+				
+					  [] => (SOME([]),theta)
+					| (expr1,sub1)::l1 => (case typeofexpr(substitute(expr1,sub1),theta) of 
+					
+						  (NONE,theta1) => (NONE,theta1)
+						| (SOME t,theta1) => (case iterCalcExprType(l1,theta1) of 
+						
+							  (NONE,theta2) => (NONE,theta2)
+							| (SOME typeList,theta2) => (SOME (t::typeList),theta2))))
+						
+				in (case iterCalcExprType(exprSubList,theta2) of 
+				
+					(* If any of expressions fail to type, return original theta *)
+					  (NONE,theta3) => (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta2)
+					  
+					| (SOME typeList,theta3) => 
+						
+						if allElementsEqual(typeList)
+						
+						(* doesn't matter which type we pick, as long as type list not empty
+						   if it is empty, fail instead of generating a fresh type variable
+						   "case e of []" is not valid *)
+						then (case typeList of []       => (NONE,theta3)
+											 | t::tRest => (SOME t,theta3))
+											 
+						(* if we fail to match all types to the exact same type,
+						   return original theta after matching type & pattern *)
+						else (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta2))
+						
+				end))
 			
 |	typeofexpr(Condition(e1,e2,e3),theta) = (case typeofexpr(e1,theta) of 
 	

@@ -39,9 +39,17 @@ fun remove([],_) = []
 (* ----------------------------------------------------------------------------------- *)
 (* Auxiliary function which takes two lists, 
    and returns all the elements of the second list which are an element of the first
-   used for capture avoiding substitutions *)
+   Used for capture avoiding substitutions *)
    
 fun listElement(l,[]) = []
 |   listElement(l,x::rest) = 
 	if element(l,x) then union([x],listElement(l,rest))
 					else listElement(l,rest);
+					
+(* ----------------------------------------------------------------------------------- *)
+(* Auxiliary function which takes a list, 
+   and returns true iff all the elements in it are equal, using ML's built-in = operator *) 
+  
+fun allElementsEqual([])  = true
+|	allElementsEqual([x]) = true
+|	allElementsEqual(x::y::l) = x=y andalso allElementsEqual(y::l);

@@ -259,41 +259,41 @@ prettyPrintTypeOf(typeof(VHole(ConditionHole(va'',
 (* ''a0, [''a->bool] *)
 
 prettyPrintTypeOf(typeofexpr(
-	Case(Value(Concrete(N(2))),PWildcard,Value(va')),[]));
+	Case(Value(Concrete(N(2))),[(PWildcard,Value(va'))]),[]));
 (* case 2 of _ -> v['a]
    =>
    'a *)
 
 prettyPrintTypeOf(typeofexpr(
-	Case(Value(Concrete(N(2))),PVar(Var("x")),Variable(Var("x"))),[]));
+	Case(Value(Concrete(N(2))),[(PVar(Var("x")),Variable(Var("x")))]),[]));
 (* case 2 of x -> x
    =>
    Int *)
    
 prettyPrintTypeOf(typeofexpr(
-	Case(Value(Concrete(N(2))),PVar(Var("x")),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))),[]));
+	Case(Value(Concrete(N(2))),[(PVar(Var("x")),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))]),[]));
 (* case 2 of x -> x+x
    =>
    Int *)
    
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(Concrete(B(true))),
-		 PVar(Var("x")),
-		 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))),[]));
+		 [(PVar(Var("x")),
+		   ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))]),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(Concrete(B(false))),
-		 PVar(Var("x")),
-		 Condition(Variable(Var("x")),Value(Concrete(N(2))),Value(Concrete(N(3))))),[]));
+		 [(PVar(Var("x")),
+		   Condition(Variable(Var("x")),Value(Concrete(N(2))),Value(Concrete(N(3)))))]),[]));
 (* case false of x -> if x then 2 else 3
    =>
    Int *)
    
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va''),
-		 PVar(Var("x")),
-		 Condition(Variable(Var("x")),Value(Concrete(N(2))),Value(Concrete(N(3))))),[]));
+		 [(PVar(Var("x")),
+		   Condition(Variable(Var("x")),Value(Concrete(N(2))),Value(Concrete(N(3)))))]),[]));
 (* case v[''a] of x -> if x then 2 else 3
    =>
    Int, [''a->bool] *)
@@ -302,8 +302,8 @@ prettyPrintTypeOf(typeofexpr(
 	Case(Condition(Value(Concrete(B(true))),
 				   Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(N(3)))])),
 				   Value(VRecord([(Lab("i"),Concrete(N(4))),(Lab("j"),Concrete(N(5)))]))),
-		 PVar(Var("x")),
-		 BoolExpr(EQ,Variable(Var("x")),Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(N(3)))])))),[]));
+		 [(PVar(Var("x")),
+		   BoolExpr(EQ,Variable(Var("x")),Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(N(3)))]))))]),[]));
 (* case (if true then {i=2,j=3} then {i=4,j=5}) of x -> x = {i=2,j=3}
    =>
    Bool*)
@@ -312,165 +312,165 @@ prettyPrintTypeOf(typeofexpr(
 	Case(Condition(Value(Concrete(B(true))),
 				   Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(N(3)))])),
 				   Value(VRecord([(Lab("i"),Concrete(N(4))),(Lab("j"),Concrete(N(5)))]))),
-		 PVar(Var("x")),
-		 BoolExpr(EQ,Variable(Var("x")),Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("k"),Concrete(N(3)))])))),[]));
+		 [(PVar(Var("x")),
+		   BoolExpr(EQ,Variable(Var("x")),Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("k"),Concrete(N(3)))]))))]),[]));
 (* FAIL *)
    
 prettyPrintTypeOf(typeofexpr(
 	Case(Condition(Value(Concrete(B(true))),
 				   Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(N(3)))])),
 				   Value(VRecord([(Lab("i"),Concrete(N(4))),(Lab("k"),Concrete(N(5)))]))),
-		 PVar(Var("x")),
-		 BoolExpr(EQ,Variable(Var("x")),Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(N(3)))])))),[]));
+		 [(PVar(Var("x")),
+		   BoolExpr(EQ,Variable(Var("x")),Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(N(3)))]))))]),[]));
 (* Bool, 
   [ 'a32 -> int, 'a31 -> int, 'a30 -> {i:'a31, j:'a32} ] *)
    
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va'''),
-		 PVar(Var("x")),
-		 Condition(Variable(Var("x")),Value(Concrete(N(2))),Value(Concrete(N(3))))),[]));
+		 [(PVar(Var("x")),
+		   Condition(Variable(Var("x")),Value(Concrete(N(2))),Value(Concrete(N(3)))))]),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(Concrete(N(2))),
-		 PVal(N(2)),
-		 Value(Concrete(N(3)))),[]));
+		 [(PVal(N(2)),
+		   Value(Concrete(N(3))))]),[]));
 (* Int *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(Concrete(R(3.0))),
-		 PVal(N(2)),
-		 Value(Concrete(N(3)))),[]));
+		 [(PVal(N(2)),
+		   Value(Concrete(N(3))))]),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(Concrete(R(3.0))),
-		 PVal(R(3.0)),
-		 Value(Concrete(N(3)))),[]));
+		 [(PVal(R(3.0)),
+		   Value(Concrete(N(3))))]),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(Concrete(B(true))),
-		 PVal(B(true)),
-		 Value(Concrete(N(3)))),[]));
+		 [(PVal(B(true)),
+		   Value(Concrete(N(3))))]),[]));
 (* Int *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(Concrete(B(true))),
-		 PVal(B(false)),
-		 Value(Concrete(N(3)))),[]));
+		 [(PVal(B(false)),
+		   Value(Concrete(N(3))))]),[]));
 (* Int *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va'),
-		 PVal(B(false)),
-		 Value(Concrete(N(3)))),[]));
+		 [(PVal(B(false)),
+		   Value(Concrete(N(3))))]),[]));
 (* Int, ['a->bool] *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va''),
-		 PVal(B(false)),
-		 Value(Concrete(R(3.0)))),[]));
+		 [(PVal(B(false)),
+		   Value(Concrete(R(3.0))))]),[]));
 (* Real, [''a->bool] *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va'''),
-		 PVal(B(false)),
-		 Value(Concrete(R(3.0)))),[]));
+		 [(PVal(B(false)),
+		   Value(Concrete(R(3.0))))]),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va'''),
-		 PVal(N(3)),
-		 Value(Concrete(R(3.0)))),[]));
+		 [(PVal(N(3)),
+		   Value(Concrete(R(3.0))))]),[]));
 (* Real, ['''a->int] *)
 
 prettyPrintTypeOf(typeofexpr(
-	Case(Case(Value(va'),PVar(Var("x")),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))),
-		 PVal(N(3)),
-		 Value(Concrete(R(3.0)))),[]));
+	Case(Case(Value(va'),[(PVar(Var("x")),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))]),
+		 [(PVal(N(3)),
+		   Value(Concrete(R(3.0))))]),[]));
 (* Real, ['a->'''a32, '''a32->int] *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(N(4)))])),
-		 PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
-		 ArithExpr(PLUS,Variable(Var("x")), Variable(Var("y")))),[]));
+		 [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		   ArithExpr(PLUS,Variable(Var("x")), Variable(Var("y"))))]),[]));
 (* Int *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(R(4.0)))])),
-		 PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
-		 ArithExpr(PLUS,Variable(Var("x")), Variable(Var("y")))),[]));
+		 [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		   ArithExpr(PLUS,Variable(Var("x")), Variable(Var("y"))))]),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(N(4))),(Lab("k"),Concrete(N(6)))])),
-		 PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y"))),(Lab("k"),PVar(Var("z")))]),
-		 ArithExpr(PLUS,Variable(Var("x")), ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z"))))),[]));
+		 [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y"))),(Lab("k"),PVar(Var("z")))]),
+		   ArithExpr(PLUS,Variable(Var("x")), ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z")))))]),[]));
 (* Int *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),vb'''),(Lab("k"),va')])),
-		 PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y"))),(Lab("k"),PVar(Var("z")))]),
-		 ArithExpr(PLUS,Variable(Var("x")), ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z"))))),[]));
+		 [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y"))),(Lab("k"),PVar(Var("z")))]),
+		   ArithExpr(PLUS,Variable(Var("x")), ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z")))))]),[]));
 (* Int, ['''b->'''a33, 'a->'''a33, '''a33->int] *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(VRecord([])),
-		 PRecord([]),
-		 Value(Concrete(B(false)))),[]));
+		 [(PRecord([]),
+		   Value(Concrete(B(false))))]),[]));
 (* Bool *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Record([(Lab("i"),ArithExpr(PLUS,Value(Concrete(N(2))),Value(va''))),
 				 (Lab("j"),Condition(Value(vb''),Value(Concrete(N(2))),Value(Concrete(N(3))))),
 				 (Lab("k"),Value(Concrete(B(true))))]),
-		 PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y"))),(Lab("k"),PVal(B(true)))]),
-		 BoolExpr(LESS,Variable(Var("x")),Variable(Var("y")))),[]));
+		 [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y"))),(Lab("k"),PVal(B(true)))]),
+		   BoolExpr(LESS,Variable(Var("x")),Variable(Var("y"))))]),[]));
 (* Bool, [''b->bool, ''a->int] *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Record([(Lab("i"),ArithExpr(PLUS,Value(Concrete(N(2))),Value(va''))),
 				 (Lab("j"),Condition(Value(vb''),Value(Concrete(N(2))),Value(Concrete(N(3))))),
 				 (Lab("k"),Value(Concrete(B(true))))]),
-		 PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
-		 BoolExpr(LESS,Variable(Var("x")),Variable(Var("y")))),[]));
+		 [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		   BoolExpr(LESS,Variable(Var("x")),Variable(Var("y"))))]),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va'),
-		 PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
-		 BoolExpr(LESS,Variable(Var("x")),Variable(Var("y")))),[]));
+		 [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		   BoolExpr(LESS,Variable(Var("x")),Variable(Var("y"))))]),[]));
 (* Bool, [ 'a35 -> '''a36, 'a34 -> '''a36, 'a -> {i:'a34, j:'a35} ] *)
 		 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va'),
-		 PRecord([]),
-		 Value(Concrete(N(2)))),[]));
+		 [(PRecord([]),
+		   Value(Concrete(N(2))))]),[]));
 (* Int, ['a->{}] *)
 		 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va''),
-		 PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
-		 BoolExpr(EQ,Variable(Var("x")),Variable(Var("y")))),[]));
+		 [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		   BoolExpr(EQ,Variable(Var("x")),Variable(Var("y"))))]),[]));
 (* Bool, [ ''a38 -> ''a39, ''a37 -> ''a39, ''a -> {i:''a37, j:''a38} ] *)
 		 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va'''),
-		 PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
-		 BoolExpr(EQ,Variable(Var("x")),Variable(Var("y")))),[]));
+		 [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		   BoolExpr(EQ,Variable(Var("x")),Variable(Var("y"))))]),[]));
 (* FAIL *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(va'),
-		 PRecord([(Lab("i"),PWildcard)]),
-		 Value(Concrete(N(2)))),[]));
+		 [(PRecord([(Lab("i"),PWildcard)]),
+		   Value(Concrete(N(2))))]),[]));
 (* Int, ['a->{i:'a40} ] *)
 
 prettyPrintTypeOf(typeofexpr(
 	Case(Value(VRecord([(Lab("i"),Concrete(N(2))),(Lab("j"),Concrete(B(false))),(Lab("a"),Concrete(N(3))),(Lab("k"),Concrete(N(5)))])),
-		 PRecord([(Lab("a"),PVal(N(3))),(Lab("k"),PVar(Var("y"))),(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("z")))]),
-		 Condition(Variable(Var("z")),Variable(Var("x")),Variable(Var("y")))),[]));
+		 [(PRecord([(Lab("a"),PVal(N(3))),(Lab("k"),PVar(Var("y"))),(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("z")))]),
+		   Condition(Variable(Var("z")),Variable(Var("x")),Variable(Var("y"))))]),[]));
 (* Int *)
 
 
@@ -513,34 +513,34 @@ prettyPrintTypeOf(typeofexpr(Record([
 
 prettyPrintTypeOf(typeofexpr(Case(
 	Value(va'),
-	PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
-	Case(
-		Value(VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(N(4)))])),
-		PRecord([(Lab("2"),PVar(Var("x"))),(Lab("1"),PVar(Var("y")))]),
-		ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),[]));
+	[(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
+	  Case(
+		  Value(VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(N(4)))])),
+		  [(PRecord([(Lab("2"),PVar(Var("x"))),(Lab("1"),PVar(Var("y")))]),
+		    ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))]))]),[]));
 (* Int, ['a->{a:'a0,b:'a1}] *)
 
 
 prettyPrintTypeOf(typeofexpr(Case(
 	Value(va'),
-	PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
-	ArithExpr(PLUS,Variable(Var("x")),
-		Case(Value(VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(N(4)))])),
-			 PRecord([(Lab("2"),PVar(Var("x"))),(Lab("1"),PVar(Var("y")))]),
-			 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))),[]));
+	[(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
+	  ArithExpr(PLUS,Variable(Var("x")),
+		  Case(Value(VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(N(4)))])),
+			   [(PRecord([(Lab("2"),PVar(Var("x"))),(Lab("1"),PVar(Var("y")))]),
+			     ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])))]),[]));
 (* Int, ['a->{a:'a0,b:'a1}, 'a0->int] *)
 
 prettyPrintTypeOf(typeofexpr(Case(
 	Value(va'),
-	PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
-	BoolExpr(EQ,
-		BoolExpr(EQ,
-			ArithExpr(PLUS,Variable(Var("x")),
-				Case(Value(VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(N(4))),(Lab("3"),Concrete(B(false)))])),
-					 PRecord([(Lab("3"),PVal(B(false))),(Lab("2"),PVar(Var("x"))),(Lab("1"),PVar(Var("y")))]),
-					 ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),
+	[(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
+	  BoolExpr(EQ,
+		  BoolExpr(EQ,
+			  ArithExpr(PLUS,Variable(Var("x")),
+				  Case(Value(VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(N(4))),(Lab("3"),Concrete(B(false)))])),
+					   [(PRecord([(Lab("3"),PVal(B(false))),(Lab("2"),PVar(Var("x"))),(Lab("1"),PVar(Var("y")))]),
+					     ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])),
 		Value(Concrete(N(3)))),
-	Variable(Var("y")))),[]));
+	Variable(Var("y"))))]),[]));
 (* Bool, ['a1->bool, 'a0->int, 'a->{a:'a0,b:'a1}] *)
 			
 
@@ -578,23 +578,23 @@ prettyPrintTypeOf(typeof(Fun(Var("x"),Int,
 prettyPrintTypeOf(typeof(
 	Fun(Var("x"),TRecord([(Lab("a"),Int),(Lab("b"),Int)]),
 		 Case(Variable(Var("x")),
-			  PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
-			  ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),[]));
+			  [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
+			    ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])),[]));
 (* {a:int,b:int} -> int *)
 
 prettyPrintTypeOf(typeof(
 	Fun(Var("x"),TRecord([(Lab("a"),Int),(Lab("b"),Int)]),
 		 Case(Variable(Var("x")),
-			  PRecord([(Lab("a"),PVar(Var("x"))),(Lab("c"),PVar(Var("y")))]),
-			  ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))),[]));
+			  [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("c"),PVar(Var("y")))]),
+			    ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])),[]));
 (* FAIL*)
 
 prettyPrintTypeOf(typeof(
 	Fun(Var("x"),TRecord([(Lab("1"),TRecord([(Lab("a"),Int),(Lab("b"),Int)])),
 						  (Lab("2"),TRecord([(Lab("a"),Int),(Lab("b"),Int)]))]),
 		 Case(Variable(Var("x")),
-		      PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
-			  BoolExpr(EQ,Variable(Var("x")),Variable(Var("y"))))),[]));
+		      [(PRecord([(Lab("1"),PVar(Var("x"))),(Lab("2"),PVar(Var("y")))]),
+			    BoolExpr(EQ,Variable(Var("x")),Variable(Var("y"))))])),[]));
 (* {1:{a:int, b:int}, 2:{a:int, b:int}} -> bool *)
 
 prettyPrintTypeOf(typeof(
@@ -603,13 +603,13 @@ prettyPrintTypeOf(typeof(
 		 Value(Fun(Var("y"),TRecord([(Lab("1"),TRecord([(Lab("a"),a'),(Lab("b"),a'')])),
 									 (Lab("2"),a''')]),
 			Case(Variable(Var("x")),
-			     PRecord([(Lab("1"),PVar(Var("a"))),(Lab("2"),PVar(Var("x")))]),
-				 Condition(BoolExpr(LESS,Variable(Var("x")),Value(Concrete(R(2.0)))),
-						   BoolExpr(EQ,Variable(Var("a")),
-						               Value(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(N(3)))]))),
-						   BoolExpr(EQ,Variable(Var("y")),
-						               Value(VRecord([(Lab("1"),VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))])),
-									                  (Lab("2"),Concrete(N(2)))])))))))),[]));
+			     [(PRecord([(Lab("1"),PVar(Var("a"))),(Lab("2"),PVar(Var("x")))]),
+				   Condition(BoolExpr(LESS,Variable(Var("x")),Value(Concrete(R(2.0)))),
+						     BoolExpr(EQ,Variable(Var("a")),
+						                 Value(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(N(3)))]))),
+						     BoolExpr(EQ,Variable(Var("y")),
+						                 Value(VRecord([(Lab("1"),VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))])),
+									                    (Lab("2"),Concrete(N(2)))])))))])))),[]));
 (* {1:{a:int,b:bool},2:real} -> {1:{a:int,b:bool},2:int} -> bool
  [ '''a -> int, ''a -> bool, 'a -> int ] *)
 	
@@ -622,19 +622,19 @@ prettyPrintTypeOf(typeofexpr(App(
 	Value(Fun(Var("x"),TRecord([(Lab("i"),TRecord([(Lab("2"),Bool)])),(Lab("j"),Real),(Lab("k"),TFun(Int,Real))]),
 		  Value(Fun(Var("y"),TRecord([(Lab("i"),TRecord([(Lab("1"),a'),(Lab("2"),a'')])),(Lab("j"),b')]),
 			Case(Variable(Var("x")),
-				 PRecord([(Lab("j"),PVar(Var("x"))),(Lab("i"),PVar(Var("a"))),(Lab("k"),PVar(Var("b")))]),
-				 Case(Variable(Var("y")),
-					  PRecord([(Lab("i"),PVar(Var("xx"))),(Lab("j"),PVar(Var("yy")))]),
-					  Condition(BoolExpr(LESS,ArithExpr(PLUS,Variable(Var("x")),App(Variable(Var("yy")),Value(Concrete(R(3.0))))),
-											  ArithExpr(PLUS,Value(Concrete(R(2.0))),App(Variable(Var("b")),Value(Concrete(N(2)))))),
-							    BoolExpr(EQ,Variable(Var("a")), Value(VRecord([(Lab("2"),Concrete(B(true)))]))),
-							    BoolExpr(EQ,Variable(Var("xx")),Value(VRecord([(Lab("1"),Concrete(N(1))),(Lab("2"),Concrete(B(false)))])))))))))),
+				 [(PRecord([(Lab("j"),PVar(Var("x"))),(Lab("i"),PVar(Var("a"))),(Lab("k"),PVar(Var("b")))]),
+				   Case(Variable(Var("y")),
+					  [(PRecord([(Lab("i"),PVar(Var("xx"))),(Lab("j"),PVar(Var("yy")))]),
+					    Condition(BoolExpr(LESS,ArithExpr(PLUS,Variable(Var("x")),App(Variable(Var("yy")),Value(Concrete(R(3.0))))),
+											    ArithExpr(PLUS,Value(Concrete(R(2.0))),App(Variable(Var("b")),Value(Concrete(N(2)))))),
+							      BoolExpr(EQ,Variable(Var("a")), Value(VRecord([(Lab("2"),Concrete(B(true)))]))),
+							      BoolExpr(EQ,Variable(Var("xx")),Value(VRecord([(Lab("1"),Concrete(N(1))),(Lab("2"),Concrete(B(false)))])))))]))]))))),
 	Record([(Lab("k"),Condition(Value(Concrete(B(true))),Value(Fun(Var("x"),Int,Value(Concrete(R(2.0))))),
 														 Value(Fun(Var("y"),Int,Value(Concrete(R(2.0))))))),
 		    (Lab("i"),Value(VRecord([(Lab("2"),Concrete(B(false)))]))),
 			(Lab("j"),ArithExpr(PLUS,Value(Concrete(R(2.0))),Value(Concrete(R(3.0)))))])),[]));
 (* (fn x:{i:{2:bool},j:real,k:(int->real)} =>
-	fn y:{i:{1:'a,2:''a},j:'''a} =>
+	fn y:{i:{1:'a,2:''a},j:'b} =>
 		case x of {j=x,i=a,k=b} ->
 			case y of {i=xx,j=yy} ->
 				if (x + (yy 3.0)) < (2.0 + (b 2))
@@ -647,7 +647,7 @@ prettyPrintTypeOf(typeofexpr(App(
    {i:{1:int, 2:bool}, j:(real -> real)} -> bool
    [ ''a -> bool, 'a -> int, 'a56 -> real, 'a57 -> real, 'a58 -> 'a56, 'b -> ('a57 -> 'a58) ]
 *)
-   
+     
 prettyPrintTypeOf(typeofexpr(App(
 	Value(va'),Value(Concrete(N(2)))),[]));
 (* 'a59, [ 'a60 -> int, 'a61 -> 'a59, 'a -> ('a60 -> 'a61) ] *)
@@ -688,11 +688,141 @@ prettyPrintTypeOf(typeofexpr(App(
 prettyPrintTypeOf(typeofexpr(App(
 	Value(va'),Case(Value(VRecord([(Lab("a"),Concrete(N(1))),(Lab("c"),Concrete(B(true))),
 								   (Lab("b"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))])),
-					PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PWildcard),(Lab("c"),PVar(Var("y")))]),
-				    BoolExpr(EQ,(BoolExpr(EQ,Variable(Var("x")),Value(Concrete(N(2))))),Variable(Var("y"))))),[]));
+					[(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PWildcard),(Lab("c"),PVar(Var("y")))]),
+				      BoolExpr(EQ,(BoolExpr(EQ,Variable(Var("x")),Value(Concrete(N(2))))),Variable(Var("y"))))])),[]));
 (* 'a72, [ 'a73 -> bool, 'a74 -> 'a72, 'a -> ('a73 -> 'a74) ] *)
 
 prettyPrintTypeOf(typeofexpr(Record([
 	(Lab("a"),ArithExpr(PLUS,Value(va'),Value(vb''))),
 	(Lab("b"),BoolExpr(EQ,Value(va'),Value(Concrete(N(2)))))]),[]));
 (* {a:int,b:bool}, [''b->int,'a->int] *)
+
+prettyPrintTypeOf(typeofexpr(Case(
+	Value(Concrete(N(3))),
+	[(PVal(N(1)),
+	  Case(Value(Concrete(B(true))),
+		   [(PVal(B(true)),Value(Concrete(N(1)))),
+		    (PVal(B(false)),Value(Concrete(N(2))))])),
+	 (PVal(N(2)),
+	  Case(Value(VRecord([(Lab("i"),Concrete(N(1))),(Lab("j"),Concrete(N(2)))])),
+	       [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		     ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])),
+	 (PVar(Var("x")),
+	  Case(Variable(Var("x")),
+	       [(PVal(N(1)),Value(Concrete(N(2)))),
+		    (PVar(Var("x")),Variable(Var("x")))]))]),[]));
+(* case 3 of 1 -> case true of true -> 1 | false -> 2
+		   | 2 -> case {i=1,j=2} of {i=x,j=y} -> x+y
+		   | x -> case x of 1 -> 2 | x -> x
+  =>
+  Int *)
+  
+prettyPrintTypeOf(typeofexpr(Value(Fun(Var("x"),Int,Case(
+	Variable(Var("x")),
+	[(PVal(N(1)),
+	  Case(Value(Concrete(B(true))),
+		   [(PVal(B(true)),Value(Concrete(N(1)))),
+		    (PVal(B(false)),Value(Concrete(N(2))))])),
+	 (PVal(N(2)),
+	  Case(Value(VRecord([(Lab("i"),Concrete(N(1))),(Lab("j"),Concrete(N(2)))])),
+	       [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		     ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])),
+	 (PVar(Var("x")),
+	  Case(Variable(Var("x")),
+	       [(PVal(N(1)),Value(Concrete(N(2)))),
+		    (PVar(Var("x")),Variable(Var("x")))]))]))),[]));
+(* fn x:int => case x of 1 -> case true of true -> 1 | false -> 2
+					   | 2 -> case {i=1,j=2} of {i=x,j=y} -> x+y
+					   | x -> case x of 1 -> 2 | x -> x
+  =>
+  Int->Int *)
+  
+prettyPrintTypeOf(typeofexpr(Value(Fun(Var("x"),Int,Case(
+	Variable(Var("x")),
+	[(PVal(N(1)),
+	  Case(Value(Concrete(B(true))),
+		   [(PVal(B(true)),Value(Concrete(N(1)))),
+		    (PVal(B(false)),Value(Concrete(N(2))))])),
+	 (PVal(N(2)),
+	  Case(Value(VRecord([(Lab("i"),Concrete(N(1))),(Lab("j"),Concrete(N(2)))])),
+	       [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		     ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])),
+	 (PVar(Var("x")),
+	  Case(Variable(Var("x")),
+	       [(PVal(N(1)),Value(Concrete(N(2)))),
+		    (PVar(Var("x")),
+			 App(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Value(Concrete(N(10)))))),
+			     Variable(Var("x"))))]))]))),[]));
+(* fn x:int => case x of 1 -> case true of true -> 1 | false -> 2
+					   | 2 -> case {i=1,j=2} of {i=x,j=y} -> x+y
+					   | x -> case x of 1 -> 2 | x -> (fn x:int=>x*10) x
+  =>
+  Int->Int *)
+ 
+prettyPrintTypeOf(typeofexpr(Value(Fun(Var("x"),Int,Case(
+	Variable(Var("x")),
+	[(PVal(N(1)),
+	  Case(Value(Concrete(B(true))),
+		   [(PVal(B(true)),Value(Concrete(N(1)))),
+		    (PVal(B(false)),Value(Concrete(N(2))))])),
+	 (PVal(N(2)),
+	  Case(Value(VRecord([(Lab("i"),Concrete(N(1))),(Lab("j"),Concrete(N(2)))])),
+	       [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		     ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])),
+	 (PVar(Var("x")),
+	  Case(Variable(Var("x")),
+	       [(PVal(N(1)),Value(Concrete(R(2.0)))),
+		    (PVar(Var("x")),
+			 App(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Value(Concrete(N(10)))))),
+			     Variable(Var("x"))))]))]))),[]));
+(* fn x:int => case x of 1 -> case true of true -> 1 | false -> 2
+					   | 2 -> case {i=1,j=2} of {i=x,j=y} -> x+y
+					   | x -> case x of 1 -> 2.0 | x -> (fn x:int=>x*10) x
+  =>
+  'a88 *)	 
+			 
+prettyPrintTypeOf(typeofexpr(Value(Fun(Var("x"),Real,Case(
+	Variable(Var("x")),
+	[(PVal(N(1)),
+	  Case(Value(Concrete(B(true))),
+		   [(PVal(B(true)),Value(Concrete(N(1)))),
+		    (PVal(B(false)),Value(Concrete(N(2))))])),
+	 (PVal(N(2)),
+	  Case(Value(VRecord([(Lab("i"),Concrete(N(1))),(Lab("j"),Concrete(N(2)))])),
+	       [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		     ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])),
+	 (PVar(Var("x")),
+	  Case(Variable(Var("x")),
+	       [(PVal(N(1)),Value(Concrete(N(2)))),
+		    (PVar(Var("x")),
+			 App(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Value(Concrete(N(10)))))),
+			     Variable(Var("x"))))]))]))),[]));
+(* fn x:real => case x of 1 -> case true of true -> 1 | false -> 2
+					    | 2 -> case {i=1,j=2} of {i=x,j=y} -> x+y
+					    | x -> case x of 1 -> 2 | x -> (fn x:int=>x*10) x
+  =>
+  FAIL *) 
+  
+prettyPrintTypeOf(typeofexpr(Value(Fun(Var("x"),Int,Case(
+	Variable(Var("x")),
+	[(PVal(N(1)),
+	  Case(Value(Concrete(B(true))),
+		   [(PVal(B(true)),Value(Concrete(N(1)))),
+		    (PVal(B(false)),Value(Concrete(N(2))))])),
+	 (PVal(N(2)),
+	  Case(Value(VRecord([(Lab("i"),Concrete(N(1))),(Lab("j"),Concrete(N(2)))])),
+	       [(PRecord([(Lab("i"),PVar(Var("x"))),(Lab("j"),PVar(Var("y")))]),
+		     ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))])),
+	 (PVar(Var("x")),
+	  Case(Variable(Var("x")),
+	       [(PVal(N(1)),Value(Concrete(N(2)))),
+		    (PVar(Var("x")),
+			 App(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Value(Concrete(N(10)))))),
+			     Variable(Var("x"))))])),
+	 (PVal(B(true)),Value(Concrete(N(5))))]))),[]));
+(* fn x:int => case x of 1 -> case true of true -> 1 | false -> 2
+					   | 2 -> case {i=1,j=2} of {i=x,j=y} -> x+y
+					   | x -> case x of 1 -> 2 | x -> (fn x:int=>x*10) x
+					   | true -> 5
+  =>
+  FAIL *) 

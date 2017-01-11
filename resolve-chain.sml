@@ -8,11 +8,16 @@ fun resolveChainSigma(a,sigma:valSub) =
 			| Variable(_) => e
 			| ArithExpr(oper,e1,e2) => ArithExpr(oper,resolveExpr(e1),resolveExpr(e2))
 			| BoolExpr(oper,e1,e2)  => BoolExpr(oper,resolveExpr(e1),resolveExpr(e2))
-			(* no need to resolve pattern *)
-			| Case(e1,p,e2)  		=> Case(resolveExpr(e1),p,resolveExpr(e2))
+			| Case(e1,patExprList)  => Case(resolveExpr(e1),resolvePatExprList(patExprList))
 			| Condition(e1,e2,e3)	=> Condition(resolveExpr(e1),resolveExpr(e2),resolveExpr(e3))
 			| App(e1,e2) 			=> App(resolveExpr(e1),resolveExpr(e2))
 			| Record(r)				=> Record(resolveERecord(r)))
+	
+		and resolvePatExprList(l) = (case l of 
+		
+			(* no need to resolve pattern, only the expression *)
+			  [] 			=> []
+			| (pat1,e1)::l1 => (pat1,resolveExpr(e1))::resolvePatExprList(l1))
 	
 		and resolveERecord(r) = (case r of 
 		
@@ -32,11 +37,10 @@ fun resolveChainSigma(a,sigma:valSub) =
 				else VHole(hole)
 			
 			| BinaryOpHole(oper,v1,v2) => VHole(BinaryOpHole(oper,resolveVal(v1),resolveVal(v2)))
-			| ConditionHole(v,e1,e2) => VHole(ConditionHole(resolveVal(v),resolveExpr(e1),resolveExpr(e2)))
-			(* no need to resolve pattern *)
-			| CaseHole(v,pat,e) => VHole(CaseHole(resolveVal(v),pat,resolveExpr(e)))
-			| AppHole(v1,v2) => VHole(AppHole(resolveVal(v1),resolveVal(v2)))
-			| RecordHole(r) => VHole(RecordHole(resolveVRecord(r))))
+			| ConditionHole(v,e1,e2)   => VHole(ConditionHole(resolveVal(v),resolveExpr(e1),resolveExpr(e2)))
+			| CaseHole(v,patExprList)  => VHole(CaseHole(resolveVal(v),resolvePatExprList(patExprList)))
+			| AppHole(v1,v2)           => VHole(AppHole(resolveVal(v1),resolveVal(v2)))
+			| RecordHole(r)            => VHole(RecordHole(resolveVRecord(r))))
 			
 		and resolveVal(v) = (case v of 
 			

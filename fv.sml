@@ -1,6 +1,6 @@
 (* Returns a set containing the free variables in a pattern 
    Cannot make local to fv as is used in finding out free variables
-   of a pattern to make substitutions capture avoiding *)
+   of a pattern to make substitutions in case expressions capture avoiding *)
 fun fvPat(pat) = 
 
 	let fun fvPRecord(r) = (case r of 
@@ -25,10 +25,15 @@ fun fv ([]) = []
 			| Variable(x) => [x]
 			| ArithExpr(_,e1,e2) => union(fvExpr(e1),fvExpr(e2))
 			| BoolExpr (_,e1,e2) => union(fvExpr(e1),fvExpr(e2))
-			| Case(e1,pat,e2) => union(fvExpr(e1),remove(fvExpr(e2),fvPat(pat)))
+			| Case(e1,patExprList) => union(fvExpr(e1),fvPatExprList(patExprList))
 			| Condition(e1,e2,e3) => union(union(fvExpr(e1),fvExpr(e2)),fvExpr(e3))
 			| App(e1,e2) => union(fvExpr(e1),fvExpr(e2))
 			| Record(r) => fvERecord(r))
+		
+		and fvPatExprList(l) = (case l of 
+		
+			  [] => []
+			| (pat1,e1)::l1 => union(remove(fvExpr(e1),fvPat(pat1)),fvPatExprList(l1)))
 		
 		and fvVal(v) = (case v of 
 
@@ -42,7 +47,7 @@ fun fv ([]) = []
 			  SimpleHole(_) => []
 			| BinaryOpHole(_,v1,v2) => union(fvVal(v1),fvVal(v2))
 			| ConditionHole(v1,e1,e2) => union(union(fvVal(v1),fvExpr(e1)),fvExpr(e2))
-			| CaseHole(v1,pat,e) => union(fvVal(v1),remove(fvExpr(e),fvPat(pat)))
+			| CaseHole(v1,patExprList) => union(fvVal(v1),fvPatExprList(patExprList))
 			| AppHole(v1,v2) => union(fvVal(v1),fvVal(v2))
 			| RecordHole(r) => fvVRecord(r))
 		
