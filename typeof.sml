@@ -429,4 +429,7 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 		
 	| (_,theta1) => (NONE,theta1))
 	
-| 	typeofexpr(Record(l),theta) = typeofERecord(l,theta);
+| 	typeofexpr(Record(l),theta) = typeofERecord(l,theta)
+
+	(* Don't check type of e1 is unifiable to type t: done in narrow *)
+| 	typeofexpr(Let(x,t,_,e2),theta) = typeofexpr(substitute(e2, [(x,Value(gen(t,theta)))]),theta);

@@ -164,14 +164,12 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 	| (VHole(BinaryOpHole(ArithOper(oper),v1,v2)),t) => (case narrowExpr(ArithExpr(oper,Value(v1),Value(v2)),t,sigma,theta,gamma) of 
 	    (* Either, or both, of the arguments must be value holes *)
 		  Config(Expression(ArithExpr(oper,Value(VHole(v1)),Value(v2))),sigma1,theta1) => Config(Expression(Value(VHole(BinaryOpHole(ArithOper(oper),VHole(v1),v2)))),sigma1,theta1)
-		| Config(Expression(ArithExpr(oper,Value(VHole(v1)),Value(VHole(v2)))),sigma1,theta1) => Config(Expression(Value(VHole(BinaryOpHole(ArithOper(oper),VHole(v1),VHole(v2))))),sigma1,theta1)
 		| Config(Expression(ArithExpr(oper,Value(v1),Value(VHole(v2)))),sigma1,theta1) => Config(Expression(Value(VHole(BinaryOpHole(ArithOper(oper),v1,VHole(v2))))),sigma1,theta1)
 		| c => c)
 		
 	| (VHole(BinaryOpHole(BoolOper(oper),v1,v2)),t) => (case narrowExpr(BoolExpr(oper,Value(v1),Value(v2)),t,sigma,theta,gamma) of 
 		(* Either, or both, of the arguments must be value holes *)
 		  Config(Expression(BoolExpr(oper,Value(VHole(v1)),Value(v2))),sigma1,theta1) => Config(Expression(Value(VHole(BinaryOpHole(BoolOper(oper),VHole(v1),v2)))),sigma1,theta1)
-		| Config(Expression(BoolExpr(oper,Value(VHole(v1)),Value(VHole(v2)))),sigma1,theta1) => Config(Expression(Value(VHole(BinaryOpHole(BoolOper(oper),VHole(v1),VHole(v2))))),sigma1,theta1)
 		| Config(Expression(BoolExpr(oper,Value(v1),Value(VHole(v2)))),sigma1,theta1) => Config(Expression(Value(VHole(BinaryOpHole(BoolOper(oper),v1,VHole(v2))))),sigma1,theta1)
 		| c => c)
 	
@@ -187,8 +185,7 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 	   
 	| (VHole(AppHole(v1,v2)),t) => (case narrowExpr(App(Value(v1),Value(v2)),t,sigma,theta,gamma) of
 		(* Either, or both, the values in the application must be a value hole *)
-		  Config(Expression(App(Value(VHole(v1)),Value(VHole(v2)))),sigma1,theta1) => Config(Expression(Value(VHole(AppHole(VHole(v1),VHole(v2))))),sigma1,theta1)
-		| Config(Expression(App(Value(v1),Value(VHole(v2)))),sigma1,theta1) => Config(Expression(Value(VHole(AppHole(v1,VHole(v2))))),sigma1,theta1)
+		  Config(Expression(App(Value(v1),Value(VHole(v2)))),sigma1,theta1) => Config(Expression(Value(VHole(AppHole(v1,VHole(v2))))),sigma1,theta1)
 		| Config(Expression(App(Value(VHole(v1)),Value(v2))),sigma1,theta1) => Config(Expression(Value(VHole(AppHole(VHole(v1),v2)))),sigma1,theta1)
 		| c => c)
 	
@@ -633,6 +630,40 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 				| Config(Expression(e2narrow),sigma3,theta3) => Config(Expression(App(e1narrow,e2narrow)),sigma3,theta3)))
 		
 		end
+		
+	| (Let(x,tX,e1,e2),t) => 
+	
+		(* Make sure capture avoiding *)
+		if (element(Substitution.domain(gamma),x) orelse element(fv(Substitution.range(gamma)),x))
+		
+		(* If not, alpha-variant variable 'x' and expression 'e2', NOT expression 'e1'
+		   Must pass same counter to 'x' and 'e2' *)
+		then let val counter = getCounterAndUpdate()
+			 in narrowExpr(Let(alphaVariable(x,counter,[x]),tX,e1,alphaExpr(e2,counter,[x])),t,sigma,theta,gamma) end
+		
+		else (case typeofexpr(substitute(e1,gamma),theta) of 
+		
+			  (NONE,_) => Config(Stuck,sigma,theta)
+			| (SOME tE1,theta1) => (case unify([tE1,tX],theta1) of 
+			
+				  NONE => Config(Stuck,sigma,theta)
+				| SOME theta2 => 
+				
+					(* To avoid free variable exception, 
+					   add to gamma an arbitrary mapping for variable x, using gen instead of substituting *)
+					let val tX = resolveChainTheta(tX,theta2)
+					    val gamma1 = Substitution.union(gamma,x,Value(gen(tX,theta2)))
+						
+					(* Don't use gamma1 in narrowing of e1 *)
+					in (case narrowExpr(e1,tX,sigma,theta2,gamma) of 
+					
+						  Config(Stuck,_,_) => Config(Stuck,sigma,theta)
+						| Config(Expression(e1narrow),sigma1,theta1) => (case narrowExpr(e2,t,sigma1,theta1,gamma1) of 
+					
+							  Config(Stuck,_,_) => Config(Stuck,sigma,theta)
+							| Config(Expression(e2narrow),sigma1,theta1) => Config(Expression(Let(x,tX,e1narrow,e2narrow)),sigma1,theta1)))
+							
+					end))
 		
 	| _ => Config(Stuck,sigma,theta))
 	

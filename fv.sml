@@ -28,7 +28,8 @@ fun fv ([]) = []
 			| Case(e1,patExprList) => union(fvExpr(e1),fvPatExprList(patExprList))
 			| Condition(e1,e2,e3) => union(union(fvExpr(e1),fvExpr(e2)),fvExpr(e3))
 			| App(e1,e2) => union(fvExpr(e1),fvExpr(e2))
-			| Record(r) => fvERecord(r))
+			| Record(r) => fvERecord(r)
+			| Let(x,_,e1,e2) => union(remove(fvExpr(e2),[x]),fvExpr(e1)))
 		
 		and fvPatExprList(l) = (case l of 
 		

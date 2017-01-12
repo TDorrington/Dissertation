@@ -8,7 +8,6 @@ Substitution.contains(5,l);  (* false *)
 val l = Substitution.union(l,5,"e"); (* [(5,"e"),(1,"a"),(2,"b"),(3,"c"),(4,"d")] *)
 Substitution.get(1,l);		 (* "a" *)
 Substitution.get(5,l);       (* "e" *)
-val l = Substitution.update(l,5,"f");(* [(5,"f"),(1,"a"),(2,"b"),(3,"c"),(4,"d")] *)
 Substitution.get(5,l);		 (* "f" *)
 Substitution.domain(l);		 (* [5,1,2,3,4] *)
 Substitution.range(l);		 (* ["f","a","b","c","d"] *)
@@ -245,6 +244,19 @@ fv[
 						    	(Lab("j"),Record([(Lab("1"),Variable(Var("a"))),(Lab("2"),Variable(Var("b")))]))])))),
 		Variable(Var("z")))];
 (* [ z, a, y, b] *)
+
+fv[Let(Var("x"),Int,ArithExpr(PLUS,Variable(Var("a")),Value(Concrete(N(10)))),
+	   ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))];
+(* [a] *)
+
+fv[Let(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("z"))),
+	   ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))];
+(* [x,z] *)
+
+fv[Let(Var("x"),Int,Let(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("a")),Variable(Var("b")))),Variable(Var("x"))),
+   Let(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("c"))),
+	   ArithExpr(PLUS,Variable(Var("x")),Variable(Var("d")))))];
+(* [a,b,c,d,x] *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR SUBSTITUTE AND ALPHAVARIANT *)
@@ -489,6 +501,18 @@ prettyPrintE(substitute(Value(Fun(Var("x"),Int,Case(
 						   | {2=y24} -> x21
 						   | {3=a} -> 6*5
 *)
+
+prettyPrintE(substitute(Let(Var("x"),Int,
+	ArithExpr(PLUS,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),Variable(Var("z"))),
+	ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("t")),Variable(Var("a"))))),sub));
+(* let x25:int = 3+4+5 in x25+6+a *)
+
+prettyPrintE(substitute(Let(Var("x"),Int,
+	Let(Var("y"),Int,ArithExpr(PLUS,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))),Variable(Var("z"))),
+					 ArithExpr(PLUS,Variable(Var("y")),Variable(Var("x")))),
+	Let(Var("z"),Int,ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("t")),Variable(Var("a")))),
+					 ArithExpr(PLUS,Variable(Var("z")),Variable(Var("t"))))),sub));
+(* let x26:int = (let y27:int=3+4+5 in y27+3) in (let z28:int = x26+6+a in z28+6) *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR GEN *)

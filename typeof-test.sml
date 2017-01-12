@@ -826,3 +826,29 @@ prettyPrintTypeOf(typeofexpr(Value(Fun(Var("x"),Int,Case(
 					   | true -> 5
   =>
   FAIL *) 
+  
+prettyPrintTypeOf(typeofexpr(
+	Let(Var("x"),Int,Value(Concrete(N(1))),
+		ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))),[]));
+(* int *)
+	
+prettyPrintTypeOf(typeofexpr(
+	Let(Var("x"),Bool,Value(Concrete(B(true))),
+		Condition(Variable(Var("x")),
+				  Let(Var("y"),TFun(Int,TFun(Int,Int)),Value(Fun(Var("x"),Int,Value(Fun(Var("y"),Int,Variable(Var("x")))))),
+					  App(Variable(Var("y")),Value(Concrete(N(1))))),
+				  Let(Var("z"),TFun(Real,TFun(Int,Int)),Value(Fun(Var("x"),Real,Value(Fun(Var("y"),Int,Variable(Var("y")))))),
+				      App(Variable(Var("z")),Value(Concrete(R(1.0))))))),[]));
+(* int -> int *)
+
+prettyPrintTypeOf(typeofexpr(
+Case(Record([(Lab("a"),Let(Var("x"),Int,Value(Concrete(N(10))),
+						   Value(Fun(Var("y"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))))),
+			 (Lab("b"),Value(Fun(Var("z"),Bool,Condition(Variable(Var("z")),Value(Concrete(N(10))),Value(Concrete(N(20))))))),
+			 (Lab("c"),Value(Concrete(N(1))))]),
+   [(PRecord([(Lab("c"),PVal(N(0))),(Lab("a"),PWildcard),(Lab("b"),PVar(Var("x")))]),Value(Concrete(N(10)))),
+    (PRecord([(Lab("a"),PVar(Var("x"))),(Lab("c"),PVar(Var("z"))),(Lab("b"),PVar(Var("y")))]),
+	 App(Variable(Var("x")),App(Variable(Var("y")),BoolExpr(EQ,Variable(Var("z")),Value(Concrete(N(1)))))))]),[]));
+(* case {a=let x:int = 10 in fn y:int => x+y end, b=fn z:bool => if z then 10 else 20,c=1}
+   of {c=0,a=_,b=x} -> 10
+   |  {a=x,c=z,b=y} -> x (y (z=1)) *)

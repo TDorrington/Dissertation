@@ -88,7 +88,9 @@ and prettyPrintExpression(Stuck) = "Stuck"
 		"if " ^ prettyPrintExpression(Expression(e1)) ^ " then  " ^ prettyPrintExpression(Expression(e2)) ^ " else " ^
 		prettyPrintExpression(Expression(e3))
 	| App(e1,e2) => "(" ^ prettyPrintExpression(Expression(e1)) ^ ") (" ^ prettyPrintExpression(Expression(e2)) ^ ")"
-	| Record(r) => "{" ^ prettyPrintERecord(r) ^ "}")
+	| Record(r) => "{" ^ prettyPrintERecord(r) ^ "}"
+	| Let(Var(s),t,e1,e2) => "let " ^ s ^ ":" ^ prettyPrintType(t) ^ " = " ^ prettyPrintExpression(Expression(e1))
+							   ^ " in " ^ prettyPrintExpression(Expression(e2)) ^ " end")
 	
 and prettyPrintERecord([]) = ""
 |	prettyPrintERecord([(Lab(s),e)]) = s ^ "=" ^ prettyPrintExpression(Expression(e))

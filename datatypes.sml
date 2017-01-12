@@ -53,6 +53,7 @@ datatype e =
 	| Condition of e * e * e
 	| App of e * e
 	| Record of e Record.dictionary	
+	| Let of var * t * e * e
 
 (* value hole datatype *)
 and valhole = 

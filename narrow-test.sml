@@ -923,5 +923,28 @@ Value(Fun(Var("x"),Int,
 				   | x269 -> case y of 2 -> 0 | _ -> 20
 				   | _ -> 1,
    [v['a]->1], ['a->int, 'b->(int->(int->int))] *)
-												 
+   
+prettyPrintConfig(narrowExpr(
+Let(Var("x"),TFun(Int,Int),Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x"))))),
+	Record([(Lab("a"),App(Variable(Var("x")),Value(Concrete(N(10))))),
+			(Lab("b"),App(Variable(Var("x")),Value(Concrete(N(5))))),
+			(Lab("c"),Let(Var("y"),Int,App(Variable(Var("x")),Value(Concrete(N(2)))),
+						  ArithExpr(TIMES,Variable(Var("y")),Variable(Var("y")))))])),
+TRecord([(Lab("a"),Int),(Lab("b"),Int),(Lab("c"),Int)]),[],[],[]));
+(* let x:(int->int) = (fn x:int => x*x)	in {a=x 10, b=x 5, c=let y = (x 2) in y*y end} end *)
+
+prettyPrintConfig(narrowExpr(
+Let(Var("x"),c',Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x"))))),
+	Let(Var("z"),d',Record([(Lab("a"),App(Variable(Var("x")),Value(vb'))),
+							(Lab("b"),App(Variable(Var("x")),Value(va'''))),
+							(Lab("c"),Let(Var("y"),Int,App(Variable(Var("x")),Value(vb'')),
+									  ArithExpr(TIMES,Variable(Var("y")),Variable(Var("y")))))]),
+		BoolExpr(EQ,Variable(Var("z")),Value(ve')))),
+a',[],[],[]));
+(* let x:(int -> int) = fn x:int => x * x in let z:{a:int, b:int, c:int} = {a=(x) (1), b=(x) (1), c=let y:int = (x) (1) in y * y end} in z = {a=1, b=1, c=1} end end,
+  [v['e] -> {a=1, b=1, c=1}, v[''b] -> 1, v['''a] -> 1, v['b] -> 1],
+  ['a315 -> int, 'a316 -> int, 'a317 -> int, 'e -> {a:'a315, b:'a316, c:'a317}, 'a -> bool, ''b -> int, '''a -> int, 
+   'b -> int, 'a306 -> int, 'a307 -> int, 'a308 -> int, 'd -> {a:'a306, b:'a307, c:'a308}, 'a304 -> int, 'a305 -> int,
+   'c -> ('a304 -> 'a305)] *)
+
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)  

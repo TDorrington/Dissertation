@@ -11,7 +11,8 @@ fun resolveChainSigma(a,sigma:valSub) =
 			| Case(e1,patExprList)  => Case(resolveExpr(e1),resolvePatExprList(patExprList))
 			| Condition(e1,e2,e3)	=> Condition(resolveExpr(e1),resolveExpr(e2),resolveExpr(e3))
 			| App(e1,e2) 			=> App(resolveExpr(e1),resolveExpr(e2))
-			| Record(r)				=> Record(resolveERecord(r)))
+			| Record(r)				=> Record(resolveERecord(r))
+			| Let(x,t,e1,e2)        => Let(x,t,resolveExpr(e1),resolveExpr(e2)))
 	
 		and resolvePatExprList(l) = (case l of 
 		

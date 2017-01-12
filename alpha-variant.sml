@@ -59,4 +59,5 @@ and alphaExpr(e,n,vars) = (case e of
 	| Case(e1,patExprList) => Case(alphaExpr(e1,n,vars),alphaPatExprList(patExprList,n,vars))
 	| Condition(e1,e2,e3) => Condition(alphaExpr(e1,n,vars),alphaExpr(e2,n,vars),alphaExpr(e3,n,vars))
 	| App(e1,e2) => App(alphaExpr(e1,n,vars),alphaExpr(e2,n,vars))
-	| Record(r) => Record(alphaERecord(r,n,vars)));
+	| Record(r) => Record(alphaERecord(r,n,vars))
+	| Let(x,t,e1,e2) => Let(alphaVariable(x,n,vars),t,alphaExpr(e1,n,vars),alphaExpr(e2,n,vars)));

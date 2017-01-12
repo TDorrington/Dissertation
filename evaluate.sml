@@ -403,7 +403,22 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 (* context-app-2 *)
 | 	evaluate (Config(Expression(App(e1,e2)),sigma,theta)) = (case evaluate(Config(Expression(e1),sigma,theta)) of
 
-	 Config(Expression(Value(v1)),sigma1,theta1) => evaluate(Config(Expression(App(Value(v1),e2)),sigma1,theta1))
+	  Config(Expression(Value(v1)),sigma1,theta1) => evaluate(Config(Expression(App(Value(v1),e2)),sigma1,theta1))
 
-	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1));
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+	
+(* Implements evaluation & type inference rules for let expressions with e1 a value *)
+(* i.e. implements rules (E-LET-GOOD) and (E-LET-BAD) *)
+|	evaluate (Config(Expression(Let(x,t,Value(v1),e2)),sigma,theta)) = (case evaluate(narrow(v1,t,sigma,theta,[])) of 
+
+	  Config(Expression(Value(v1narrow)),sigma1,theta1) => evaluate(Config(Expression(substitute(e2,[(x,Value(v1narrow))])),sigma1,theta1))
+	  
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+	
+(* context-let *)
+|	evaluate (Config(Expression(Let(x,t,e1,e2)),sigma,theta)) = (case evaluate(Config(Expression(e1),sigma,theta)) of 
+
+	  Config(Expression(Value(v1)),sigma1,theta1) => evaluate(Config(Expression(Let(x,t,Value(v1),e2)),sigma1,theta1))
+	 
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 		

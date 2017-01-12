@@ -59,7 +59,16 @@ fun substitute(a,[]) = a
 			| Case(e1,patExprList) => Case(substExpr(e1),substPatExprList(patExprList))
 			| Condition(e1,e2,e3) => Condition(substExpr(e1),substExpr(e2),substExpr(e3))
 			| App(e1,e2) => App(substExpr(e1),substExpr(e2))
-			| Record(r) => Record(substERecord(r)))
+			| Record(r) => Record(substERecord(r))
+			| Let(x,t,e1,e2) => 
+				(* must be capture avoiding *)
+				if (element(Substitution.domain(gamma),x) orelse element(fv(Substitution.range(gamma)),x))
+				(* If not, alpha-variant variable 'x' and expression 'e2', NOT expression 'e1'
+				   Must pass same counter to 'x' and 'e2' *)
+				then let val counter = getCounterAndUpdate()
+					 in substExpr(Let(alphaVariable(x,counter,[x]),t,e1,alphaExpr(e2,counter,[x]))) end
+				(* Otherwise substitute in expression e1 and e2 *)
+				else Let(x,t,substExpr(e1),substExpr(e2)))
 				
 	and substVariable(x) = if Substitution.contains(x,gamma)
 						   then Substitution.get(x,gamma)
