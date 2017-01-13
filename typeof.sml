@@ -403,16 +403,7 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 		
 |	typeofexpr(App(e1,e2),theta) = (case typeofexpr(e1,theta) of 
 
-	  (SOME (TFun(tA,tB)),theta1) => (case typeofexpr(e2,theta1) of 
-	
-			  (NONE,theta2) => (SOME tB,theta2)
-			  (* even in the case we cannot type t2, return same type tb as its already known *)
-			  
-			| (SOME tC,theta2) => 
-				(* even in the case not equal, return same type tb as its already known *)
-				if tA=tC 
-				then (SOME tB,theta2)
-				else (SOME tB,theta2))
+	  (SOME (TFun(tA,tB)),theta1) => (SOME tB,theta2)
 			
 	| (SOME (THole(TypeHole(TypeVar(a)))),theta1) => (case typeofexpr(e2,theta1) of 
 		
@@ -432,4 +423,8 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 | 	typeofexpr(Record(l),theta) = typeofERecord(l,theta)
 
 	(* Don't check type of e1 is unifiable to type t: done in narrow *)
-| 	typeofexpr(Let(x,t,_,e2),theta) = typeofexpr(substitute(e2, [(x,Value(gen(t,theta)))]),theta);
+| 	typeofexpr(Let(x,t,_,e2),theta) = typeofexpr(substitute(e2, [(x,Value(gen(t,theta)))]),theta)
+
+	(* c.f. typeofexpr(LetRec(x,TFun(t1,t2),Fun(y,t3,e1),e2),theta)
+	   Don't check type of e1 is unifiable to type t2, or that t3 is unifiable to t1; done in narrow *)
+|	typeofexpr(LetRec(x,t,_,e2),theta) = typeofexpr(substitute(e2, [(x,Value(gen(t,theta)))]),theta);

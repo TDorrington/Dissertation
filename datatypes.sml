@@ -54,6 +54,7 @@ datatype e =
 	| App of e * e
 	| Record of e Record.dictionary	
 	| Let of var * t * e * e
+	| LetRec of var * t * v * e (* t must be a function type, t1 -> t2, and v must be a function value *)
 
 (* value hole datatype *)
 and valhole = 

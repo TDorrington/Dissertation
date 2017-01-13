@@ -60,6 +60,7 @@ fun substitute(a,[]) = a
 			| Condition(e1,e2,e3) => Condition(substExpr(e1),substExpr(e2),substExpr(e3))
 			| App(e1,e2) => App(substExpr(e1),substExpr(e2))
 			| Record(r) => Record(substERecord(r))
+			
 			| Let(x,t,e1,e2) => 
 				(* must be capture avoiding *)
 				if (element(Substitution.domain(gamma),x) orelse element(fv(Substitution.range(gamma)),x))
@@ -68,7 +69,16 @@ fun substitute(a,[]) = a
 				then let val counter = getCounterAndUpdate()
 					 in substExpr(Let(alphaVariable(x,counter,[x]),t,e1,alphaExpr(e2,counter,[x]))) end
 				(* Otherwise substitute in expression e1 and e2 *)
-				else Let(x,t,substExpr(e1),substExpr(e2)))
+				else Let(x,t,substExpr(e1),substExpr(e2))
+				
+			| LetRec(x,t,v1,e2) =>
+				(* Must be (x part) capture avoiding 
+				   y binds in e1
+				   x binds in (fn y:T=>e1) and in e2 *)
+				if (element(Substitution.domain(gamma),x) orelse element(fv(Substitution.range(gamma)),x))
+				then substExpr(alphaExpr(e,getCounterAndUpdate(),[x]))
+				(* Making sure the y part is capture avoiding is done in substVal(v1) *)
+				else LetRec(x,t,substVal(v1),substExpr(e2)))
 				
 	and substVariable(x) = if Substitution.contains(x,gamma)
 						   then Substitution.get(x,gamma)

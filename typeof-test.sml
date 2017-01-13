@@ -852,3 +852,4 @@ Case(Record([(Lab("a"),Let(Var("x"),Int,Value(Concrete(N(10))),
 (* case {a=let x:int = 10 in fn y:int => x+y end, b=fn z:bool => if z then 10 else 20,c=1}
    of {c=0,a=_,b=x} -> 10
    |  {a=x,c=z,b=y} -> x (y (z=1)) *)
+  

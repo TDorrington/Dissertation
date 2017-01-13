@@ -1814,4 +1814,40 @@ prettyPrintConfig(evaluate(Config(Expression(Case(
    =>
    100 *)
  
+(evaluate(Config(Expression(LetRec(
+Var("x"),TFun(Int,Int),
+Fun(Var("y"),Int,Condition(BoolExpr(LESS_EQ,Variable(Var("y")),Value(Concrete(N(1)))),
+						   Value(Concrete(N(1))),
+						   ArithExpr(PLUS,App(Variable(Var("x")),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(1))))),
+										  App(Variable(Var("x")),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(2)))))))),
+App(Variable(Var("x")),Value(Concrete(N(11)))))),[],[])));
+(* let val rec x:(int->int) = (fn y:int => if y<=1 then 1 else x(y-1)+x(y-2)) in (x 11) end 
+   i.e. 11th fibonacci number => 144 *)
+   
+(evaluate(Config(Expression(LetRec(
+Var("x"),TFun(Int,Int),
+Fun(Var("y"),Int,Condition(BoolExpr(LESS_EQ,Variable(Var("y")),Value(Concrete(N(0)))),
+						   Value(Concrete(N(1))),
+						   ArithExpr(TIMES,Variable(Var("y")),
+										   App(Variable(Var("x")),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(1)))))))),
+App(Variable(Var("x")),Value(Concrete(N(10)))))),[],[])));
+(* let val rec x:(int->int) = (fn y:int => if y<=0 then 1 else y*(x (y-1)) in (x 10) end
+   i.e. factorial of 10 => 3628800 *)
+   
+ 
+(evaluate(Config(Expression(LetRec(
+Var("z"),TFun(TRecord([(Lab("x"),Int),(Lab("y"),Int)]),Int),
+Fun(Var("x"),TRecord([(Lab("x"),Int),(Lab("y"),Int)]),
+    Case(Variable(Var("x")),
+	    [(PRecord([(Lab("x"),PVar(Var("x"))),(Lab("y"),PVar(Var("y")))]),
+		  Condition(BoolExpr(EQ,Variable(Var("x")),Value(Concrete(N(0)))),
+					ArithExpr(PLUS,Variable(Var("y")),Value(Concrete(N(1)))),
+					Condition(BoolExpr(EQ,Variable(Var("y")),Value(Concrete(N(0)))),
+							  App(Variable(Var("z")),Record([(Lab("x"),ArithExpr(SUBTRACT,Variable(Var("x")),Value(Concrete(N(1))))),(Lab("y"),Value(Concrete(N(1))))])),
+							  App(Variable(Var("z")),Record([(Lab("x"),ArithExpr(SUBTRACT,Variable(Var("x")),Value(Concrete(N(1))))),
+															 (Lab("y"),App(Variable(Var("z")),Record([(Lab("x"),Variable(Var("x"))),
+																									  (Lab("y"),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(1)))))])))])))))])),
+App(Variable(Var("z")),Record([(Lab("x"),Value(Concrete(N(3)))),(Lab("y"),Value(Concrete(N(3))))])))),[],[])));
+(* ackermann(3,3) => 61 *)
+ 
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)

@@ -16,15 +16,11 @@ use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/evaluate.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/pretty-print.sml";
 
-(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/basic-test.sml";
-   use "C:/Users/Thomas/Documents/GitHub/Dissertation/typeof-test.sml"; *)
-
-(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/match-test.sml"; 
-  *)
-   use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow-test.sml"; 
-   (*
-   use "C:/Users/Thomas/Documents/GitHub/Dissertation/evaluate-test.sml";
-*)
+(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/basic-test.sml";    *)
+(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/typeof-test.sml";   *)
+(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/match-test.sml";    *)
+(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow-test.sml";   *)
+(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/evaluate-test.sml"; *)
  
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)
 

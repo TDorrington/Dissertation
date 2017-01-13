@@ -258,6 +258,10 @@ fv[Let(Var("x"),Int,Let(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),ArithExpr
 	   ArithExpr(PLUS,Variable(Var("x")),Variable(Var("d")))))];
 (* [a,b,c,d,x] *)
 
+fv[LetRec(Var("x"),TFun(Int,Int),Fun(Var("y"),Int,ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z"))))),
+		  ArithExpr(PLUS,Variable(Var("b")),ArithExpr(PLUS,Variable(Var("a")),Variable(Var("x")))))];
+(* [z, b, a] *)
+
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR SUBSTITUTE AND ALPHAVARIANT *)
 
@@ -512,7 +516,18 @@ prettyPrintE(substitute(Let(Var("x"),Int,
 					 ArithExpr(PLUS,Variable(Var("y")),Variable(Var("x")))),
 	Let(Var("z"),Int,ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("t")),Variable(Var("a")))),
 					 ArithExpr(PLUS,Variable(Var("z")),Variable(Var("t"))))),sub));
-(* let x26:int = (let y27:int=3+4+5 in y27+3) in (let z28:int = x26+6+a in z28+6) *)
+(* let x26:int = (let y27:int=3+4+5 in y27+3) in (let z28:int = x26+6+a in z28+6 end) end *)
+
+prettyPrintE(substitute(
+LetRec(Var("x"),TFun(Int,Int),Fun(Var("y"),Int,ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z"))))),
+	   ArithExpr(PLUS,Variable(Var("b")),ArithExpr(PLUS,Variable(Var("t")),Variable(Var("x"))))),sub));
+(* let val rec x29:(int->int) = (fn y30:int => x29+y30+5) in b+6+x29 end *)
+
+prettyPrintE(substitute(
+LetRec(Var("x"),TFun(Int,Int),
+	   Fun(Var("y"),Int,Let(Var("y"),Int,Variable(Var("y")),ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("t")))))),
+	   ArithExpr(PLUS,Variable(Var("y")),Let(Var("x"),Int,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))),sub));
+(* let val rec x31:(int->int) = (fn y32:int => let val y32:int = y32 in x31+y32+ 6 end) in 4 + let val x31:int = (x31) in x31 + 4 end end *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR GEN *)
@@ -731,3 +746,4 @@ unifyTest( [a''',TRecord([(Lab("i"),Int)])], []);
 unifyTest( [a'',TRecord([(Lab("i"),a'''),(Lab("j"),b'''),(Lab("k"),c'''),(Lab("l"),d''')])], []);
 (* [ ''a87 -> int, '''a -> int, ''a88 -> int, '''b -> int, ''a89 -> int, '''c -> int, 
      ''a90 -> int, '''d -> int, ''a -> {i:''a87, j:''a88, k:''a89, l:''a90} ] *)
+	

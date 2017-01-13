@@ -4,15 +4,16 @@ fun resolveChainSigma(a,sigma:valSub) =
 
 	let fun resolveExpr(e) = (case e of 
 	
-			  Value(v)    => Value(resolveVal(v))
-			| Variable(_) => e
+			  Value(v)    			=> Value(resolveVal(v))
+			| Variable(_)		    => e
 			| ArithExpr(oper,e1,e2) => ArithExpr(oper,resolveExpr(e1),resolveExpr(e2))
 			| BoolExpr(oper,e1,e2)  => BoolExpr(oper,resolveExpr(e1),resolveExpr(e2))
 			| Case(e1,patExprList)  => Case(resolveExpr(e1),resolvePatExprList(patExprList))
 			| Condition(e1,e2,e3)	=> Condition(resolveExpr(e1),resolveExpr(e2),resolveExpr(e3))
 			| App(e1,e2) 			=> App(resolveExpr(e1),resolveExpr(e2))
 			| Record(r)				=> Record(resolveERecord(r))
-			| Let(x,t,e1,e2)        => Let(x,t,resolveExpr(e1),resolveExpr(e2)))
+			| Let(x,t,e1,e2)        => Let(x,t,resolveExpr(e1),resolveExpr(e2))
+			| LetRec(x,t,v1,e2)		=> LetRec(x,t,resolveVal(v1),resolveExpr(e2)))
 	
 		and resolvePatExprList(l) = (case l of 
 		

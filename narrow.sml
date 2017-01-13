@@ -136,7 +136,7 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 				     No need to add the original un-resolved value hole 
 					 since we resolve chains anyway
 					 could introduce loops *)
-				| (SOME(vtype),theta1) => (case unify( [t, vtype], theta1) of
+				| (SOME(vtype),theta1) => (case unify( [t,vtype], theta1) of
 				
 					  NONE => Config(Stuck,sigma,theta)
 					| SOME(theta2) => Config(Expression(Value(v)),sigma,theta2)))
@@ -664,6 +664,70 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 							| Config(Expression(e2narrow),sigma1,theta1) => Config(Expression(Let(x,tX,e1narrow,e2narrow)),sigma1,theta1)))
 							
 					end))
+				
+	(* (i)   unify t1 and t3
+	   (ii)  unify type of e2 (after substituting with gamma, and arbitrary mappings for x and y) with t2
+	   (iii) narrow e1 to be (latest value) of type t2
+	   (iv)  narrow e2 to be type t *)
+	| (LetRec(x,TFun(t1,t2),Fun(y,t3,e1),e2),t) =>
+	
+		(* Make sure x part capture avoiding: x binds in e2 and (fn y:t3=>e1) *)
+		if (element(Substitution.domain(gamma),x) orelse element(fv(Substitution.range(gamma)),x))
+		
+		then narrowExpr(alphaExpr(e,getCounterAndUpdate(),[x]),t,sigma,theta,gamma)
+		
+		else (* Make sure y part capture avoiding: y binds in e1 *)
+			  if (element(Substitution.domain(gamma),y) orelse element(fv(Substitution.range(gamma)),y))
+			  
+			  (* Only alpha-variant the function value, not variable 'x' or expression 'e2': only x binds in e2, not y *)
+			  then narrowExpr(LetRec(x,TFun(t1,t2),alphaValue(Fun(y,t3,e1),getCounterAndUpdate(),[y]),e2),t,sigma,theta,gamma)
+			  
+			  else (case unify([t1,t3],theta) of 
+			 
+					  NONE => Config(Stuck,sigma,theta)
+					| SOME theta1 => 
+					
+						let (* Get latest values for t1 and t2 *)
+							val t1 = resolveChainTheta(t1,theta1);
+							val t2 = resolveChainTheta(t2,theta1);
+							
+							(* Add arbitrary mapping for x and y to gamma for e1 *)
+							val gamma1 = Substitution.union(Substitution.union(gamma,x,Value(gen(TFun(t1,t2),theta1))),
+															y,Value(gen(t1,theta1)))
+															
+						in (case typeofexpr(substitute(e1,gamma1),theta1) of
+						
+							  (NONE,_) => Config(Stuck,sigma,theta)
+							| (SOME tE1,theta2) => (case unify([tE1,t2],theta2) of 
+							
+								  NONE => Config(Stuck,sigma,theta)
+								| SOME theta3 => 
+								
+									let (* Get latest values for t1 and t2 *)
+										val t1 = resolveChainTheta(t1,theta3);
+										val t2 = resolveChainTheta(t2,theta3);
+						
+										(* Add arbitrary mapping for x and y to gamma for e1 *)
+										val gamma1 = Substitution.union(Substitution.union(gamma,x,Value(gen(TFun(t1,t2),theta3))),
+																		y,Value(gen(t1,theta3)));
+																		
+										(* Add arbitrary mapping for x to gamma for e2 *)
+										val gamma2 = Substitution.union(gamma,x,Value(gen(TFun(t1,t2),theta3)))
+										
+									in (case narrowExpr(e1,t2,sigma,theta3,gamma1) of 
+									
+										  Config(Stuck,_,_) => Config(Stuck,sigma,theta)
+										| Config(Expression(e1narrow),sigma1,theta1) =>  (case narrowExpr(e2,t,sigma1,theta1,gamma2) of 
+										
+											  Config(Stuck,_,_) => Config(Stuck,sigma,theta)
+											| Config(Expression(e2narrow),sigma2,theta2) => 
+												
+												Config(Expression(LetRec(x,TFun(t1,t2),Fun(y,t1,e1narrow),e2narrow)),sigma2,theta2)))
+									
+									end))
+									
+							end)
+					
 		
 	| _ => Config(Stuck,sigma,theta))
 	

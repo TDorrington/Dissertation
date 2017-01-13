@@ -331,7 +331,7 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
  
 (* Implements evaluation & type inference rules for case expression with first operand a value *)
-(* i.e. implement rules (E-CASE-PAIR-GOOD) and (E-CASE-PAIR-BAD) *) 
+(* i.e. implement rules (E-CASE-GOOD) and (E-CASE-BAD) *) 
 |  evaluate (Config(Expression(c as Case(Value(v),patExprList)),sigma,theta)) =
 	
 	(* Narrow the whole expression to some type variable. This 
@@ -347,7 +347,7 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 		  
 			  Config(Expression(v1narrow),sigma1,theta1) => (case match(v1narrow,patExprList,sigma1,theta1,[]) of 
 		  
-				(* E-CASE-BAD2 *)
+				(* E-CASE-BAD1 *)
 				  Fail => Config(Stuck,sigma1,theta1)
 				  
 				(* E-CASE-HOLE *)
@@ -421,4 +421,24 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 	  Config(Expression(Value(v1)),sigma1,theta1) => evaluate(Config(Expression(Let(x,t,Value(v1),e2)),sigma1,theta1))
 	 
 	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
-		
+	
+(* Implements evaluation & type inference rules for let-rec expressions *)
+(* i.e. implements rules (E-LET-REC-GOOD) and (E-LET-REC-BAD) *)
+|	evaluate (Config(Expression(l as LetRec(x,TFun(t1,t2),Fun(y,t3,e1),e2)),sigma,theta)) = 
+
+	(* Narrow whole expression to some general type variable, similarly to case expression
+	   This will, for example, check types t1 and t3 unify, or that e1 is of type t2, etc. *)
+	   
+	(* Don't follow this call to narrowExpr by evaluate like other calls to narrow
+	   We want the case expression back (hence why matching non-exhaustive below *)
+	   
+	(case narrowExpr(l,generateFreshTypeVar(TYPE_VAR,theta),sigma,theta,[]) of 
+	
+		  Config(Expression(l as LetRec(x,tfun,Fun(y,t3,e1),e2)),sigma1,theta1) => 
+		  
+			evaluate(Config(Expression(substitute(e2,[(x,Value(Fun(y,t3,LetRec(x,tfun,Fun(y,t3,e1),e1))))])),
+						    sigma1,theta1))
+			
+		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+
+| 	evaluate (Config(Expression(LetRec(_,_,_,_)),sigma,theta)) = Config(Stuck,sigma,theta);		
