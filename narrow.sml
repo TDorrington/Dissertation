@@ -14,6 +14,11 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 	| (Concrete(R(real)),THole(hole)) => (case unify([t,Real],theta) of 
 		  NONE 		  => Config(Stuck,sigma,theta)
 		| SOME theta1 => Config(Expression(Value(v)),sigma,theta1))
+		
+	| (Concrete(EmptyList),TList(_)) => Config(Expression(Value(v)), sigma, theta)
+	| (Concrete(EmptyList),THole(hole)) => (case unify([t,TList(generateFreshTypeVar(TYPE_VAR,theta))],theta) of 
+		  NONE		  => Config(Stuck,sigma,theta)
+		| SOME theta1 => Config(Expression(Value(v)),sigma,theta1))
 	
 	| (VRecord(r1),TRecord(r2)) => 
 		(* Narrow each value in the record into a record of expressions,
@@ -79,7 +84,65 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 											   | TypeVar(_) 		=> TYPE_VAR
 											   | ArithTypeVar(_)	=> ARITH_TYPE_VAR;
 										   (* arith should never occur as matches above *)
-				val genType = genFreshTRecord(Record.getLabels(r),freshTypeVar,theta);
+				val genType = TRecord(genFreshTRecord(Record.getLabels(r),freshTypeVar,theta));
+				val theta1 = Substitution.union(theta,TypeHole(hole),genType)
+			
+			in narrow(v,genType,sigma,theta1,gamma) end
+	
+	| (VList(l),TList(t)) => 
+	
+		let fun iterativeNarrow(l,sigma,theta) = (case l of
+			
+				  []       => Config(Expression(List([])),sigma,theta)
+				| v1::rest => (case narrow(v1,t,sigma,theta,gamma) of 
+				
+					 Config(Expression(v1narrow),sigma1,theta1) => (case iterativeNarrow(rest,sigma1,theta1) of 
+						 
+						  Config(Expression(List(lnarrow)),sigma2,theta2) => Config(Expression(List(v1narrow::lnarrow)),sigma2,theta2)
+						| _ => Config(Stuck,sigma,theta))
+						
+					| _ => Config(Stuck,sigma,theta)))
+					
+			(* Converts a list of expressions to a list of values, if possible
+		       All the entries must be of form Value(v), for some value v
+		       If possible, returns list of values, wrapped in SOME
+		       Otherwise not all entries of list are values, and returns NONE *)
+			fun eToValList(l) = (case l of 
+				  [] 			=> SOME []
+				| Value(v1)::l1 => (case eToValList(l1) of 
+					  NONE   => NONE
+					| SOME l => SOME (v1::l))
+				| _				=> NONE)
+		
+		in (case iterativeNarrow(l,sigma,theta) of
+		
+			  c as Config(Expression(List(l)),sigma1,theta1) => (case eToValList(l) of 
+			  
+				  NONE   => c
+				| SOME l => Config(Expression(Value(VList(l))),sigma1,theta1))
+			  
+			| c => c)
+		
+		end
+		
+	(* For narrowing a list to a type hole,
+	   narrow([v1,...,vn],'a)   => narrow([v1,...,vn],'a0 list)
+	   narrow([v1,...,vn],''a)  => narrow([v1,...,vn],''a0 list)
+	   narrow([v1,...,vn],'''a) => FAIL
+	   for fresh 'a0 and ''a0 *)
+					
+	| (VList(_),THole(TypeHole(ArithTypeVar(_)))) => Config(Stuck,sigma,theta)
+	
+	| (VList(_),THole(TypeHole(hole))) =>
+		
+		if Substitution.contains(TypeHole(hole),theta)
+		then narrow(v,resolveChainTheta(THole(TypeHole(hole)),theta),sigma,theta,gamma)
+		
+		else let val freshTypeVar = case hole of EqualityTypeVar(_) => EQUALITY_TYPE_VAR
+											   | TypeVar(_) 		=> TYPE_VAR
+											   | ArithTypeVar(_)	=> ARITH_TYPE_VAR;
+										   (* arith should never occur as matches above *)
+				val genType = TList(generateFreshTypeVar(freshTypeVar,theta))
 				val theta1 = Substitution.union(theta,TypeHole(hole),genType)
 			
 			in narrow(v,genType,sigma,theta1,gamma) end
@@ -201,6 +264,16 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 		   Should do this in the following call to evaluate from calling code in evaluate *)
 		in narrowExpr(Record(valToERecord(r)),t,sigma,theta,gamma) end
 	
+	| (VHole(ListHole(l)),t) =>
+	
+		(* Converts list of values to a list of expressions,
+		   i.e. just wraps v into Value(v) *)
+		let fun valToEList(l) = (case l of
+			  [] 	 => []
+			| v1::l1 => Value(v1)::valToEList(l1))
+		
+		in narrowExpr(List(valToEList(l)),t,sigma,theta,gamma) end
+		
 	(* for anything that does not match the above clauses, can only return a stuck expression *)
 	| _  => Config(Stuck, sigma, theta))
 	   
@@ -235,6 +308,7 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 	
 		  Bool 		 => Config(Stuck,sigma,theta)
 		| TRecord(_) => Config(Stuck,sigma,theta)
+		| TList(_)   => Config(Stuck,sigma,theta)
 		| TFun(_,_)  => Config(Stuck,sigma,theta)
 		
 		| THole(TypeHole(TypeVar(tyvar))) => 
@@ -311,19 +385,24 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 							| SOME l => TRecord(l))
 							
 						| (TRecord(r1),_) =>
-							let val TRecord(r2) = genFreshTRecord(Record.getLabels(r1),EQUALITY_TYPE_VAR,theta2)
+							let val r2 = genFreshTRecord(Record.getLabels(r1),EQUALITY_TYPE_VAR,theta2)
 							in (case iterCalcType(Record.sort(r1),Record.sort(r2)) of
 								  NONE => generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
 								| SOME l => TRecord(l))
 							end
 							
 						| (_,TRecord(r2)) =>
-							let val TRecord(r1) = genFreshTRecord(Record.getLabels(r2),EQUALITY_TYPE_VAR,theta2)
+							let val r1 = genFreshTRecord(Record.getLabels(r2),EQUALITY_TYPE_VAR,theta2)
 							in (case iterCalcType(Record.sort(r1),Record.sort(r2)) of 
 								  NONE => generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
 								| SOME l => TRecord(l))
 							end
-							
+						
+						(* Recursively perform this analysis on type of list elements
+						   Call function with repeated type argument, as symmetric *)
+						| (TList(t1),_) => TList(calcType(t1,t1))
+						| (_,TList(t2)) => TList(calcType(t2,t2))
+						
 						(* avoid generating fresh equality type variable where possible *)
 						| (THole(TypeHole(EqualityTypeVar(_))),_) => t1
 						| (_,THole(TypeHole(EqualityTypeVar(_)))) => t2
@@ -441,9 +520,42 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 											| TypeVar(_) 		    => TYPE_VAR
 											| ArithTypeVar(_)	    => ARITH_TYPE_VAR;
 										    (* arith should never occur as matches above *)
-				 val genType = genFreshTRecord(Record.getLabels(r1),freshTypeVar,theta);
+				 val genType = TRecord(genFreshTRecord(Record.getLabels(r1),freshTypeVar,theta));
 				 val theta1 = Substitution.union(theta,TypeHole(hole),genType)
 			
+			 in narrowExpr(e,genType,sigma,theta1,gamma) end
+	
+	| (List(eList),TList(listType)) =>
+	
+		let fun iterativeNarrowExpr(l,sigma,theta) = (case l of
+		
+			  [] => Config(Expression(List([])),sigma,theta)
+			| e1::rest => (case narrowExpr(e1,listType,sigma,theta,gamma) of 
+			
+					  Config(Expression(e1narrow),sigma1,theta1) => (case iterativeNarrowExpr(rest,sigma1,theta1) of 
+					  
+						  Config(Expression(List(restNarrow)),sigma2,theta2) => Config(Expression(List(e1narrow::restNarrow)),sigma2,theta2)
+						| _ => Config(Stuck,sigma,theta))
+						
+					| _ => Config(Stuck,sigma,theta)))
+
+		in iterativeNarrowExpr(eList,sigma,theta) end
+		
+	| (List(_),THole(TypeHole(ArithTypeVar(_)))) => Config(Stuck,sigma,theta)
+	
+	(* For general type variable or equality type variable *)
+	| (List(_),THole(TypeHole(hole))) =>
+	
+		if Substitution.contains(TypeHole(hole),theta)
+		then narrowExpr(e,resolveChainTheta(THole(TypeHole(hole)),theta),sigma,theta,gamma)
+		
+		else let val freshTypeVar = case hole of EqualityTypeVar(_) => EQUALITY_TYPE_VAR
+											| TypeVar(_) 		    => TYPE_VAR
+											| ArithTypeVar(_)	    => ARITH_TYPE_VAR;
+										    (* arith should never occur as matches above *)
+				 val genType = TList(generateFreshTypeVar(freshTypeVar,theta));
+				 val theta1 = Substitution.union(theta,TypeHole(hole),genType)
+				 
 			 in narrowExpr(e,genType,sigma,theta1,gamma) end
 	
 	| (Condition(e1,e2,e3),t) => (case narrowExpr(e1,Bool,sigma,theta,gamma) of 
@@ -498,16 +610,27 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 				end)
 	
 			(* To get type we need to narrow e1 to, look at the form of patterns
-			   - For a single pattern case, for all cases except records, 
+			   - For a single pattern case, for all cases except records and lists, 
 			     we narrow it to a fresh type variable
-			     Only for records do we need to generate a record type (composed
-			     recursively of further record types and general type variables
-			     in the base cases)
+			     - For records we need to generate a record type (composed
+			       recursively of further record & list types, and general type variables
+			       in the base cases)
+				 - For :: need to generate a list type, of the type generated
+				   by recursively calling this function on the pattern before the :: 
+				   (in case it is a list of records)
+				 - For [] need to generate a (fresh) list type
 			   - Now, for a list of patterns, we look through them all until
-			   (i)  Record pattern found - return this type, via above analysis,
-					and stop looking through rest
-			        If the other patterns do not conform, it will fail in matchTypes 
-			   (ii) No record patterns found - return fresh type variable *)
+			   (i)   Record pattern found - return this type, via above analysis,
+					 and stop looking through rest
+			   (ii)  Cons pattern found - return list type, of type generated
+			         by recursively calling this function on first pattern
+			   (iii) Null pattern found. Look through the rest of patterns to see if
+			         a record/cons pattern found (which will give a more specific type)
+					 and if so use that, otherwise generate a (fresh) list type
+			   (iv)  No record patterns found - return fresh type variable
+                 We are okay to stop looking through the rest of the patterns 
+				 as soon as a record pattern, null pattern or cons pattern found,
+				 because if the following do not conform, it will fail in matchTypes *)
 			fun e1NarrowType(patList) = (case patList of 
 			
 				(* Return first record type *)
@@ -517,7 +640,15 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 					| (lab1,pat1)::r1 => (lab1,e1NarrowType([pat1]))::iterCalcNarrowType(r1))
 					in TRecord(iterCalcNarrowType(r)) end
 				
-				(* Non-record type at head of list - move on to next element *)
+				| PVal(EmptyList)::l1 => (case e1NarrowType(l1) of 
+				
+					  t as TRecord(_) => t
+					| t as TList(_)   => t
+					| _               => TList(generateFreshTypeVar(TYPE_VAR,theta)))
+				
+				| PCons(pat1,_)::_ => TList(e1NarrowType([pat1]))
+				
+				(* Non-record/list type at head of list - move on to next element *)
 				| _::l1 => e1NarrowType(l1)
 					
 				(* No items in pattern-expression pair list to check if record patterns exist 
@@ -727,7 +858,6 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 									end))
 									
 							end)
-					
 		
 	| _ => Config(Stuck,sigma,theta))
 	
