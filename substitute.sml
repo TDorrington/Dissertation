@@ -9,24 +9,26 @@ fun substitute(a,[]) = a
 
 	let fun substVal(v) = (case v of 
 
-			  Concrete(_) => v 
-			| Fun(x,t,e) => 
+			  Fun(x,t,e)  => 
 				(* must be capture avoiding *)
 				if (element(Substitution.domain(gamma),x) orelse element(fv(Substitution.range(gamma)),x))
 				then substVal(alphaValue(v,getCounterAndUpdate(),[x]))
 				else Fun(x,t,substExpr(e))
-				
+			
+			| Concrete(_) => v
 			| VHole(hole) => substHole(hole)
-			| VRecord(r) => VRecord(substVRecord(r)))
+			| VRecord(r)  => VRecord(substVRecord(r))
+			| VList(l)    => VList(substVList(l)))
 			
 		and substHole(hole) = (case hole of 
 			 
-			  SimpleHole(_) => VHole(hole)
+			  SimpleHole(_)            => VHole(hole)
 			| BinaryOpHole(oper,v1,v2) => VHole(BinaryOpHole(oper,substVal(v1),substVal(v2)))
-			| ConditionHole(v1,e1,e2) => VHole(ConditionHole(substVal(v1),substExpr(e1),substExpr(e2)))
+			| ConditionHole(v1,e1,e2)  => VHole(ConditionHole(substVal(v1),substExpr(e1),substExpr(e2)))
 			| CaseHole(v1,patExprList) => VHole(CaseHole(substVal(v1),substPatExprList(patExprList)))
-			| AppHole(v1,v2) => VHole(AppHole(substVal(v1),substVal(v2)))
-			| RecordHole(r) => VHole(RecordHole(substVRecord(r))))
+			| AppHole(v1,v2)           => VHole(AppHole(substVal(v1),substVal(v2)))
+			| RecordHole(r)            => VHole(RecordHole(substVRecord(r)))
+			| ListHole(l)              => VHole(ListHole(substVList(l))))
 		
 		and substPatExprList(l) = (case l of 
 				   
@@ -38,6 +40,7 @@ fun substitute(a,[]) = a
 				let val dom = Substitution.domain(gamma);
 					val fvRan = fv(Substitution.range(gamma));
 					val fvPattern = fvPat(pat1)
+					
 				(* only change variable names for those clashing in gamma *)
 				in (case union(listElement(dom,fvPattern),listElement(fvRan,fvPattern)) of
 				
@@ -52,14 +55,15 @@ fun substitute(a,[]) = a
 			
 		and substExpr(e) = (case e of 
 		
-			  Value(v) => Value(substVal(v))
-			| Variable(x) => substVariable(x)
+			  Value(v)                   => Value(substVal(v))
+			| Variable(x)                => substVariable(x)
 			| ArithExpr(arithOper,e1,e2) => ArithExpr(arithOper,substExpr(e1),substExpr(e2))
-			| BoolExpr(boolOper,e1,e2) => BoolExpr(boolOper,substExpr(e1),substExpr(e2))
-			| Case(e1,patExprList) => Case(substExpr(e1),substPatExprList(patExprList))
-			| Condition(e1,e2,e3) => Condition(substExpr(e1),substExpr(e2),substExpr(e3))
-			| App(e1,e2) => App(substExpr(e1),substExpr(e2))
-			| Record(r) => Record(substERecord(r))
+			| BoolExpr(boolOper,e1,e2)   => BoolExpr(boolOper,substExpr(e1),substExpr(e2))
+			| Case(e1,patExprList)       => Case(substExpr(e1),substPatExprList(patExprList))
+			| Condition(e1,e2,e3)        => Condition(substExpr(e1),substExpr(e2),substExpr(e3))
+			| App(e1,e2)                 => App(substExpr(e1),substExpr(e2))
+			| Record(r)                  => Record(substERecord(r))
+			| List(l)                    => List(substEList(l))   
 			
 			| Let(x,t,e1,e2) => 
 				(* must be capture avoiding *)
@@ -72,9 +76,7 @@ fun substitute(a,[]) = a
 				else Let(x,t,substExpr(e1),substExpr(e2))
 				
 			| LetRec(x,t,v1,e2) =>
-				(* Must be (x part) capture avoiding 
-				   y binds in e1
-				   x binds in (fn y:T=>e1) and in e2 *)
+				(* Must be (x part) capture avoiding: y binds in e1; x binds in both (fn y:T=>e1) and in e2 *)
 				if (element(Substitution.domain(gamma),x) orelse element(fv(Substitution.range(gamma)),x))
 				then substExpr(alphaExpr(e,getCounterAndUpdate(),[x]))
 				(* Making sure the y part is capture avoiding is done in substVal(v1) *)
@@ -85,12 +87,20 @@ fun substitute(a,[]) = a
 					       else Variable(x)
 						   
 	and substERecord(r) = (case r of 
-			  []		    => r
+			  []		    => []
 			| (lab1,e1)::r1 => (lab1,substExpr(e1))::substERecord(r1))
 			
 	and substVRecord(r) = (case r of 
-			  [] 			=> r
+			  [] 			=> []
 			| (lab1,v1)::r1 => (lab1,substVal(v1))::substVRecord(r1))
+			
+	and substVList(l) = (case l of 
+			  []     => []
+			| v1::l1 => substVal(v1)::substVList(l1))
+		
+	and substEList(l) = (case l of 
+			  [] 	 => []
+			| e1::l1 => substExpr(e1)::substEList(l1))
 		
 	in substExpr(a) end;
 		

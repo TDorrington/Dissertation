@@ -853,3 +853,109 @@ Case(Record([(Lab("a"),Let(Var("x"),Int,Value(Concrete(N(10))),
    of {c=0,a=_,b=x} -> 10
    |  {a=x,c=z,b=y} -> x (y (z=1)) *)
   
+prettyPrintTypeOf(typeof(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(3))]),[]));			(* int list *)
+prettyPrintTypeOf(typeof(VList([Concrete(R(1.0)),Concrete(R(2.0)),Concrete(R(3.0))]),[])); 		(* real list *)
+prettyPrintTypeOf(typeof(VList([Concrete(B(true)),Concrete(B(true)),Concrete(B(false))]),[])); 	(* bool list *)
+
+prettyPrintTypeOf(typeof(
+VList([Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x")))),
+	   Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Value(Concrete(N(10)))))]),[]));
+(* (int->int) list *)
+
+prettyPrintTypeOf(typeof(Concrete(EmptyList),[])); (* 'a101 list *)
+
+prettyPrintTypeOf(typeof(VList([VList([Concrete(N(1))]),VList([Concrete(N(2))])]),[])); (* int list list *)
+
+prettyPrintTypeOf(typeof(VList([Concrete(EmptyList),Concrete(EmptyList)]),[])); (* 'a104 list *)
+
+prettyPrintTypeOf(typeof(VList([
+	VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(B(true))),(Lab("c"),Fun(Var("x"),Int,Value(Concrete(R(1.0)))))]),
+	VRecord([(Lab("a"),Concrete(N(3))),(Lab("b"),Concrete(B(false))),(Lab("c"),Fun(Var("y"),Int,ArithExpr(DIVIDE,Value(Concrete(R(1.0))),Value(Concrete(R(3.0))))))])]),
+	[]));
+(* {a:int,b:bool,c:(int->real)} list *)
+
+prettyPrintTypeOf(typeof(Fun(Var("x"),Int,List([
+	ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x"))),
+	ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))),
+	ArithExpr(SUBTRACT,Variable(Var("x")),Variable(Var("x")))])),[]));
+(* int -> (int list) *)
+
+prettyPrintTypeOf(typeofexpr(List([
+	Condition(Value(Concrete(B(false))),Value(Concrete(N(1))),Value(Concrete(N(3)))),
+	App(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x"))))),
+		Case(Record([(Lab("a"),Value(Concrete(N(5)))),(Lab("b"),Value(Concrete(N(6))))]),
+			 [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVar(Var("y")))]),
+			   ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y"))))])),
+	App(Value(Fun(Var("y"),Int,
+			      Let(Var("x"),TFun(Int,Int),Value(Fun(Var("z"),Int,ArithExpr(TIMES,Variable(Var("z")),Variable(Var("y"))))),
+					  App(Variable(Var("x")),Value(Concrete(N(5))))))),
+		Value(Concrete(N(6))))]),[]));
+(* int list *)
+
+prettyPrintTypeOf(typeofexpr(Case(
+	List([Value(Concrete(N(1))),Value(Concrete(N(2)))]),
+	[(PNull,Value(Concrete(B(true)))),
+	 (PCons(PVar(Var("x")),PWildcard),Value(Concrete(B(false))))]),[]));
+(* bool *)
+
+prettyPrintTypeOf(typeofexpr(Case(
+	List([Value(Concrete(N(1))),Value(Concrete(N(2)))]),
+	[(PNull,Value(Concrete(B(true)))),
+	 (PCons(PWildcard,PWildcard),Value(Concrete(B(false)))),
+	 (PWildcard,Value(Concrete(B(false)))),
+	 (PVar(Var("x")),Value(Concrete(B(false))))]),[]));
+(* bool *)
+	 
+prettyPrintTypeOf(typeofexpr(Case(
+	List([Value(Concrete(N(1))),Value(Concrete(N(2)))]),
+	[(PNull,Value(Concrete(B(true)))),
+	 (PCons(PWildcard,PWildcard),Value(Concrete(B(false)))),
+	 (PWildcard,Value(Concrete(B(false)))),
+	 (PVal(N(2)),Value(Concrete(B(false))))]),[]));
+(* FAIL *)
+
+prettyPrintTypeOf(typeofexpr(Case(
+	List([Value(Concrete(B(true))),Value(Concrete(B(false)))]),
+	[(PNull,Value(Concrete(B(true)))),
+	 (PCons(PVar(Var("x")),PVar(Var("y"))),Variable(Var("x")))]),[]));
+(* bool *)
+
+prettyPrintTypeOf(typeofexpr(Case(
+	List([Value(Concrete(B(true))),Value(Concrete(B(false)))]),
+	[(PNull,Value(Concrete(B(true)))),
+	 (PCons(PVar(Var("x")),PVar(Var("y"))),BoolExpr(EQ,Variable(Var("y")),Value(VList([Concrete(B(true))]))))]),[]));
+(* bool *)
+
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,
+	List([Value(Concrete(N(1))),Value(Concrete(N(2)))]),
+	List([Value(Concrete(N(3)))])),[]));
+(* bool *)
+
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,
+	List([Value(Concrete(R(1.0))),Value(Concrete(R(2.0)))]),
+	List([Value(Concrete(R(3.0)))])),[]));
+(* FAIL *)
+
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,
+	List([Value(Concrete(B(true))),Value(Concrete(B(false)))]),
+	List([Value(Concrete(B(true)))])),[]));
+(* bool *)
+
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,
+	Value(VList([(Concrete(N(1)))])),
+	List([Value(Concrete(N(2)))])),[]));
+(* bool *)
+
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,Value(Concrete(EmptyList)),Value(Concrete(EmptyList))),[]));
+(* bool *)
+
+prettyPrintTypeOf(typeofexpr(BoolExpr(EQ,
+	Value(VList([(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(B(true))),(Lab("c"),VRecord([]))])),
+		         (VRecord([(Lab("a"),Concrete(N(5))),(Lab("b"),Concrete(B(false))),(Lab("c"),VRecord([]))]))])),
+	List([(Condition(Value(Concrete(B(true))),
+					 Record([(Lab("a"),Value(Concrete(N(5)))),(Lab("b"),BoolExpr(EQ,Value(Concrete(EmptyList)),Value(Concrete(EmptyList)))),
+					         (Lab("c"),Case(Value(Concrete(N(3))),[(PWildcard,Record([]))]))]),
+					 Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(Concrete(B(true)))),(Lab("c"),Record([]))])))])),[]));
+(* bool *)
+
+(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)

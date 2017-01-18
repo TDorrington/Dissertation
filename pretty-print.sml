@@ -23,8 +23,9 @@ and prettyPrintType (t) = (case t of
 	| Real => "real"
 	| Bool => "bool"
 	| TFun(t1,t2) => "(" ^ prettyPrintType(t1) ^ " -> " ^ prettyPrintType(t2) ^ ")"
-	| TRecord(r) => "{" ^ prettyPrintTRecord(r) ^ "}"
-	| THole(TypeHole(t')) => getTypeVariableString(t'));
+	| TRecord(r)  => "{" ^ prettyPrintTRecord(r) ^ "}"
+	| THole(TypeHole(t')) => getTypeVariableString(t')
+	| TList(t1)  => prettyPrintType(t1) ^ " list");
 
 fun prettyPrintCVRecord([]) = ""
 |	prettyPrintCVRecord([(Lab(s),cv)]) = s ^ "=" ^ prettyPrintConcreteVal(cv)
@@ -33,7 +34,8 @@ fun prettyPrintCVRecord([]) = ""
 			
 and prettyPrintConcreteVal(N(n)) = Int.toString(n)
 |	prettyPrintConcreteVal(B(b)) = Bool.toString(b)
-|	prettyPrintConcreteVal(R(r)) = Real.toString(r);
+|	prettyPrintConcreteVal(R(r)) = Real.toString(r)
+|	prettyPrintConcreteVal(EmptyList) = "[ ]";
 			
 fun prettyPrintPRecord([]) = ""
 |	prettyPrintPRecord([(Lab(s),pat)]) = s ^ "=" ^ prettyPrintPattern(pat)
@@ -42,7 +44,8 @@ fun prettyPrintPRecord([]) = ""
 and prettyPrintPattern(PVar(Var(s))) = s
 |	prettyPrintPattern(PVal(cv)) = prettyPrintConcreteVal(cv)
 |	prettyPrintPattern(PRecord(r)) = "{" ^ prettyPrintPRecord(r) ^ "}"
-|	prettyPrintPattern(PWildcard) = "_";
+|	prettyPrintPattern(PWildcard) = "_"
+|	prettyPrintPattern(PCons(pat1,pat2)) = prettyPrintPattern(pat1) ^ "::" ^ prettyPrintPattern(pat2);
 
 fun prettyPrintPatExprList([]) = " " (* Should never occur *)
 |	prettyPrintPatExprList([(pat1,e1)]) = prettyPrintPattern(pat1) ^ " -> " ^ prettyPrintExpression(Expression(e1))
@@ -61,17 +64,23 @@ and prettyPrintHole(hole) = (case hole of
 		"v[ case " ^ prettyPrintValue(v) ^ " of " ^ prettyPrintPatExprList(patExprList) ^ " ]"
 	| AppHole(v1,v2) =>
 		"v[ " ^ prettyPrintValue(v1) ^ " " ^ prettyPrintValue(v2) ^ " ]"
-	| RecordHole(r) => "v[ {" ^ prettyPrintVRecord(r) ^ "} ]")
+	| RecordHole(r) => "v[ {" ^ prettyPrintVRecord(r) ^ "} ]"
+	| ListHole(l) => "v[ [" ^ prettyPrintVList(l) ^ "] ]")
 
 and prettyPrintVRecord([]) = ""
 |	prettyPrintVRecord([(Lab(s),v)]) = s ^ "=" ^ prettyPrintValue(v)
 |	prettyPrintVRecord((Lab(s),v)::r) = s ^ "=" ^ prettyPrintValue(v) ^ ", " ^ 
 										  prettyPrintVRecord(r)
+										  
+and prettyPrintVList([]) = ""
+|	prettyPrintVList([v]) = prettyPrintValue(v)
+|	prettyPrintVList(v1::rest) = prettyPrintValue(v1) ^ ", " ^ prettyPrintVList(rest)
 	
 and prettyPrintValue(Concrete(cv)) = prettyPrintConcreteVal(cv)
 |	prettyPrintValue(Fun(Var(s),t,e)) = "fn " ^ s ^ ":" ^ prettyPrintType(t) ^ " => " ^ prettyPrintExpression(Expression(e))
 |	prettyPrintValue(VHole(hole)) = prettyPrintHole(hole)
 |	prettyPrintValue(VRecord(r)) = "{" ^ prettyPrintVRecord(r) ^ "}"
+|	prettyPrintValue(VList(l)) = "[" ^ prettyPrintVList(l) ^"]"
 		
 and prettyPrintExpression(Stuck) = "Stuck"
 | 	prettyPrintExpression(Expression(e)) = (case e of 
@@ -92,12 +101,17 @@ and prettyPrintExpression(Stuck) = "Stuck"
 	| Let(Var(s),t,e1,e2) => "let val " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(e1))
 							   ^ ") in " ^ prettyPrintExpression(Expression(e2)) ^ " end"
 	| LetRec(Var(s),t,v,e) => "let val rec " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(Value(v)))
-							   ^ ") in " ^ prettyPrintExpression(Expression(e)) ^ " end")
+							   ^ ") in " ^ prettyPrintExpression(Expression(e)) ^ " end"
+	| List(l) => "[" ^ prettyPrintEList(l) ^ "]")
 	
 and prettyPrintERecord([]) = ""
 |	prettyPrintERecord([(Lab(s),e)]) = s ^ "=" ^ prettyPrintExpression(Expression(e))
 |	prettyPrintERecord((Lab(s),e)::r) = s ^ "=" ^ prettyPrintExpression(Expression(e)) ^ ", " ^ 
-									  prettyPrintERecord(r);
+									  prettyPrintERecord(r)
+									  
+and prettyPrintEList([]) = ""
+|	prettyPrintEList([e]) = prettyPrintExpression(Expression(e))
+|	prettyPrintEList(e1::rest) = prettyPrintExpression(Expression(e1)) ^ ", " ^ prettyPrintEList(rest);
 	
 fun prettyPrintSigma ([]) = ""
 |   prettyPrintSigma ([(ValueHole(a),b)]) = 

@@ -75,107 +75,116 @@ fun typeOp(ArithOper(DIVIDE),t1,t2,theta:typeSub) = (case (t1,t2) of
 
 	let fun isEqualArgs(t1,t2,theta) =  (case (t1,t2) of 
 	
-	  (Int,Int) => (SOME Bool,theta)
-				  
-	| (Int,THole(hole)) => (SOME Bool,Substitution.union(theta,hole,Int))
-				
-	| (THole(hole),Int) => (SOME Bool,Substitution.union(theta,hole,Int))
-				
-	| (Bool,Bool) => (SOME Bool,theta)
-				
-	| (Bool,THole(TypeHole(TypeVar(a)))) => 
-		(SOME Bool,Substitution.union(theta,TypeHole(TypeVar(a)),Bool))
+		  (Int,Int) => (SOME Bool,theta)
+					  
+		| (Int,THole(hole)) => (SOME Bool,Substitution.union(theta,hole,Int))
 					
-	| (Bool,THole(TypeHole(EqualityTypeVar(a)))) => 
-		(SOME Bool,Substitution.union(theta,TypeHole(EqualityTypeVar(a)),Bool))
+		| (THole(hole),Int) => (SOME Bool,Substitution.union(theta,hole,Int))
 					
-	| (THole(TypeHole(TypeVar(a))),Bool) => 
-		(SOME Bool,Substitution.union(theta,TypeHole(TypeVar(a)),Bool))
+		| (Bool,Bool) => (SOME Bool,theta)
 					
-	| (THole(TypeHole(EqualityTypeVar(a))),Bool) => 
-		(SOME Bool,Substitution.union(theta,TypeHole(EqualityTypeVar(a)),Bool))
-					
-	| (THole(TypeHole(TypeVar(a))),THole(TypeHole(TypeVar(b)))) =>
-		(* if already same type, no need to generate a fresh type variable for them to share *)
-		if a = b
-		then (SOME Bool, theta)
-		else let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
-			 in (SOME Bool, Substitution.union(Substitution.union(theta,TypeHole(TypeVar(a)),freshVar),
-											   TypeHole(TypeVar(b)),freshVar))
-			 end
-											  
-	| (THole(TypeHole(EqualityTypeVar(a))),THole(TypeHole(TypeVar(b)))) =>
-		let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
-		in (SOME Bool, Substitution.union(Substitution.union(theta,TypeHole(EqualityTypeVar(a)),freshVar),
-										  TypeHole(TypeVar(b)),freshVar))
-		end
-												  
-	| (THole(TypeHole(TypeVar(a))),THole(TypeHole(EqualityTypeVar(b)))) =>
-		let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
-		in (SOME Bool, Substitution.union(Substitution.union(theta,TypeHole(TypeVar(a)),freshVar),
-										  TypeHole(EqualityTypeVar(b)),freshVar))
-		end
+		| (Bool,THole(TypeHole(TypeVar(a)))) => 
+			(SOME Bool,Substitution.union(theta,TypeHole(TypeVar(a)),Bool))
 						
-	| (THole(TypeHole(EqualityTypeVar(a))),THole(TypeHole(EqualityTypeVar(b)))) =>
-		(* if already same type, no need to generate a fresh type variable for them to share *)
-		if a = b
-		then (SOME Bool, theta)
-		else let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
-			 in (SOME Bool, Substitution.union(Substitution.union(theta,TypeHole(EqualityTypeVar(a)),freshVar),
-											   TypeHole(EqualityTypeVar(b)),freshVar))
-			 end
+		| (Bool,THole(TypeHole(EqualityTypeVar(a)))) => 
+			(SOME Bool,Substitution.union(theta,TypeHole(EqualityTypeVar(a)),Bool))
+						
+		| (THole(TypeHole(TypeVar(a))),Bool) => 
+			(SOME Bool,Substitution.union(theta,TypeHole(TypeVar(a)),Bool))
+						
+		| (THole(TypeHole(EqualityTypeVar(a))),Bool) => 
+			(SOME Bool,Substitution.union(theta,TypeHole(EqualityTypeVar(a)),Bool))
+						
+		| (THole(TypeHole(TypeVar(a))),THole(TypeHole(TypeVar(b)))) =>
+			(* if already same type, no need to generate a fresh type variable for them to share *)
+			if a = b
+			then (SOME Bool, theta)
+			else let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
+				 in (SOME Bool, Substitution.union(Substitution.union(theta,TypeHole(TypeVar(a)),freshVar),
+												   TypeHole(TypeVar(b)),freshVar))
+				 end
+												  
+		| (THole(TypeHole(EqualityTypeVar(a))),THole(TypeHole(TypeVar(b)))) =>
+			let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
+			in (SOME Bool, Substitution.union(Substitution.union(theta,TypeHole(EqualityTypeVar(a)),freshVar),
+											  TypeHole(TypeVar(b)),freshVar))
+			end
+													  
+		| (THole(TypeHole(TypeVar(a))),THole(TypeHole(EqualityTypeVar(b)))) =>
+			let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
+			in (SOME Bool, Substitution.union(Substitution.union(theta,TypeHole(TypeVar(a)),freshVar),
+											  TypeHole(EqualityTypeVar(b)),freshVar))
+			end
+							
+		| (THole(TypeHole(EqualityTypeVar(a))),THole(TypeHole(EqualityTypeVar(b)))) =>
+			(* if already same type, no need to generate a fresh type variable for them to share *)
+			if a = b
+			then (SOME Bool, theta)
+			else let val freshVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta)
+				 in (SOME Bool, Substitution.union(Substitution.union(theta,TypeHole(EqualityTypeVar(a)),freshVar),
+												   TypeHole(EqualityTypeVar(b)),freshVar))
+				 end
+					
+		| (THole(hole1),THole(hole2)) => 
+			(SOME Bool, Substitution.union(Substitution.union(theta,hole1,Int),
+												 hole2,Int))
+		(* No need to unify for 'type variable = record/list' cases below 
+		   The generated record/lists contain only fresh type variables
+		   so no need for occurs check *)
+		   
+		(* Need to apply isEqualArgs to each pair of types in the record type 
+		   for which the labels are equal 
+		   First sort, then merge into a list of pairs of types for equal labels
+		   Then apply isEqualArgs to each pair returning (SOME Bool,theta') 
+		   iff each type pair returns SOME Bool,
+		   and theta' is the accumulated type substitution at end of applying
+		   isEqualArgs to all the type pairs *)
+		| (TRecord(r1),TRecord(r2)) =>
+		
+			let fun applyIsEqualArgs(l,theta) = (case (l,theta) of 
+			
+				  ([],theta) => (SOME Bool,theta)
+				| ((t1,t2)::rest,theta) => (case isEqualArgs(t1,t2,theta) of 
 				
-	| (THole(hole1),THole(hole2)) => 
-		(SOME Bool, Substitution.union(Substitution.union(theta,hole1,Int),
-											 hole2,Int))
-		
-	(* Need to apply isEqualArgs to each pair of types in the record type 
-	   for which the labels are equal 
-	   First sort, then merge into a list of pairs of types for equal labels
-	   Then apply isEqualArgs to each pair returning (SOME Bool,theta') 
-	   iff each type pair returns SOME Bool,
-	   and theta' is the accumulated type substitution at end of applying
-	   isEqualArgs to all the type pairs *)
-	| (TRecord(r1),TRecord(r2)) =>
-	
-		let fun applyIsEqualArgs(l,theta) = (case (l,theta) of 
-		
-			  ([],theta) => (SOME Bool,theta)
-			| ((t1,t2)::rest,theta) => (case isEqualArgs(t1,t2,theta) of 
+					  (SOME Bool,theta1) => applyIsEqualArgs(rest,theta1)
+					| (_,theta1)         => (NONE,theta1)))
+				
+			in (case Record.merge(r1,r2) of
+				  NONE => (NONE,theta)
+				| SOME l => applyIsEqualArgs(l,theta))
+			end
 			
-				  (SOME Bool,theta1) => applyIsEqualArgs(rest,theta1)
-				| (_,theta1)         => (NONE,theta1)))
+		| (TRecord(r),THole(tyvar as TypeHole(EqualityTypeVar(_)))) =>
+			let val genType = TRecord(genFreshTRecord(Record.getLabels(r),EQUALITY_TYPE_VAR,theta));
+				val theta1 = Substitution.union(theta,tyvar,genType)
+			in isEqualArgs(genType,TRecord(r),theta1) end
 			
-		in (case Record.merge(r1,r2) of
-			  NONE => (NONE,theta)
-			| SOME l => applyIsEqualArgs(l,theta))
-		end
+		| (h as THole(TypeHole(EqualityTypeVar(_))),r as TRecord(_)) => isEqualArgs(r,h,theta)
 		
-	| (THole(TypeHole(EqualityTypeVar(tyvar))),TRecord(r)) => 
-	
-		let val genType = genFreshTRecord(Record.getLabels(r),EQUALITY_TYPE_VAR,theta);
-			val theta1 = Substitution.union(theta,TypeHole(EqualityTypeVar(tyvar)),genType)
-		in typeOp(BoolOper(EQ),genType,TRecord(r),theta1) end
-
-	| (TRecord(r),THole(TypeHole(EqualityTypeVar(tyvar)))) =>
-	
-		let val genType = genFreshTRecord(Record.getLabels(r),EQUALITY_TYPE_VAR,theta);
-			val theta1 = Substitution.union(theta,TypeHole(EqualityTypeVar(tyvar)),genType)
-		in typeOp(BoolOper(EQ),genType,TRecord(r),theta1) end
+		| (TRecord(r),THole(tyvar as TypeHole(TypeVar(_)))) =>
+			let val genType = TRecord(genFreshTRecord(Record.getLabels(r),TYPE_VAR,theta));
+				val theta1 = Substitution.union(theta,tyvar,genType)
+			in isEqualArgs(genType,TRecord(r),theta1) end
+			
+		| (h as THole(TypeHole(TypeVar(_))),r as TRecord(_)) => isEqualArgs(r,h,theta)
+			
+		| (TList(tl1),TList(tl2)) => isEqualArgs(tl1,tl2,theta)
 		
-	| (TRecord(r),THole(TypeHole(TypeVar(tyvar)))) =>
-	
-		let val genType = genFreshTRecord(Record.getLabels(r),TYPE_VAR,theta);
-			val theta1 = Substitution.union(theta,TypeHole(TypeVar(tyvar)),genType)
-		in typeOp(BoolOper(EQ),genType,TRecord(r),theta1) end
+		| (TList(t1),THole(tyvar as TypeHole(TypeVar(_)))) =>
+			let val genType = TList(generateFreshTypeVar(TYPE_VAR,theta));
+				val theta1 = Substitution.union(theta,tyvar,genType)
+			in isEqualArgs(genType,TList(t1),theta1) end
+			
+		| (h as THole(TypeHole(TypeVar(_))),l as TList(_)) => isEqualArgs(l,h,theta)	
 		
-	| (THole(TypeHole(TypeVar(tyvar))),TRecord(r)) =>
-	
-		let val genType = genFreshTRecord(Record.getLabels(r),TYPE_VAR,theta);
-			val theta1 = Substitution.union(theta,TypeHole(TypeVar(tyvar)),genType)
-		in typeOp(BoolOper(EQ),genType,TRecord(r),theta1) end
+		| (TList(t1),THole(tyvar as TypeHole(EqualityTypeVar(_)))) =>
+			let val genType = TList(generateFreshTypeVar(EQUALITY_TYPE_VAR,theta));
+				val theta1 = Substitution.union(theta,tyvar,genType)
+			in isEqualArgs(genType,TList(t1),theta1) end
+			
+		| (h as THole(TypeHole(EqualityTypeVar(_))),l as TList(_)) => isEqualArgs(l,h,theta)	
 		
-	| _ => (NONE,theta))
+		| _ => (NONE,theta))
 	
 	in isEqualArgs(t1,t2,theta) end
 
@@ -247,7 +256,13 @@ fun typeofhole (SimpleHole(ValueHole(tyVar)),theta:typeSub) =
 		  []		    => []
 		| (lab1,v1)::r1 => (lab1,Value(v1))::valToERecord(r1))
 	in typeofexpr(Record(valToERecord(r)),theta) end
-   
+	
+|	typeofhole (ListHole(lh),theta) =
+	let fun valToEList(l) = (case l of 
+		  []     => []
+		| v1::l1 => Value(v1)::valToEList(l1))
+	in typeofexpr(List(valToEList(lh)),theta) end
+	
 and typeofVRecord (r,theta) = (case r of 
 	(* calculate type of a value record (i.e. a list of (label,value) pairs)
 	   in left-to-right manner *)
@@ -257,29 +272,65 @@ and typeofVRecord (r,theta) = (case r of
 		
 			  (NONE,theta1) => (NONE,theta1)
 			| (SOME t1,theta1) => (case typeofVRecord(r1,theta1) of 
-		
-				  (SOME (TRecord(tList)),theta2) => 
+			
 				  (* get latest type substitution for t1, after calculating type of rest of record *)
-					(SOME (TRecord((lab1,resolveChainTheta(t1,theta2))::tList)),theta2)
+				  (SOME (TRecord(tList)),theta2) => (SOME (TRecord((lab1,resolveChainTheta(t1,theta2))::tList)),theta2)
 					
 				| (_,theta2) => (NONE,theta2))))
+			
+(* To calculate the type of a list of values,
+	(i)  Generate a list of all the types of the values, i.e. [1,2,true] -> [int,int,bool]
+	(ii) See if all the types are equal
+			- If they are, return that type
+			- Otherwise, return a fresh general type variable (too early to restrict) *)
+and typeofVList (l,theta) = 
+
+	(* Takes a list of values, and generates a list of their types *)
+	let fun getTypesList(l,theta) = (case l of 
+	
+		  []     => (SOME [],theta)
+		| v1::l1 => (case typeof(v1,theta) of 
+		
+			  (NONE,theta1) => (NONE,theta1)
+			| (SOME t1,theta1) => (case getTypesList(l1,theta1) of
+				
+				  (NONE,theta2) => (NONE,theta2)
+				| (SOME tList,theta2) => (SOME (t1::tList),theta2))))
+				
+	in (case getTypesList(l,theta) of
+	
+		  (NONE,theta1) => (NONE,theta1)
+		| (SOME typeList,theta1) => 
+		
+			if allElementsEqual(typeList)
+						
+			(* Doesn't matter which type we pick, as long as type list not empty
+			   If it is empty, fail instead of generating a fresh type variable
+			   Only allow for empty list of values via EmptyList constructor *)
+			then (case typeList of []       => (NONE,theta1)
+								 | t::tRest => (SOME (TList(t)),theta1))
+											 
+			(* If we fail to match all types to the exact same type, return original theta *)
+			else (SOME (TList(generateFreshTypeVar(TYPE_VAR,theta1))),theta))
+
+	end
 	 
 and typeof (v,theta) = (case v of
 
 	  Concrete(N(_)) => (SOME Int,theta)
 	| Concrete(B(_)) => (SOME Bool,theta)
     | Concrete(R(_)) => (SOME Real,theta)
+	| Concrete(EmptyList) => (SOME (TList(generateFreshTypeVar(TYPE_VAR,theta))),theta)
+	| VHole(h)   => typeofhole(h,theta)
+	| VList(l)   => typeofVList(l,theta)
+	| VRecord(r) => typeofVRecord(r,theta)
 	
 	| Fun(x,t1,e) => (case typeofexpr(substitute(e, [(x,Value(gen(t1,theta)))]),theta) of
 	
 		  (NONE,theta1) => (NONE,theta1)
 		  (* get the latest type substitution for t1, after calculating t2 *)
-		| (SOME(t2),theta1) => (SOME (TFun(resolveChainTheta(t1,theta1),t2)),theta1))
+		| (SOME(t2),theta1) => (SOME (TFun(resolveChainTheta(t1,theta1),t2)),theta1)))
 		
-	| VHole(h) => typeofhole(h,theta)
-	
-	| VRecord(r) => typeofVRecord(r,theta))
- 
 and typeofERecord (r,theta) = (case r of 
 	(* calculate type of an expression record (i.e. a list of (label,expression) pairs)
 	   in left-to-right manner *)
@@ -289,12 +340,43 @@ and typeofERecord (r,theta) = (case r of
 		
 			  (NONE,theta1) => (NONE,theta1)
 			| (SOME t1,theta1) => (case typeofERecord(r1,theta1) of 
-		
-				  (SOME (TRecord(tList)),theta2) => 
+			
 				  (* get latest type substitution for t1, after calculating type of rest of record *)
-					(SOME (TRecord((lab1,resolveChainTheta(t1,theta2))::tList)),theta2)
+				  (SOME (TRecord(tList)),theta2) => (SOME (TRecord((lab1,resolveChainTheta(t1,theta2))::tList)),theta2)
 					
 				| (_,theta2) => (NONE,theta2))))
+				
+(* To calculate the type of a list of expressions,
+	(i)  Generate the list of all the types of the values, 
+	     i.e. [1+1,2=2,if true then 3.0 else 4.0] -> [int,bool,real]
+	(ii) See if all the types are equal
+			- If they are, return that type
+			- Otherwise, return a fresh general type variable (too early to restrict) *)
+and typeofEList (l,theta) = 
+
+	(* Takes a list of expressions, and generates a list of their types *)
+	let fun getTypesList(l,theta) = (case l of 
+	
+		  []     => (SOME [],theta)
+		| e1::l1 => (case typeofexpr(e1,theta) of 
+		
+			  (NONE,theta1) => (NONE,theta1)
+			| (SOME t1,theta1) => (case getTypesList(l1,theta1) of
+				
+				  (NONE,theta2) => (NONE,theta2)
+				| (SOME tList,theta2) => (SOME (t1::tList),theta2))))
+				
+	in (case getTypesList(l,theta) of
+	
+		  (NONE,theta1) => (NONE,theta1)
+		| (SOME typeList,theta1) => 
+		
+			if allElementsEqual(typeList)
+			then (case typeList of []       => (NONE,theta1)
+								 | t::tRest => (SOME (TList(t)),theta1))						 
+			else (SOME (TList(generateFreshTypeVar(TYPE_VAR,theta1))),theta))
+			
+	end
   
 and typeofexpr(Value(v),theta) = typeof(v,theta)
 
@@ -403,7 +485,7 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 		
 |	typeofexpr(App(e1,e2),theta) = (case typeofexpr(e1,theta) of 
 
-	  (SOME (TFun(tA,tB)),theta1) => (SOME tB,theta2)
+	  (SOME (TFun(tA,tB)),theta1) => (SOME tB,theta1)
 			
 	| (SOME (THole(TypeHole(TypeVar(a)))),theta1) => (case typeofexpr(e2,theta1) of 
 		
@@ -421,6 +503,8 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 	| (_,theta1) => (NONE,theta1))
 	
 | 	typeofexpr(Record(l),theta) = typeofERecord(l,theta)
+
+|	typeofexpr(List(l),theta) = typeofEList(l,theta)
 
 	(* Don't check type of e1 is unifiable to type t: done in narrow *)
 | 	typeofexpr(Let(x,t,_,e2),theta) = typeofexpr(substitute(e2, [(x,Value(gen(t,theta)))]),theta)

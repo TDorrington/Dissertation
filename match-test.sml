@@ -457,6 +457,86 @@ prettyPrintMatchList(matchTypesList(
 (* [ (x,x->v['a],a->10),(y,y->v['a],a->10),(z+x,y->v['a108],x->v['a107],z->v['a],a->10) ], 
    [ 'c->{i:'a107, j:'a108}, 'b->bool ] *)
    
+prettyPrintMatch(matchTypes(TList(Int),PVal(EmptyList),[],[]));	(* [] *)
+prettyPrintMatch(matchTypes(TList(Bool),PVal(EmptyList),[],[]));	(* [] *)
+prettyPrintMatch(matchTypes(TList(Real),PVal(EmptyList),[],[]));	(* [] *)
+prettyPrintMatch(matchTypes(TList(TFun(Int,Bool)),PVal(EmptyList),[],[]));	(* [] *)
+
+prettyPrintMatch(matchTypes(TList(Int),PCons(PVar(Var("x")),PVar(Var("y"))),[],[]));	(* [x->1,y->[1]] *)
+prettyPrintMatch(matchTypes(TList(Bool),PCons(PVar(Var("x")),PVar(Var("y"))),[],[]));	(* [x->true,y->[true]] *)
+prettyPrintMatch(matchTypes(TList(Real),PCons(PVar(Var("x")),PVar(Var("y"))),[],[]));	(* [x->1.0,y->[1.0]] *)
+
+prettyPrintMatch(matchTypes(TList(Int),PCons(PVar(Var("x")),PCons(PVar(Var("y")),PVar(Var("z")))),[],[]));
+(* [x->1,y->1,z->[1]] *)
+
+prettyPrintMatch(matchTypes(TList(TList(Int)),PCons(PCons(PVar(Var("x")),PVar(Var("y"))),PVar(Var("z"))),[],[]));
+(* [x->1,y->[1],z->[[1]]] *)
+
+prettyPrintMatch(matchTypes(Int,PVal(EmptyList),[],[]));	(* FAIL *)
+prettyPrintMatch(matchTypes(Bool,PVal(EmptyList),[],[]));	(* FAIL *)
+prettyPrintMatch(matchTypes(Real,PVal(EmptyList),[],[]));	(* FAIL *)
+prettyPrintMatch(matchTypes(TFun(Int,Bool),PVal(EmptyList),[],[]));			(* FAIL *)
+prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int)]),PVal(EmptyList),[],[]));(* FAIL *)
+
+prettyPrintMatch(matchTypes(Int,PCons(PVar(Var("x")),PVar(Var("y"))),[],[]));	(* FAIL *)
+prettyPrintMatch(matchTypes(Bool,PCons(PVar(Var("x")),PVar(Var("y"))),[],[]));	(* FAIL *)
+prettyPrintMatch(matchTypes(Real,PCons(PVar(Var("x")),PVar(Var("y"))),[],[]));	(* FAIL *)
+prettyPrintMatch(matchTypes(TFun(Int,Bool),PCons(PVar(Var("x")),PVar(Var("y"))),[],[]));			(* FAIL *)
+prettyPrintMatch(matchTypes(TRecord([(Lab("a"),Int)]),PCons(PVar(Var("x")),PVar(Var("y"))),[],[]));	(* FAIL *)
+
+prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PVal(EmptyList),[],[]));	
+(* [], ['a->'a41 list, 'a41->'a40] *)
+
+prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PCons(PVar(Var("x")),PVar(Var("y"))),[],[]));
+(* [y->[v['a42]],x->v['a42]], ['a-> 'a43 list, 'a43->'a42] *)
+
+prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PCons(PCons(PVar(Var("x")),PVar(Var("z"))),PVar(Var("y"))),[],[]));
+
+prettyPrintMatch(matchTypes(THole(TypeHole(TypeVar("a"))),PCons(PVar(Var("x")),PCons(PVar(Var("z")),PVar(Var("y")))),[],[]));
+(* [ y -> [v['a50]], z -> v['a50], x -> v['a48]] , ['a48 -> 'a50, 'a49 -> 'a48, 'a -> 'a49 list ] *)
+
+prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PVal(EmptyList),[],[]));	
+(* [], [''a->''a52 list, 'a51->''a52] *)
+
+prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PCons(PVar(Var("x")),PVar(Var("y"))),[],[]));
+(* [y->[v[''a54]],x->v[''a54]], ['a53->''a54, ''a->''a54 list] *)
+
+prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PCons(PCons(PVar(Var("x")),PVar(Var("z"))),PVar(Var("y"))),[],[]));
+(* [y->[[v[''a58]]], z->[v[''a58]], x->v[''a58]], ['a57->''a58, ''a56->''a58 list, 'a55->''a56, ''a->''a56 list] *)
+
+prettyPrintMatch(matchTypes(THole(TypeHole(EqualityTypeVar("a"))),PCons(PVar(Var("x")),PCons(PVar(Var("z")),PVar(Var("y")))),[],[]));
+(* [ y -> [v[''a60]], z -> v[''a60], x -> v[''a60]] , ['a61 -> ''a60, 'a59 -> ''a60, ''a -> ''a60 list ] *)
+
+prettyPrintMatch(matchTypes(TList(Int),PCons(PVar(Var("x")),PVal(EmptyList)),[],[])); (* [x->1] *)
+
+prettyPrintMatch(matchTypes(TList(Bool),PCons(PVar(Var("x")),PWildcard),[],[])); (* [x->true] *)
+
+prettyPrintMatch(matchTypes(TList(TRecord([(Lab("a"),Int)])),
+						    PCons(PRecord([(Lab("a"),PVar(Var("x")))]),PVar(Var("y"))),[],[]));
+(* [y->[{a=1}], x->1] *)
+
+prettyPrintMatch(matchTypes(TList(TRecord([(Lab("a"),Int),(Lab("b"),Bool),(Lab("c"),TFun(Int,Int))])),
+						    PCons(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("c"),PVar(Var("y"))),(Lab("b"),PVal(B(true)))]),
+								  PCons(PRecord([(Lab("a"),PVar(Var("a"))),(Lab("c"),PVar(Var("b"))),(Lab("b"),PVal(B(false)))]),
+										PVar(Var("k")))),
+							[],[]));
+(* [g->[{a=1,b=true,c=fn x:int=>1}], x->1, y->fn x:int=>1, a->1, b->fn x:int=>1] *)
+							
+prettyPrintMatch(matchTypes(TList(Int),PCons(PRecord([(Lab("a"),PVar(Var("x")))]),PVar(Var("y"))),[],[])); (* FAIL *)
+prettyPrintMatch(matchTypes(TList(Real),PCons(PRecord([(Lab("a"),PVar(Var("x")))]),PVar(Var("y"))),[],[]));(* FAIL *)
+prettyPrintMatch(matchTypes(TList(Bool),PCons(PRecord([(Lab("a"),PVar(Var("x")))]),PVar(Var("y"))),[],[]));(* FAIL *)
+
+prettyPrintMatchList(matchTypesList(TList(Int),
+	[(PVal(EmptyList),Value(Concrete(B(true)))),
+	 (PCons(PVar(Var("x")),PVar(Var("y"))),Value(Concrete(B(false))))],[],[]));
+(* [ (true, ), (false, y->[1],x->1) ] *)
+
+prettyPrintMatchList(matchTypesList(TList(Int),
+	[(PVal(EmptyList),Value(Concrete(B(true)))),
+	 (PCons(PVar(Var("x")),PVal(EmptyList)),Value(Concrete(B(true)))),
+	 (PCons(PVar(Var("x")),PVar(Var("y"))),Value(Concrete(B(false))))],[],[]));
+(* [ (true, ), (true, x->1), (false, y->[1],x->1) ] *)
+	 
 fun prettyPrintMatchE(result) = (case result of 
 	  Fail => "FAIL"
 	| Hole h => "HOLE of " ^ prettyPrintHole(h)
@@ -464,157 +544,154 @@ fun prettyPrintMatchE(result) = (case result of
 		prettyPrintSigma(s) ^ " ], [ " ^ prettyPrintTheta(t) ^ " ]");
 		
 		
-prettyPrintMatchE(match(Value(Concrete(N(2))),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));		(* 1, [] *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));	(* 1, [] *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));		(* 1, [] *)
+prettyPrintMatchE(match((Concrete(N(2))),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));		(* 1, [] *)
+prettyPrintMatchE(match((Concrete(B(true))),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));	(* 1, [] *)
+prettyPrintMatchE(match((Concrete(R(2.0))),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));		(* 1, [] *)
 
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));	
+prettyPrintMatchE(match((Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));	
 (* 1, [] *)
 
-prettyPrintMatchE(match(Value(va'),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));			(* 1, [] *)
-prettyPrintMatchE(match(Value(va''),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));			(* 1, [] *)
-prettyPrintMatchE(match(Value(va'''),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));		(* 1, [] *)
+prettyPrintMatchE(match((va'),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));			(* 1, [] *)
+prettyPrintMatchE(match((va''),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));			(* 1, [] *)
+prettyPrintMatchE(match((va'''),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));		(* 1, [] *)
 
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),[(PWildcard,Value(Concrete(N(1))))],[],[],[]));	
-(* 1, [] *)
+prettyPrintMatchE(match((Concrete(N(2))),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));	(* true, [x->2]    *)
+prettyPrintMatchE(match((Concrete(B(true))),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));(* true, [x->true] *)
+prettyPrintMatchE(match((Concrete(R(2.0))),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));	(* true, [x->2.0]  *)
 
-prettyPrintMatchE(match(Value(Concrete(N(2))),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));	(* true, [x->2]    *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));(* true, [x->true] *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));	(* true, [x->2.0]  *)
-
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));	
+prettyPrintMatchE(match((Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));	
 (* true, [x->fn x:int => 2] *)
 
-prettyPrintMatchE(match(Value(va'),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));		(* true, [x->v['a]]   *)
-prettyPrintMatchE(match(Value(va''),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));		(* true, [x->v[''a]]  *)
-prettyPrintMatchE(match(Value(va'''),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));	(* true, [x->v['''a]] *)
+prettyPrintMatchE(match((va'),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));		(* true, [x->v['a]]   *)
+prettyPrintMatchE(match((va''),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));		(* true, [x->v[''a]]  *)
+prettyPrintMatchE(match((va'''),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));	(* true, [x->v['''a]] *)
 
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));	
+prettyPrintMatchE(match(VRecord([(Lab("a"),(Concrete(N(2)))),(Lab("b"),(va'))]),[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[]));	
 (* true, [x->{a=2,b=v['a]}] *)
 
-prettyPrintMatchE(match(Value(Concrete(N(2))),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));	(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(R(3.0))),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));	(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));	(* FAIL *)
+prettyPrintMatchE(match((Concrete(N(2))),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));	(* FAIL *)
+prettyPrintMatchE(match((Concrete(R(3.0))),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));	(* FAIL *)
+prettyPrintMatchE(match((Concrete(R(2.0))),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));	(* FAIL *)
 
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));	
+prettyPrintMatchE(match((Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));	
 (* FAIL *)
 
-prettyPrintMatchE(match(Value(va'),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));		(* FAIL *)
+prettyPrintMatchE(match((va'),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));		(* FAIL *)
 
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));	
+prettyPrintMatchE(match(VRecord([(Lab("a"),(Concrete(N(2)))),(Lab("b"),(va'))]),[(PVal(R(2.0)),Value(Concrete(N(0))))],[],[],[]));	
 (* FAIL *)
 
-prettyPrintMatchE(match(Value(Concrete(N(2))),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));		(* 1.0, []  *)
-prettyPrintMatchE(match(Value(Concrete(N(3))),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(N(2))),[(PVal(N(3)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL  *)
+prettyPrintMatchE(match((Concrete(N(2))),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));		(* 1.0, []  *)
+prettyPrintMatchE(match((Concrete(N(3))),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL *)
+prettyPrintMatchE(match((Concrete(N(2))),[(PVal(N(3)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL *)
+prettyPrintMatchE(match((Concrete(B(true))),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL *)
+prettyPrintMatchE(match((Concrete(R(2.0))),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL  *)
 
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));	
+prettyPrintMatchE(match((Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));	
 (* FAIL *)
 
-prettyPrintMatchE(match(Value(va'),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [v['a]->2],   ['a>int],    [] *)
-prettyPrintMatchE(match(Value(va''),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [v[''a]->2],  [''a->int],  [] *)
-prettyPrintMatchE(match(Value(va'''),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [v['''a]->2], ['''a->int], [] *)
+prettyPrintMatchE(match((va'),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [v['a]->2],   ['a>int],    [] *)
+prettyPrintMatchE(match((va''),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [v[''a]->2],  [''a->int],  [] *)
+prettyPrintMatchE(match((va'''),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [v['''a]->2], ['''a->int], [] *)
 
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));	
+prettyPrintMatchE(match(VRecord([(Lab("a"),(Concrete(N(2)))),(Lab("b"),(va'))]),[(PVal(N(2)),Value(Concrete(R(1.0))))],[],[],[]));	
 (* FAIL *)
 
-prettyPrintMatchE(match(Value(Concrete(N(2))),[(PVal(B(true)),Value(Concrete(R(1.0))))],[],[],[]));			(* FAIL  *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),[(PVal(B(true)),Value(Concrete(R(1.0))))],[],[],[]));		(* 1.0, [] *)
-prettyPrintMatchE(match(Value(Concrete(B(false))),[(PVal(B(true)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(B(false))),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [] *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL  *)
+prettyPrintMatchE(match((Concrete(N(2))),[(PVal(B(true)),Value(Concrete(R(1.0))))],[],[],[]));			(* FAIL  *)
+prettyPrintMatchE(match((Concrete(B(true))),[(PVal(B(true)),Value(Concrete(R(1.0))))],[],[],[]));		(* 1.0, [] *)
+prettyPrintMatchE(match((Concrete(B(false))),[(PVal(B(true)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL *)
+prettyPrintMatchE(match((Concrete(B(true))),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL *)
+prettyPrintMatchE(match((Concrete(B(false))),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [] *)
+prettyPrintMatchE(match((Concrete(R(2.0))),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));		(* FAIL  *)
 
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	
+prettyPrintMatchE(match((Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	
 (* FAIL *)
 
-prettyPrintMatchE(match(Value(va'),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [v['a]->false],   ['a>bool],    [] *)
-prettyPrintMatchE(match(Value(va''),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [v[''a]->false],  [''a->bool],  [] *)
-prettyPrintMatchE(match(Value(va'''),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	(* FAIL *)
+prettyPrintMatchE(match((va'),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [v['a]->false],   ['a>bool],    [] *)
+prettyPrintMatchE(match((va''),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	(* 1.0, [v[''a]->false],  [''a->bool],  [] *)
+prettyPrintMatchE(match((va'''),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	(* FAIL *)
 
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	
+prettyPrintMatchE(match(VRecord([(Lab("a"),(Concrete(N(2)))),(Lab("b"),(va'))]),[(PVal(B(false)),Value(Concrete(R(1.0))))],[],[],[]));	
 (* FAIL *)
 
-prettyPrintMatchE(match(Value(Concrete(N(2))),[(PRecord([]),Value(VRecord([])))],[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(B(true))),[(PRecord([]),Value(VRecord([])))],[],[],[]));		(* FAIL *)
-prettyPrintMatchE(match(Value(Concrete(R(2.0))),[(PRecord([]),Value(VRecord([])))],[],[],[]));		(* FAIL *)
+prettyPrintMatchE(match((Concrete(N(2))),[(PRecord([]),Value(VRecord([])))],[],[],[]));		(* FAIL *)
+prettyPrintMatchE(match((Concrete(B(true))),[(PRecord([]),Value(VRecord([])))],[],[],[]));		(* FAIL *)
+prettyPrintMatchE(match((Concrete(R(2.0))),[(PRecord([]),Value(VRecord([])))],[],[],[]));		(* FAIL *)
 
-prettyPrintMatchE(match(Value(Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PRecord([]),Value(VRecord([])))],[],[],[]));	
+prettyPrintMatchE(match((Fun(Var("x"),Int,Value(Concrete(N(2))))),[(PRecord([]),Value(VRecord([])))],[],[],[]));	
 (* FAIL *)
 
-prettyPrintMatchE(match(Value(va'),[(PRecord([]),Value(VRecord([])))],[],[],[]));			(* {}, [v['a]->{}], ['a->{}], [] *)
-prettyPrintMatchE(match(Value(va''),[(PRecord([]),Value(VRecord([])))],[],[],[]));			(* {}, [v[''a]->{}], [''a->{}], [] *)
-prettyPrintMatchE(match(Value(va'''),[(PRecord([]),Value(VRecord([])))],[],[],[]));			(* FAIL*)
-prettyPrintMatchE(match(Record([]),[(PRecord([]),Value(VRecord([])))],[],[],[]));			(* {}, [] *)
-prettyPrintMatchE(match(Value(VRecord([])),[(PRecord([]),Value(VRecord([])))],[],[],[]));	(* {}, [] *)
+prettyPrintMatchE(match((va'),[(PRecord([]),Value(VRecord([])))],[],[],[]));			(* {}, [v['a]->{}], ['a->{}], [] *)
+prettyPrintMatchE(match((va''),[(PRecord([]),Value(VRecord([])))],[],[],[]));			(* {}, [v[''a]->{}], [''a->{}], [] *)
+prettyPrintMatchE(match((va'''),[(PRecord([]),Value(VRecord([])))],[],[],[]));			(* FAIL*)
+prettyPrintMatchE(match(VRecord([]),[(PRecord([]),Value(VRecord([])))],[],[],[]));			(* {}, [] *)
+prettyPrintMatchE(match((VRecord([])),[(PRecord([]),Value(VRecord([])))],[],[],[]));	(* {}, [] *)
 
-prettyPrintMatchE(match(Record([(Lab("a"),Value(Concrete(N(2)))),(Lab("b"),Value(va'))]),[(PRecord([]),Value(VRecord([])))],[],[],[]));	
+prettyPrintMatchE(match(VRecord([(Lab("a"),(Concrete(N(2)))),(Lab("b"),(va'))]),[(PRecord([]),Value(VRecord([])))],[],[],[]));	
 (* FAIL *)
 
 prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(R(3.0))),(Lab("c"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))])),
+	(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(R(3.0))),(Lab("c"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))])),
 	[(PRecord([(Lab("a"),PVal(N(2))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PWildcard)]),Variable(Var("x")))],
 	[],[],[]));
 (* x, [x->3.0] *)
 
 prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(R(3.0))),(Lab("c"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))])),
+	(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(R(3.0))),(Lab("c"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))])),
 	[(PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PWildcard)]),Variable(Var("x")))],
 	[],[],[]));
 (* FAIL *)
 
 prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(R(3.0))),(Lab("c"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))])),
+	(VRecord([(Lab("a"),Concrete(N(2))),(Lab("b"),Concrete(R(3.0))),(Lab("c"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x")))))])),
 	[(PRecord([(Lab("a"),PVar(Var("y"))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z")))]),Variable(Var("x")))],
 	[],[],[]));
 (* x, [x->3.0,y->2,z->fn x:int=>x+x] *)
 
 prettyPrintMatchE(match(
-	Value(va'),
+	(va'),
 	[(PRecord([(Lab("a"),PVar(Var("y"))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z")))]),Variable(Var("z")))],
 	[],[],[]));
 (* z,[v['a]->{a=v['a0],b=v['a1],c=v['a2]}], ['a->{a:'a0,b:'a1,c:'a2}], [x->v['a1],y->v['a0],z->v['a2]] *)
 
 prettyPrintMatchE(match(
-	Value(va''),
+	(va''),
 	[(PRecord([(Lab("a"),PVar(Var("y"))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z")))]),
 	  ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))],
 	[],[],[]));
 (* x+y,[v[''a]->{a=v[''a0],=:v[''a1],c=v[''a2]}], [''a->{a:''a0,b:''a1,c:''a2}], [x->v[''a1],y->v[''a0],z->v[''a2]] *)
 
 prettyPrintMatchE(match(
-	Value(va'''),
+	(va'''),
 	[(PRecord([(Lab("a"),PVar(Var("y"))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z")))]),
 	  Value(Concrete(N(10))))],
 	[],[],[]));
 (* FAIL *)
 
 prettyPrintMatchE(match(
-	Value(va'''),
+	(va'''),
 	[(PRecord([(Lab("a"),PVar(Var("y"))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z")))]),
 	  Value(Concrete(N(5))))],
 	[],[],[]));
 (* FAIL *)
 
 prettyPrintMatchE(match(
-	Record([(Lab("a"),Value(Concrete(N(3)))),
-			(Lab("b"),Value(VRecord([(Lab("1"),Fun(Var("x"),Real,ArithExpr(TIMES,Value(Concrete(R(2.0))),Variable(Var("x"))))),
-									 (Lab("2"),Concrete(B(true)))]))),
-			(Lab("c"),Value(va')),
-			(Lab("d"),Value(VHole(BinaryOpHole(ArithOper(PLUS),vb',vc'))))]),
+	VRecord([(Lab("a"),(Concrete(N(3)))),
+			 (Lab("b"),(VRecord([(Lab("1"),Fun(Var("x"),Real,ArithExpr(TIMES,Value(Concrete(R(2.0))),Variable(Var("x"))))),
+								 (Lab("2"),Concrete(B(true)))]))),
+			(Lab("c"),(va')),
+			(Lab("d"),(VHole(BinaryOpHole(ArithOper(PLUS),vb',vc'))))]),
 	[(PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z"))),(Lab("d"),PWildcard)]),
 	  App(Variable(Var("z")),Variable(Var("x"))))],
 	[],[],[]));
 (* z x, [z->v['a], x->{1=fn x:real=>2.0*x, 2=true}] *)
 
 prettyPrintMatchE(match(
-	Record([(Lab("a"),Value(Concrete(N(3)))),
-			(Lab("b"),Value(VRecord([(Lab("1"),Fun(Var("x"),Real,ArithExpr(TIMES,Value(Concrete(R(2.0))),Variable(Var("x"))))),
-									 (Lab("2"),Concrete(B(true)))]))),
-			(Lab("c"),Value(va')),
-			(Lab("d"),Value(VHole(BinaryOpHole(ArithOper(PLUS),vb',vc'))))]),
+	VRecord([(Lab("a"),(Concrete(N(3)))),
+			 (Lab("b"),(VRecord([(Lab("1"),Fun(Var("x"),Real,ArithExpr(TIMES,Value(Concrete(R(2.0))),Variable(Var("x"))))),
+								 (Lab("2"),Concrete(B(true)))]))),
+			 (Lab("c"),(va')),
+			 (Lab("d"),(VHole(BinaryOpHole(ArithOper(PLUS),vb',vc'))))]),
 	[(PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVar(Var("x"))),(Lab("c"),PVar(Var("z"))),(Lab("d"),PVar(Var("y")))]),
 	  Case(Variable(Var("x")),[(PRecord([(Lab("1"),PVar(Var("i"))),(Lab("2"),PVar(Var("j")))]),
 							    App(Variable(Var("i")),Variable(Var("z"))))]))],
@@ -622,7 +699,7 @@ prettyPrintMatchE(match(
 (* case x of {1=i,2=j} -> i z, [y->v[v['b]+v['c]], z->v['a], x->{1=fn x:real=>2.0*x, 2=true}] *)
 
 prettyPrintMatchE(match(
-	Value(VRecord([
+	(VRecord([
 			(Lab("a"),Concrete(N(3))),
 			(Lab("b"),VRecord([(Lab("1"),Fun(Var("x"),Real,ArithExpr(TIMES,Value(Concrete(R(2.0))),Variable(Var("x"))))),
 									 (Lab("2"),Concrete(B(true)))])),
@@ -634,36 +711,36 @@ prettyPrintMatchE(match(
 (* HOLE of v[ {a=3, b={1=fn x:real => 2.0*x, 2=true}, c=v['a], d=v[ v['b] + v['c] ]} ] *)
 
 prettyPrintMatchE(match(
-	Value(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3))))))]),
+	(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3))))))]),
 	[(PRecord([(Lab("a"),PVal(N(3)))]),Value(Concrete(N(5))))],[],[],[]));
 (* HOLE of v[a=v[if v['a] then 2 else 3]}] *)
 
 prettyPrintMatchE(match(
-	Value(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3)))))),
+	(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3)))))),
 				  (Lab("b"),VHole(ConditionHole(vb',Value(Concrete(B(true))),Value(Concrete(B(false))))))]),
 	[(PRecord([(Lab("a"),PVal(N(3)))]),Value(Concrete(N(5))))],[],[],[]));
 (* FAIL *)
 
 prettyPrintMatchE(match(
-	Value(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3)))))),
+	(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3)))))),
 				  (Lab("b"),VHole(ConditionHole(vb',Value(Concrete(B(true))),Value(Concrete(B(false))))))]),
 	[(PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVal(B(false)))]),Value(Concrete(N(2))))],[],[],[]));
 (* HOLE of v[ {a=v[if v['a] then 2 else 3], b=v[if v['b] then true else false]}]*)
 
 prettyPrintMatchE(match(
-	Value(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3)))))),
+	(VRecord[(Lab("a"),VHole(ConditionHole(va',Value(Concrete(N(2))),Value(Concrete(N(3)))))),
 				  (Lab("b"),Fun(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),Value(Concrete(N(3))))))]),
 	[(PRecord([(Lab("a"),PVal(N(3))),(Lab("b"),PVal(B(false)))]),Value(Concrete(N(1))))],[],[],[]));
 (* HOLE of v[ {a=v[if v['a] then 2 else 3], b=fn x:int => x+3}]*)
 
 prettyPrintMatchE(match(
-	Value(VHole(CaseHole(VHole(BinaryOpHole(ArithOper(PLUS),va',vb')),
+	(VHole(CaseHole(VHole(BinaryOpHole(ArithOper(PLUS),va',vb')),
 						 [(PVal(N(3)),Value(Fun(Var("x"),Int,Value(Concrete(N(2))))))]))),
 	[(PVal(N(2)),Value(Concrete(R(0.0))))],[],[],[]));
 (* HOLE of v[ case v[ v['a] + v['b] ] of 3 -> fn x:int=>2 ] *)
 
 prettyPrintMatchE(match(
-	Value(Concrete(N(3))),
+	(Concrete(N(3))),
 	[(PVal(N(1)),Variable(Var("x"))),
 	 (PVal(N(2)),Variable(Var("y"))),
 	 (PVal(N(3)),Variable(Var("z"))),
@@ -671,7 +748,7 @@ prettyPrintMatchE(match(
 (* z, [] *)
 
 prettyPrintMatchE(match(
-	Value(Concrete(N(4))),
+	(Concrete(N(4))),
 	[(PVal(N(1)),Variable(Var("x"))),
 	 (PVal(N(2)),Variable(Var("y"))),
 	 (PVal(N(3)),Variable(Var("z"))),
@@ -679,7 +756,7 @@ prettyPrintMatchE(match(
 (* a, [] *)
 
 prettyPrintMatchE(match(
-	Value(Concrete(N(4))),
+	(Concrete(N(4))),
 	[(PVal(N(1)),Variable(Var("x"))),
 	 (PVal(N(2)),Variable(Var("y"))),
 	 (PVal(N(3)),Variable(Var("z"))),
@@ -687,7 +764,7 @@ prettyPrintMatchE(match(
 (* x, [x->4] *)
 
 prettyPrintMatchE(match(
-	Value(Concrete(N(4))),
+	(Concrete(N(4))),
 	[(PVal(N(1)),Variable(Var("x"))),
 	 (PVal(N(2)),Variable(Var("y"))),
 	 (PVal(N(3)),Variable(Var("z"))),
@@ -697,17 +774,9 @@ prettyPrintMatchE(match(
 (* Even though {} not of type int, it will in reality, c.f. below example
    'match' always assumes all the patterns and expression we are case-ing on
    are of the valid types *)
-   
-evaluate(Config(Expression(Case(
-	Value(Concrete(N(4))),
-	[(PVal(N(1)),Variable(Var("x"))),
-	 (PVal(N(2)),Variable(Var("y"))),
-	 (PVal(N(3)),Variable(Var("z"))),
-	 (PVar(Var("x")),Variable(Var("x"))),
-	 (PVal(B(true)),Value(Concrete(N(10))))])),[],[]));
 	 
 prettyPrintMatchE(match(
-	Value(Concrete(N(4))),
+	(Concrete(N(4))),
 	[(PVal(N(1)),Variable(Var("x"))),
 	 (PVal(N(2)),Variable(Var("y"))),
 	 (PVal(N(3)),Variable(Var("z"))),
@@ -716,14 +785,14 @@ prettyPrintMatchE(match(
 (* FAIL *)
 
 prettyPrintMatchE(match(
-	Value(Concrete(B(true))),
+	(Concrete(B(true))),
 	[(PVal(B(false)),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))),
 	 (PVal(B(true)), ArithExpr(TIMES,Variable(Var("x")),Variable(Var("y")))),
 	 (PVar(Var("x")),ArithExpr(SUBTRACT,Variable(Var("x")),Variable(Var("y"))))],[],[],[]));
 (* x*y, [] *)
 
 prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))])),
+	(VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))])),
 	[(PRecord([(Lab("a"),PVal(N(2))),(Lab("b"),PVal(B(false)))]),Variable(Var("a"))),
 	 (PRecord([(Lab("b"),PVal(B(true))),(Lab("a"),PVal(N(1)))]),Variable(Var("b"))),
 	 (PRecord([(Lab("a"),PVal(N(5))),(Lab("b"),PVal(B(false)))]),Variable(Var("c"))),
@@ -731,7 +800,7 @@ prettyPrintMatchE(match(
 (* d, [], *)
 
 prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))])),
+	(VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))])),
 	[(PRecord([(Lab("a"),PVal(N(2))),(Lab("b"),PVal(B(false)))]),Variable(Var("a"))),
 	 (PRecord([(Lab("b"),PVal(B(true))),(Lab("a"),PVal(N(1)))]),Variable(Var("b"))),
 	 (PRecord([(Lab("a"),PVal(N(5))),(Lab("b"),PVal(B(false)))]),Variable(Var("c"))),
@@ -740,7 +809,7 @@ prettyPrintMatchE(match(
 (* x+y, [y->false, x->1], *)
 
 prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))])),
+	(VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))])),
 	[(PRecord([(Lab("a"),PVal(N(2))),(Lab("b"),PVal(B(false)))]),Variable(Var("a"))),
 	 (PRecord([(Lab("b"),PVal(B(true))),(Lab("a"),PVal(N(1)))]),Variable(Var("b"))),
 	 (PRecord([(Lab("a"),PVal(N(5))),(Lab("b"),PVal(B(false)))]),Variable(Var("c"))),
@@ -750,7 +819,7 @@ prettyPrintMatchE(match(
 (* y, [x->1], *)
 
 prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))])),
+	(VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))])),
 	[(PRecord([(Lab("a"),PVal(N(2))),(Lab("b"),PVal(B(false)))]),Variable(Var("a"))),
 	 (PRecord([(Lab("b"),PVal(B(true))),(Lab("a"),PVal(N(1)))]),Variable(Var("b"))),
 	 (PRecord([(Lab("a"),PVal(N(5))),(Lab("b"),PVal(B(false)))]),Variable(Var("c"))),
@@ -760,7 +829,7 @@ prettyPrintMatchE(match(
 (* y, [], *)
 
 prettyPrintMatchE(match(
-	Value(VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(R(1.0))),
+	(VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(R(1.0))),
 				   (Lab("c"),Concrete(B(true))),
 				   (Lab("d"),Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x"))))),
 				   (Lab("e"),VRecord([(Lab("i"),Fun(Var("y"),Real,ArithExpr(DIVIDE,Variable(Var("y")),Variable(Var("y"))))),
@@ -779,5 +848,127 @@ prettyPrintMatchE(match(
 (* case a of {i=f,j={},k=e} -> {1=f y, 2 =x+e},
    [a->{i=fn y:real=>y/y, j={},k=1}, z->fn x:int=>z*z, y->1.0, x->1] *)
 
+prettyPrintMatchE(match(
+	Concrete(EmptyList),
+	[(PCons(PVar(Var("x")),PVar(Var("y"))),Value(Concrete(B(true)))),
+	 (PVal(EmptyList),Value(Concrete(B(false))))],[],[],[]));
+(* false *)
+	
+prettyPrintMatchE(match(
+	Concrete(EmptyList),
+	[(PWildcard,Value(Concrete(B(true))))],[],[],[]));
+(* true *)
+	 
+prettyPrintMatchE(match(
+	Concrete(EmptyList),
+	[(PVar(Var("x")),Value(Concrete(B(true))))],[],[],[])); 
+(* true, [x->[]] *)
+	
+prettyPrintMatchE(match(
+	Concrete(EmptyList),
+	[(PCons(PVar(Var("x")),PVar(Var("y"))),Value(Concrete(B(true))))],[],[],[]));
+(* FAIL *)
+	
+prettyPrintMatchE(match(
+	Concrete(EmptyList),
+	[(PCons(PWildcard,PWildcard),Value(Concrete(B(true))))],[],[],[]));
+(* FAIL *)
 
+prettyPrintMatchE(match(
+	Concrete(EmptyList),
+	[(PVal(N(2)),Value(Concrete(B(true))))],[],[],[]));
+(* FAIL *)
+
+prettyPrintMatchE(match(
+	Concrete(EmptyList),
+	[(PRecord([]),Value(Concrete(B(true))))],[],[],[]));
+(* FAIL *)
+
+prettyPrintMatchE(match(
+	Concrete(EmptyList),
+	[(PRecord([(Lab("a"),PVal(N(1)))]),Value(Concrete(B(true))))],[],[],[]));
+(* FAIL *)
+
+prettyPrintMatchE(match(
+	Concrete(EmptyList),
+	[(PVal(B(true)),Value(Concrete(B(true))))],[],[],[]));
+(* FAIL *)
+
+prettyPrintMatchE(match(
+	Concrete(EmptyList),
+	[(PVal(R(1.0)),Value(Concrete(B(true))))],[],[],[]));
+(* FAIL *)
+
+(* --- *)
+
+prettyPrintMatchE(match(
+	VList([Concrete(N(0)),Concrete(N(1))]),
+	[(PVal(EmptyList),Value(Concrete(B(true))))],[],[],[]));
+(* FAIL *)
+
+prettyPrintMatchE(match(
+	VList([Concrete(N(0)),Concrete(N(1))]),
+	[(PCons(PVar(Var("x")),PVar(Var("y"))),Value(Concrete(B(true))))],[],[],[]));
+(* true, x->0, y->[1] *)
+
+prettyPrintMatchE(match(
+	VList([Concrete(N(0)),Concrete(N(1))]),
+	[(PCons(PVar(Var("x")),PWildcard),Value(Concrete(B(true))))],[],[],[]));
+(* true, x->0 *)
+
+prettyPrintMatchE(match(
+	VList([Concrete(N(0)),Concrete(N(1))]),
+	[(PCons(PWildcard,PVar(Var("y"))),Value(Concrete(B(true))))],[],[],[]));
+(* true, y->[1] *)
+
+prettyPrintMatchE(match(
+	VList([Concrete(N(0)),Concrete(N(1))]),
+	[(PCons(PWildcard,PWildcard),Value(Concrete(B(true))))],[],[],[]));
+(* true *)
+	
+prettyPrintMatchE(match(
+	VList([Concrete(N(0)),Concrete(N(1))]),
+	[(PCons(PVal(N(0)),PWildcard),Value(Concrete(B(true))))],[],[],[]));
+(* true *)
+
+prettyPrintMatchE(match(
+	VList([Concrete(N(0)),Concrete(N(1))]),
+	[(PCons(PVal(N(0)),PCons(PVar(Var("x")),PVar(Var("y")))),Value(Concrete(B(true))))],[],[],[]));
+(* true, y->[],x->1 *)
+
+prettyPrintMatchE(match(
+	VList([Concrete(N(0)),Concrete(N(1))]),
+	[(PVal(EmptyList),Value(Concrete(B(false)))),
+	 (PCons(PVal(N(1)),PVal(EmptyList)),Value(Concrete(B(false)))),
+	 (PCons(PVal(N(2)),PVar(Var("x"))),Value(Concrete(B(false)))),
+	 (PCons(PVal(N(1)),PWildcard),Value(Concrete(B(false)))),
+	 (PCons(PVal(N(1)),PCons(PVal(N(0)),PVar(Var("y")))),Value(Concrete(B(false)))),
+	 (PCons(PVal(N(0)),PCons(PVal(N(1)),PVal(EmptyList))),Value(Concrete(B(true))))],[],[],[]));
+(* true *)
+
+prettyPrintMatchE(match(
+	VList([VList([Concrete(N(1)),Concrete(N(2))]),VList([Concrete(N(3))])]),
+	[(PVal(EmptyList),Value(Concrete(B(false)))),
+	 (PCons(PVar(Var("x")),PVar(Var("y"))),Value(Concrete(B(true))))],[],[],[]));
+(* true, y->[[3]], x->[1,2] *)
+
+prettyPrintMatchE(match(
+	VList([VList([Concrete(N(1)),Concrete(N(2))]),VList([Concrete(N(3))])]),
+	[(PVal(EmptyList),Value(Concrete(B(false)))),
+	 (PCons(PCons(PVar(Var("x")),PVar(Var("z"))),PCons(PVar(Var("y")),PVar(Var("k")))),Value(Concrete(B(true))))],[],[],[]));
+(* true, y->[3],k->[], x->1, z->[2] *)
+	
+prettyPrintMatchE(match(
+	VList([VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))]),
+		   VRecord([(Lab("a"),Concrete(N(10))),(Lab("b"),Concrete(B(false)))])]),
+	[(PCons(PVar(Var("x")),PVar(Var("y"))),Value(Concrete(B(true))))],[],[],[]));
+(* true, y->[{a=10,b=false}], x->{a=1,b=false} *)
+
+prettyPrintMatchE(match(
+	VList([VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))]),
+		   VRecord([(Lab("a"),Concrete(N(10))),(Lab("b"),Concrete(B(false)))])]),
+	[(PCons(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVal(B(false)))]),
+			PVar(Var("y"))),Value(Concrete(B(true))))],[],[],[]));
+(* true, y->[{a=10,b=false}], x->1 *)
+	
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml";  *)

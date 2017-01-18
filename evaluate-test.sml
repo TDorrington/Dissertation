@@ -1834,7 +1834,7 @@ App(Variable(Var("x")),Value(Concrete(N(10)))))),[],[])));
 (* let val rec x:(int->int) = (fn y:int => if y<=0 then 1 else y*(x (y-1)) in (x 10) end
    i.e. factorial of 10 => 3628800 *)
    
- 
+(* Takes a long time 
 (evaluate(Config(Expression(LetRec(
 Var("z"),TFun(TRecord([(Lab("x"),Int),(Lab("y"),Int)]),Int),
 Fun(Var("x"),TRecord([(Lab("x"),Int),(Lab("y"),Int)]),
@@ -1848,6 +1848,56 @@ Fun(Var("x"),TRecord([(Lab("x"),Int),(Lab("y"),Int)]),
 															 (Lab("y"),App(Variable(Var("z")),Record([(Lab("x"),Variable(Var("x"))),
 																									  (Lab("y"),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(1)))))])))])))))])),
 App(Variable(Var("z")),Record([(Lab("x"),Value(Concrete(N(3)))),(Lab("y"),Value(Concrete(N(3))))])))),[],[])));
+*)
 (* ackermann(3,3) => 61 *)
+
+prettyPrintConfig(evaluate(Config(Expression(Case(
+	Value(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(3))])),
+	[(PVal(EmptyList),Value(Concrete(N(1)))),
+	 (PCons(PVar(Var("x")),PVar(Var("y"))),Value(Concrete(N(2))))])),[],[])));
+(* 2 *)
+	
+prettyPrintConfig(evaluate(Config(Expression(Case(
+	Value(Concrete(EmptyList)),
+	[(PVal(EmptyList),Value(Concrete(B(true)))),
+	 (PWildcard,Value(Concrete(B(false))))])),[],[])));
+(* true *)
+	 
+prettyPrintConfig(evaluate(Config(Expression(Case(
+	Value(VList([Concrete(N(1))])),
+	[(PVal(EmptyList),Value(Concrete(B(true)))),
+	 (PWildcard,Value(Concrete(B(false))))])),[],[])));
+(* false *)
+
+prettyPrintConfig(evaluate(Config(Expression(Case(
+	Value(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(3))])),
+	[(PVal(EmptyList),Value(Concrete(N(0)))),
+	 (PCons(PVal(N(1)),PCons(PVal(N(3)),PVar(Var("x")))),Value(Concrete(N(4)))),
+	 (PCons(PVal(N(1)),PCons(PVal(N(2)),PCons(PVal(N(3)),PVar(Var("x"))))),Value(Concrete(N(6))))])),[],[])));
+(* 6 *)
+
+prettyPrintConfig(evaluate(Config(Expression(Case(
+	List([ArithExpr(TIMES,Value(Concrete(N(2))),Value(Concrete(N(3)))),
+		  App(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x"))))),
+			  App(Value(Fun(Var("y"),Int,ArithExpr(TIMES,Variable(Var("y")),Variable(Var("y"))))),
+				  Value(Concrete(N(2))))),
+		  Case(Condition(Value(Concrete(B(true))),Value(VList([Concrete(N(10))])),Value(Concrete(EmptyList))),
+			 [(PVal(EmptyList),Value(Concrete(N(0)))),
+			  (PCons(PVal(N(1)),PWildcard),Value(Concrete(N(1)))),
+			  (PCons(PVar(Var("x")),PWildcard),Variable(Var("x")))])]),
+  [(PVal(EmptyList),Value(VRecord([(Lab("a"),Concrete(N(~1))),(Lab("b"),Concrete(EmptyList))]))),
+   (PCons(PVar(Var("x")),PVar(Var("y"))),Record([(Lab("a"),Variable(Var("x"))),(Lab("b"),Variable(Var("y")))]))])),[],[])));
+(* {a=6, b=[16,10]} *)
+
+prettyPrintConfig(evaluate(Config(Expression(LetRec(
+	Var("x"),TFun(TList(THole(TypeHole(TypeVar("a")))),Int),
+	Fun(Var("l"),TList(THole(TypeHole(TypeVar("a")))),
+		Case(Variable(Var("l")),
+		  [(PVal(EmptyList),Value(Concrete(N(0)))),
+		   (PCons(PWildcard,PVar(Var("rest"))),
+		    ArithExpr(PLUS,Value(Concrete(N(1))),App(Variable(Var("x")),Variable(Var("rest")))))])),
+	App(Variable(Var("x")),
+	    Value(VList([Concrete(N(0)),Concrete(N(2)),Concrete(N(~1))]))))),[],[])));
+(* Length of list *)
  
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)

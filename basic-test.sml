@@ -38,6 +38,9 @@ val d = (ValueHole(TypeVar("d")));
 val e = (ValueHole(TypeVar("e")));
 val f = (ValueHole(TypeVar("f")));
 val g = (ValueHole(TypeVar("g")));
+val h = (ValueHole(TypeVar("h")));
+val i = (ValueHole(TypeVar("i")));
+val j = (ValueHole(TypeVar("j")));
 
 val sigma = [ (a,VHole(SimpleHole(b))), (b,VHole(SimpleHole(c))), (c,Concrete(N((3)))) ];
 
@@ -69,10 +72,12 @@ val sigma = [(a,VHole(ConditionHole(VHole(SimpleHole(b)),
 							     (PVal(N(2)),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("x"))))]))),
 			 (e,VRecord([(Lab("a"),Fun(Var("x"),Int,Value(VHole(SimpleHole(g))))),(Lab("b"),Concrete(N(2)))])),
 			 (d,VHole(BinaryOpHole(ArithOper(SUBTRACT),VHole(SimpleHole(f)),Concrete(N(5))))),
-			 (g,VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),Concrete(B(true)))]))];
+			 (g,VRecord([(Lab("1"),Concrete(N(3))),(Lab("2"),VHole(SimpleHole(h)))])),
+			 (h,VList([VHole(SimpleHole(j)),VHole(SimpleHole(i))])),
+			 (i,Concrete(N(2)))];
 			 
 prettyPrintValue(resolveChainSigma(VHole(SimpleHole(a)),sigma));
-(* v[ if v[ case {a=fx x:int => {1=3, 2=true}, b=2} of {a=x, b=y} -> x < 2 * y | 2 -> x + x] 
+(* v[ if v[ case {a=fx x:int => {1=3, 2=[v['j],2]}, b=2} of {a=x, b=y} -> x < 2 * y | 2 -> x + x] 
       then 3 < v['c] 
 	  else 10 > v[ v['f] - 5 ] ] *)
 
@@ -81,6 +86,8 @@ val b' = (TypeHole(TypeVar("b")));
 val c' = (TypeHole(TypeVar("c")));
 val d' = (TypeHole(TypeVar("d")));
 val e' = (TypeHole(TypeVar("e")));
+val f' = (TypeHole(TypeVar("f")));
+val g' = (TypeHole(TypeVar("g")));
 
 val theta = [(a',TRecord([(Lab("yes"),Int),(Lab("no"),Real)])), (b',Int)];
 prettyPrintTheta(theta);
@@ -91,12 +98,13 @@ val theta = [(a',TRecord([(Lab("yes"),TRecord([(Lab("1"),THole(b')),(Lab("2"),In
 						  (Lab("no"),TRecord([(Lab("a"),Real),
 											   (Lab("b"),TRecord([(Lab("x"),Bool),(Lab("y"),THole(c'))]))]))])),
 			 (b',TRecord([(Lab("one"),Real),(Lab("two"),THole(d'))])),
-			 (c',TFun(Bool,THole(e'))),
-			 (e',TFun(Int,TFun(TRecord([]),Int)))];
+			 (c',TFun(TList(Int),THole(e'))),
+			 (e',TFun(Int,TFun(TRecord([]),THole(f')))),
+			 (f',TList(THole(g')))];
 			 
 prettyPrintType(resolveChainTheta(THole(a'),theta));
 (* {yes:{1:{one:real, two:'d}, 2:int}, 
-    no:{a:real, b:{x:bool, y:(bool -> (int -> ({}->int)))}}} *)
+    no:{a:real, b:{x:bool, y:(int list -> (int -> ({}->'g list)))}}} *)
 	
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR LIST HELPERS *)
@@ -261,6 +269,15 @@ fv[Let(Var("x"),Int,Let(Var("x"),Int,ArithExpr(PLUS,Variable(Var("x")),ArithExpr
 fv[LetRec(Var("x"),TFun(Int,Int),Fun(Var("y"),Int,ArithExpr(PLUS,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z"))))),
 		  ArithExpr(PLUS,Variable(Var("b")),ArithExpr(PLUS,Variable(Var("a")),Variable(Var("x")))))];
 (* [z, b, a] *)
+
+fv[List(
+[Variable(Var("x")),
+ ArithExpr(PLUS,Variable(Var("y")),Variable(Var("z"))),
+ Value(Fun(Var("t"),Int,Let(Var("f"),Int,ArithExpr(PLUS,Variable(Var("t")),Variable(Var("k"))),
+	                        Record([(Lab("a"),Variable(Var("f"))),(Lab("b"),Variable(Var("n"))),(Lab("c"),Variable(Var("m")))])))),
+ Value(Concrete(EmptyList)),
+ Condition(Variable(Var("e")),Value(VList([Concrete(N(1))])),List([Value(Concrete(N(2)))]))])];
+(* [x, y, z, k, n, m, e] *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR SUBSTITUTE AND ALPHAVARIANT *)
@@ -529,6 +546,15 @@ LetRec(Var("x"),TFun(Int,Int),
 	   ArithExpr(PLUS,Variable(Var("y")),Let(Var("x"),Int,Variable(Var("x")),ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y")))))),sub));
 (* let val rec x31:(int->int) = (fn y32:int => let val y32:int = y32 in x31+y32+ 6 end) in 4 + let val x31:int = (x31) in x31 + 4 end end *)
 
+(*x->3, y->4, z->5, t->6*)
+prettyPrintE(substitute(List([
+ArithExpr(PLUS,Variable(Var("x")),Value(Concrete(N(1)))),
+List([Value(Concrete(EmptyList)),Value(Concrete(EmptyList)),Value(VList([Concrete(N(2))]))]),
+List([Variable(Var("y")),Variable(Var("z"))]),
+List([Condition(BoolExpr(EQ,Variable(Var("t")),Value(Concrete(N(6)))),Value(VList([])),Value(VList([Concrete(N(2))])))])]),
+sub));
+(* [ 3+1, [ [], [], [2] ], [4,5], [if 6=6 then [] else [2]] ] *)
+
 (* ----------------------------------------------------------------------------------- *)
 (* TEST CASES FOR GEN *)
 
@@ -576,6 +602,26 @@ prettyPrintValue(gen(TFun(TFun(
 prettyPrintValue(gen(TFun(TFun(THole(TypeHole(TypeVar("a"))),THole(TypeHole(TypeVar("b")))),
 						  TFun(TFun(Bool,Bool),THole(TypeHole(EqualityTypeVar("a"))))),[]));
 (* fn x: ('a -> 'b) => fn x : (bool -> bool) => v[''a] *)
+
+prettyPrintValue(gen(TList(Int),[])); (* [1] *)
+
+prettyPrintValue(gen(TList(Bool),[])); (* [true] *)
+
+prettyPrintValue(gen(TList(Real),[])); (* [1.0] *)
+
+prettyPrintValue(gen(TList(THole(a')),[])); (* [v['a]] *)
+
+prettyPrintValue(gen(TList(TFun(Int,Int)),[])); (* [fn x:int => 1] *)
+
+prettyPrintValue(gen(TList(TFun(TList(Int),TList(Int))),[])); (* [fn x:int list => [1]] *)
+
+prettyPrintValue(gen(TList(TRecord([(Lab("a"),TList(Int)),(Lab("b"),TList(Bool)),(Lab("c"),TList(Real))])),[]));
+(* [ {a=[1],b=[true],c=[1.0] } ] *)
+
+prettyPrintValue(gen(TList(TFun(
+	TRecord([(Lab("a"),TList(TFun(Int,TList(Bool))))]),
+	TList(TFun(Int,TList(Int))))),[]));
+(* [ fn x:{a:(int->bool list) list} => [fn x:int=>[1]] ] *)
 
 (* ----------------------------------------------------------------------------------- *)
 (* TETS CASES FOR UNIFY *)
@@ -630,8 +676,8 @@ unifyTest( [a',b'',c'''], [(a'1,Int)]);				(* [ (''b -> Int), ('''c -> Int), ('a
 unifyTest( [a',b'',c'''], [(a'1,Int), (b''1,Int)]); (* [ ('a -> Int), (''b -> Int), ('''c -> Int) ] *)
 unifyTest( [a',b'',c'''], [(a'1,Real)]); 			(* FAIL *)
 
-unifyTest( [TFun(Int,Int),TFun(Int,Int)], [] ); (* [ ] *)
-unifyTest( [TFun(Real,Real),TFun(Real,Int)], []); (* FAIL *)
+unifyTest( [TFun(Int,Int),TFun(Int,Int)], [] ); 	(* [ ] *)
+unifyTest( [TFun(Real,Real),TFun(Real,Int)], []); 	(* FAIL *)
 unifyTest( [TFun(TFun(Int,Int),TFun(Int,Int)),TFun(TFun(Int,Int),TFun(Int,Int))],[]); (* [ ] *)
 unifyTest( [TFun(TFun(Int,Int),TFun(Int,Int)),TFun(TFun(Int,Int),TFun(Bool,Int))],[]); (* FAIL *)
 
@@ -651,9 +697,9 @@ unifyTest( [TFun(TFun(a''',b''),TFun(Int,Bool)),TFun(TFun(a'',b'),TFun(c''',Bool
 (* [ '''a->Int, ''a->Int, 'b->''b, '''c->Int ] *)
 
 unifyTest( [TFun(Int,Int), TFun(a''',a''), a'], []);
-(* [ '''a->int, ''a->int, 'a->('a13->'a14), 'a13->int, 'a14->int ] *)
+(* [ '''a -> int, ''a -> int, 'a35 -> '''a, 'a36 -> ''a, 'a -> ('a35 -> 'a36) ] *)
 
-unifyTest( [TFun(Int,Int), TFun(a''',a''), a''], []); (* FAIL *)
+unifyTest( [TFun(Int,Int), TFun(a''',a''), a''], []);  (* FAIL *)
 
 unifyTest( [TFun(Int,Int), TFun(a''',a''), a'''], []); (* FAIL *)
 
@@ -746,4 +792,41 @@ unifyTest( [a''',TRecord([(Lab("i"),Int)])], []);
 unifyTest( [a'',TRecord([(Lab("i"),a'''),(Lab("j"),b'''),(Lab("k"),c'''),(Lab("l"),d''')])], []);
 (* [ ''a87 -> int, '''a -> int, ''a88 -> int, '''b -> int, ''a89 -> int, '''c -> int, 
      ''a90 -> int, '''d -> int, ''a -> {i:''a87, j:''a88, k:''a89, l:''a90} ] *)
-	
+	 
+unifyTest( [TList(Int),Int], []);							(* FAIL *)
+unifyTest( [TList(Int),Bool], []);							(* FAIL *)
+unifyTest( [TList(Int),Real], []);							(* FAIL *)
+unifyTest( [TList(Bool),TFun(Bool,Bool)], []);				(* FAIL *)
+unifyTest( [TList(Bool),Real], []);							(* FAIL *)
+unifyTest( [TList(Int),TRecord([(Lab("a"),Int)])], []);		(* FAIL *)
+
+unifyTest( [TList(Int),TList(Int)], []);	(* [] *)
+unifyTest( [TList(Bool),TList(Bool)], []);	(* [] *)
+unifyTest( [TList(Real),TList(Real)], []);	(* [] *)
+
+unifyTest( [TList(TFun(Int,Int)),TList(TFun(Int,Int))], []);	(* [] *)
+unifyTest( [TList(TFun(Int,Int)),TList(TFun(Int,Bool))], []);	(* FAIL *)
+
+unifyTest( [TList(TFun(Int,TList(Int))),TList(TFun(Int,TList(Int)))], []);	(* [] *)
+unifyTest( [TList(TFun(Int,TList(Int))),TList(TFun(TList(Int),Int))], []);	(* FAIL *)
+unifyTest( [TList(TFun(Int,TList(Int))),TList(TFun(Int,TList(Bool)))], []); (* FAIL *)
+
+unifyTest( [TList(Int), a'], []);	(* ['a->'a113 list, 'a113->int] *)
+unifyTest( [TList(Int), a''], []);	(* [''a->''a114 list, ''a114->int] *)
+unifyTest( [TList(Int), a'''], []);	(* FAIL *)
+
+unifyTest( [TList(Bool), a'], []);	(* ['a->'a115 list, 'a115->bool] *)
+unifyTest( [TList(Bool), a''], []);	(* [''a->''a116 list, ''a116->bool] *)
+unifyTest( [TList(Bool), a'''], []);(* FAIL *)
+
+unifyTest( [TList(Real), a'], []);	(* ['a->'a117 list, 'a117->real] *)
+unifyTest( [TList(Real), a''], []);	(* FAIL *)
+unifyTest( [TList(Real), a'''], []);(* FAIL *)
+
+unifyTest( [TList(a'), a'], []);	(* FAIL *)
+unifyTest( [TList(a''),a''],[]);	(* FAIL *)
+
+unifyTest( [TList(a''), a'],[]);	(* ['a->'a119 list, 'a119->''a] *)
+unifyTest( [TList(a'), a''],[]);	(* [''a->''a120 list, 'a->''a120] *)
+
+unifyTest( [TList(TFun(a',b')), c'], []); 	(* ['c->'a121 list, 'a121->('a122->'a123), 'a122->'a, 'a123->'b] *)

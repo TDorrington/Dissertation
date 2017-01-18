@@ -11,16 +11,25 @@ use "C:/Users/Thomas/Documents/GitHub/Dissertation/substitute.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/gen.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/unify.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/match.sml";	
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/typeof.sml";	
-use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow.sml"; 
+use "C:/Users/Thomas/Documents/GitHub/Dissertation/typeof.sml";
+use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow.sml";
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/evaluate.sml";
+
 use "C:/Users/Thomas/Documents/GitHub/Dissertation/pretty-print.sml";
 
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/basic-test.sml";    *)
-(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/typeof-test.sml";   *)
+(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/typeof-test.sml";   *) 
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/match-test.sml";    *)
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/narrow-test.sml";   *)
-(* use "C:/Users/Thomas/Documents/GitHub/Dissertation/evaluate-test.sml"; *)
+   use "C:/Users/Thomas/Documents/GitHub/Dissertation/evaluate-test.sml"; 
  
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)
+
+(* 
+   1) lists 
+   2) generate witnesses 
+	  condense theta & sigma chains
+   3) good correct programs
+	  fuzzing
+*)
 

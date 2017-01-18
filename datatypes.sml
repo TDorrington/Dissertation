@@ -6,10 +6,10 @@ datatype typeVar =
 				(* Type Variables *)
 				  TypeVar of string			
 
-				 (* Equality Type Variables: int, bool, and records over these *)
+				 (* Equality Type Variables: int, bool, and lists & records over these *)
 				 | EqualityTypeVar of string	
 				 
-				 (* New Arithmetic Type Variable: int or real, NOT records over these *)
+				 (* New Arithmetic Type Variable: int or real, NOT lists or records over these *)
 				 | ArithTypeVar of string;  
 			
 (* Enumeration associated with type variables *)
@@ -33,7 +33,8 @@ datatype t =
 	| TFun of t * t					 (* function  	  *)
 	| TRecord of t Record.dictionary (* record 		  *)
 	| THole of typeHole      	     (* type variable *)
-
+	| TList of t;					 (* list          *)
+	
 (* datatype for operations *) 
 datatype arithOper = PLUS | SUBTRACT | TIMES | DIVIDE;
 datatype boolOper  = LESS | MORE | LESS_EQ | MORE_EQ | EQ;
@@ -54,7 +55,8 @@ datatype e =
 	| App of e * e
 	| Record of e Record.dictionary	
 	| Let of var * t * e * e
-	| LetRec of var * t * v * e (* t must be a function type, t1 -> t2, and v must be a function value *)
+	| LetRec of var * t * v * e
+	| List of e list
 
 (* value hole datatype *)
 and valhole = 
@@ -64,12 +66,14 @@ and valhole =
 	| CaseHole of v * (pat * e) list
 	| AppHole of v * v
 	| RecordHole of v Record.dictionary    
+	| ListHole of v list
 	  
 (* concrete values datatype: integers, reals and booleans, or tuples over these *)
 and concretev =
 	  N of int
 	| B of bool
 	| R of real
+	| EmptyList
 	
 (* value datatype *)
 and v =
@@ -77,14 +81,16 @@ and v =
 	| Fun of var * t * e 
 	| VHole of valhole
 	| VRecord of v Record.dictionary
+	| VList of v list
 	
 (* pattern datatype *)
 and pat = 
-	  PWildcard							(* _ wildcard     *)
-	| PVar of var						(* variable       *)
-	| PVal of concretev					(* concrete value *)
-	| PRecord of pat Record.dictionary;	(* record pattern *)
-	
+	  PWildcard							(* _ wildcard        *)
+	| PVar of var						(* variable          *)
+	| PVal of concretev					(* concrete value    *)
+	| PRecord of pat Record.dictionary	(* record pattern    *)
+	| PCons of pat * pat;				(* cons pattern x::l *)
+		
 (* possibly stuck expression datatype *)
 datatype expression = Stuck | Expression of e; 
 

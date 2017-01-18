@@ -5,10 +5,12 @@ fun gen (t, theta:typeSub) = case t of
 
 	(* For base types, returns arbitrary value of that type *)
 	  Bool => Concrete(B(true))
-	| Int => Concrete(N(1))
+	| Int  => Concrete(N(1))
     | Real => Concrete(R(1.0))
 	
 	| TFun(t1,t2) => Fun(Var("x"),t1,Value(gen(t2,theta)))
+	
+	| TList(t1)   => VList([gen(t1,theta)])
 	
 	| TRecord(r) => 
 		let fun genVRecord(r) = (case r of 
@@ -51,5 +53,5 @@ fun genFreshTRecord(l,tVar,theta) =
 	let fun genList(l) = (case l of 
 		  [] => []
 		| (lab1::l1) => (lab1,generateFreshTypeVar(tVar,theta))::genList(l1))
-	in TRecord(genList(l)) end;
+	in genList(l) end;
 								

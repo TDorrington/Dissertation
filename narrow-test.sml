@@ -946,5 +946,193 @@ a',[],[],[]));
   ['a315 -> int, 'a316 -> int, 'a317 -> int, 'e -> {a:'a315, b:'a316, c:'a317}, 'a -> bool, ''b -> int, '''a -> int, 
    'b -> int, 'a306 -> int, 'a307 -> int, 'a308 -> int, 'd -> {a:'a306, b:'a307, c:'a308}, 'a304 -> int, 'a305 -> int,
    'c -> ('a304 -> 'a305)] *)
+   
+prettyPrintConfig(narrow(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(3))]),TList(Int),[],[],[])); 			 (* [1,2,3] *)
+prettyPrintConfig(narrow(VList([Concrete(B(true)),Concrete(B(false)),Concrete(B(true))]),TList(Bool),[],[],[])); (* [true,false,true] *)
+prettyPrintConfig(narrow(VList([Concrete(R(1.0)),Concrete(R(2.0)),Concrete(R(3.0))]),TList(Int),[],[],[])); 	 (* [1.0,2.0,3.0] *)
+
+prettyPrintConfig(narrow(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(3))]),a',[],[],[])); 			 
+(* [1,2,3], 'a->int list *)
+
+prettyPrintConfig(narrow(VList([Concrete(B(true)),Concrete(B(false)),Concrete(B(true))]),b',[],[],[]));  
+(* [true,false,true], 'b->bool list *)
+
+prettyPrintConfig(narrow(VList([Concrete(R(1.0)),Concrete(R(2.0)),Concrete(R(3.0))]),c',[],[],[])); 	 
+(* [1.0,2.0,3.0], 'c->real list *)
+
+prettyPrintConfig(narrow(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(3))]),TList(a'),[],[],[])); 			
+(* [1,2,3], 'a->int *)
+
+prettyPrintConfig(narrow(VList([Concrete(B(true)),Concrete(B(false)),Concrete(B(true))]),TList(b'),[],[],[])); 
+(* [true,false,true], 'b->bool *)
+
+prettyPrintConfig(narrow(VList([Concrete(R(1.0)),Concrete(R(2.0)),Concrete(R(3.0))]),TList(c'),[],[],[])); 	 
+(* [1.0,2.0,3.0], 'c->real *)
+
+prettyPrintConfig(narrow(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(3))]),TList(Bool),[],[],[])); 			 (* Stuck *)
+prettyPrintConfig(narrow(VList([Concrete(B(true)),Concrete(B(false)),Concrete(B(true))]),TList(Real),[],[],[])); (* Stuck *)
+prettyPrintConfig(narrow(VList([Concrete(R(1.0)),Concrete(R(2.0)),Concrete(R(3.0))]),TList(Int),[],[],[])); 	 (* Stuck *)
+
+prettyPrintConfig(narrow(VList([Concrete(R(1.0)),Concrete(N(2)),Concrete(N(3))]),TList(Int),[],[],[])); 		(* Stuck *)
+prettyPrintConfig(narrow(VList([Concrete(B(true)),Concrete(N(2)),Concrete(B(true))]),TList(Bool),[],[],[])); 	(* Stuck *)
+prettyPrintConfig(narrow(VList([Concrete(R(1.0)),Concrete(R(2.0)),Concrete(B(false))]),TList(Int),[],[],[])); 	(* Stuck *)
+
+prettyPrintConfig(narrow(Concrete(EmptyList),TList(Int),[],[],[]));				(* [] *)
+prettyPrintConfig(narrow(Concrete(EmptyList),TList(TFun(Int,Real)),[],[],[]));	(* [] *)
+prettyPrintConfig(narrow(Concrete(EmptyList),TList(a'),[],[],[]));				(* [] *)
+prettyPrintConfig(narrow(Concrete(EmptyList),a',[],[],[]));						(* ['a ->'a322 list] *)
+
+prettyPrintConfig(narrow(Concrete(EmptyList),Int,[],[],[]));						(* Stuck *)
+prettyPrintConfig(narrow(Concrete(EmptyList),TFun(Bool,Int),[],[],[]));				(* Stuck *)
+prettyPrintConfig(narrow(Concrete(EmptyList),TRecord([(Lab("a"),Int)]),[],[],[]));	(* Stuck *)
+
+prettyPrintConfig(narrow(VList([VList([Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x")))),
+									   Fun(Var("y"),Int,ArithExpr(PLUS,Variable(Var("y")),Variable(Var("y"))))]),
+								VList([Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Value(Concrete(N(10))))),
+									   Fun(Var("y"),Int,ArithExpr(PLUS,Variable(Var("y")),Value(Concrete(N(10)))))])]),
+	TList(TList(TFun(Int,Int))),[],[],[]));
+(* [ [fn x:int=>x*x, fn y:int=>y+y], [fn x:int=>x*10, fn y:int=>y+10] ] *)
+
+prettyPrintConfig(narrow(VList([VList([Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x")))),
+									   Fun(Var("y"),Int,ArithExpr(PLUS,Variable(Var("y")),Variable(Var("y"))))]),
+								VList([Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Value(Concrete(N(10))))),
+									   Fun(Var("y"),Int,ArithExpr(PLUS,Variable(Var("y")),Value(Concrete(N(10)))))])]),
+	a',[],[],[]));
+(* [ [fn x:int=>x*x, fn y:int=>y+y], [fn x:int=>x*10, fn y:int=>y+10] ], a'-> (int->int) list list *)
+	
+prettyPrintConfig(narrowExpr(List([
+	ArithExpr(PLUS,Value(Concrete(N(2))),Value(Concrete(N(5)))),
+	App(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x"))))),
+		ArithExpr(TIMES,Value(Concrete(N(10))),Value(Concrete(N(5))))),
+	Condition(BoolExpr(EQ,Value(Concrete(EmptyList)),Value(Concrete(EmptyList))),
+			  Value(Concrete(N(1))),Value(Concrete(N(~1)))),
+	Let(Var("x"),TRecord([(Lab("a"),Int),(Lab("b"),Int)]),
+	    Record([(Lab("a"),Value(Concrete(N(1)))),(Lab("b"),Value(Concrete(N(2))))]),
+		Case(Variable(Var("x")),
+		   [(PRecord([(Lab("a"),PVar(Var("x"))),(Lab("b"),PVal(N(2)))]),Variable(Var("x")))]))]),
+TList(Int),[],[],[]));
+(* [2+5,(fn x:int=>x*x)(10*5), if []=[] then 1 else ~1, 
+    let val x:{a:int,b:int} = {a=1,b=2} in case x of {a=x331,b=2} -> x331 end] *)
+
+prettyPrintConfig(narrow(VList([va',vb',vc']),TList(Int),[],[],[]));
+(* [1,1,1] [v['a]->1,v['b]->1,v['c]->1] ['a->int,'b->int,'c->int] *)
+
+prettyPrintConfig(narrow(VList([va',va',va']),TList(Int),[],[],[]));
+(* [1,1,1] [v['a]->1] ['a->int] *)
+	
+prettyPrintConfig(narrow(VList([va',vb',vc']),TList(TFun(Int,TRecord([(Lab("a"),Bool)]))),[],[],[]));
+(* [fn x:int=>{a=true}, fn x:int=>{a=true}, fn x:int=>{a=true}] *)
+
+prettyPrintConfig(narrow(VList([va',vb',vc']),d',[],[],[]));
+(* [v['a343], v['a343], v['a343]]
+   [v['c] -> v['a343], v['b] -> v['a343], v['a] -> v['a343]]
+   ['c -> 'a343, 'b -> 'a343, 'a -> 'a343, 'd -> 'a343 list] *)
+
+prettyPrintConfig(narrow(VList([va',vb',vc']),a'',[],[],[]));
+(* [v[''a344], v[''a344], v[''a344]]
+   [v['c] -> v[''a344], v['b] -> v[''a344], v['a] -> v[''a344]]
+   ['c -> ''a344, 'b -> ''a344, 'a -> ''a344, ''a -> ''a344 list] *)
+
+prettyPrintConfig(narrow(VList([va',vb',vc']),TList(a'''),[],[],[]));
+(* [v['''a], v['''a], v['''a]]
+   [v['c] -> v['''a], v['b] -> v['''a], v['a] -> v['''a]]
+   ['c -> '''a, 'b -> '''a, 'a -> '''a] *)
+   
+prettyPrintConfig(narrow(VList([va'',vb'',vc'']),TList(a'''),[],[],[]));
+(* [1, 1, 1],
+   [v[''c] -> 1, v[''b] -> 1, v[''a] -> 1],
+   [''c -> int, ''b -> int, ''a -> int, '''a -> int] *)
+   
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,Value(Concrete(EmptyList)),Value(Concrete(EmptyList))),Bool,[],[],[]));
+(* [] = [] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,
+	Value(VList([Concrete(N(1)),Concrete(N(2))])),
+	Value(VList([Concrete(N(2)),Concrete(N(3)),Concrete(N(5))]))),
+	Bool,[],[],[]));
+(* [1,2] = [2,3,5] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,
+	Value(VList([Concrete(B(true)),Concrete(B(false))])),
+	Value(VList([Concrete(N(2)),Concrete(N(3)),Concrete(N(5))]))),
+	Bool,[],[],[]));
+(* Stuck *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,
+	Value(VList([Concrete(R(3.0))])),
+	Value(VList([Concrete(R(1.0))]))),
+	Bool,[],[],[]));
+(* Stuck *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,
+	Value(VList([Concrete(N(2))])),
+	Value(VList([Fun(Var("x"),Int,Value(Concrete(N(2)))),Fun(Var("y"),Int,Value(Concrete(N(5))))]))),
+	Bool,[],[],[]));
+(* Stuck *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,
+	Value(VList([Fun(Var("y"),Int,ArithExpr(TIMES,Variable(Var("y")),Variable(Var("y"))))])),
+	Value(VList([Fun(Var("x"),Int,Value(Concrete(N(2)))),Fun(Var("y"),Int,Value(Concrete(N(5))))]))),
+	Bool,[],[],[]));
+(* Stuck *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,
+	Value(VList([VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))]),
+				 VRecord([(Lab("b"),Concrete(B(true))),(Lab("a"),Concrete(N(3)))])])),
+	Value(VList([VRecord([(Lab("a"),Concrete(N(5))),(Lab("b"),Concrete(B(true)))])]))),
+	Bool,[],[],[]));
+(* [ {a=1,b=false},{a=3,b=true} ] = [ {a=5,b=true} ] *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,
+	Value(VList([VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))]),
+				 VRecord([(Lab("b"),Concrete(B(true))),(Lab("a"),Concrete(N(3)))])])),
+	Value(VList([VRecord([(Lab("c"),Concrete(N(5))),(Lab("b"),Concrete(B(true)))])]))),
+	Bool,[],[],[]));
+(* Stuck *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,
+	Value(VList([VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(B(false)))]),
+				 VRecord([(Lab("b"),Concrete(B(true))),(Lab("a"),Concrete(R(3.0)))])])),
+	Value(VList([VRecord([(Lab("a"),Concrete(N(5))),(Lab("b"),Concrete(B(true)))])]))),
+	Bool,[],[],[]));
+(* Stuck *)
+
+prettyPrintConfig(narrowExpr(BoolExpr(EQ,
+	Value(VList([VRecord([(Lab("a"),Concrete(N(1))),(Lab("b"),Concrete(R(1.0)))]),
+				 VRecord([(Lab("b"),Concrete(R(3.0))),(Lab("a"),Concrete(N(3)))])])),
+	Value(VList([VRecord([(Lab("a"),Concrete(N(5))),(Lab("b"),Concrete(R(5.0)))])]))),
+	Bool,[],[],[]));
+(* Stuck *)
+
+prettyPrintConfig(narrowExpr(Case(
+	Value(Concrete(EmptyList)),
+  [(PVal(EmptyList),Value(Concrete(B(true)))),
+   (PCons(PVar(Var("x")),PWildcard),Value(Concrete(B(false))))]),Bool,[],[],[]));
+(* case [] of [] -> true | x::_ -> false *)
+
+prettyPrintConfig(narrowExpr(Case(
+	Value(Concrete(EmptyList)),
+  [(PVal(EmptyList),Value(Concrete(B(true)))),
+   (PCons(PVar(Var("x")),PWildcard),Value(Concrete(B(false)))),
+   (PWildcard,Value(Concrete(B(false)))),
+   (PVar(Var("x")),Value(Concrete(B(false))))]),Bool,[],[],[]));
+(* case [] of [] -> true | x::_ -> false | _ -> false | x -> false *)
+    
+prettyPrintConfig(narrowExpr(Case(
+	Value(Concrete(EmptyList)),
+  [(PVal(EmptyList),Value(Concrete(B(true)))),
+   (PCons(PVar(Var("x")),PWildcard),Value(Concrete(B(false)))),
+   (PWildcard,Value(Concrete(B(false)))),
+   (PVar(Var("x")),Value(Concrete(B(false)))),
+   (PVal(N(1)),Value(Concrete(B(true))))]),Bool,[],[],[]));
+(* Stuck *)
+   
+prettyPrintConfig(narrowExpr(Case(
+	Value(Concrete(EmptyList)),
+  [(PVal(EmptyList),Value(Concrete(B(true)))),
+   (PCons(PVar(Var("x")),PWildcard),Value(Concrete(B(false)))),
+   (PWildcard,Value(Concrete(B(false)))),
+   (PVar(Var("x")),Value(Concrete(N(1))))]),Bool,[],[],[]));
+(* Stuck *)
 
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)  

@@ -11,7 +11,7 @@ fun matchTypes(t,pat,gamma,theta) = (case pat of
 	
 	 (* real constants cannot occur in patterns *)
 	| PVal(R(_)) => NONE
-		  
+	
 	| PVal(N(_)) => (case unify([t,Int],theta) of 
 		
 		  NONE        => NONE
@@ -22,20 +22,37 @@ fun matchTypes(t,pat,gamma,theta) = (case pat of
 		  NONE        => NONE
 		| SOME theta1 => SOME (gamma,theta1))
 	
+	(* t must be a list type *)
+	| PVal(EmptyList) => (case unify([t,TList(generateFreshTypeVar(TYPE_VAR,theta))],theta) of 
+	
+		  NONE        => NONE
+		| SOME theta1 => SOME (gamma,theta1))
+	
+	(* t must be a list type, say TList(t)
+	   Then recursively match pat1 to type t, and pat2 to type TList(t) *)
+	| PCons(pat1,pat2) => (case unify([t,TList(generateFreshTypeVar(TYPE_VAR,theta))],theta) of 
+	
+		  NONE 		  => NONE
+		| SOME theta1 => (case resolveChainTheta(t,theta1) of 
+		
+			  TList(list_type) => (case matchTypes(list_type,pat1,gamma,theta1) of 
+			  
+				  NONE                 => NONE
+				| SOME (gamma1,theta1) => matchTypes(TList(list_type),pat2,gamma1,theta1))
+			  
+			| _ => NONE))
+	
 	| PRecord(r) => (case t of 
 		(* Same idea as typeof code *)
 		
 		  TRecord(r1) =>
 			let fun matchLists(l,gamma,theta) = (case l of 
 			
-					  [] => SOME (gamma,theta)
+					  []            => SOME (gamma,theta)
 					| (t1,pat1)::l1 => (case matchTypes(t1,pat1,gamma,theta) of 
 									  
-						  NONE => NONE
-						| SOME (gamma1,theta1) => (case matchLists(l1,gamma1,theta1) of 
-									 
-								NONE => NONE
-							  | SOME (gamma2,theta2) => SOME (gamma2,theta2))))
+						  NONE                 => NONE
+						| SOME (gamma1,theta1) => matchLists(l1,gamma1,theta1)))
 			
 			in (case Record.merge(r1,r) of 
 				  NONE   => NONE
@@ -50,7 +67,7 @@ fun matchTypes(t,pat,gamma,theta) = (case pat of
 					| EqualityTypeVar(_) => EQUALITY_TYPE_VAR
 					| ArithTypeVar(_)  	 => ARITH_TYPE_VAR;
 					(* arith cannot occur - matched above, but for non-exhaustive warnings *)
-				val genType = genFreshTRecord(Record.getLabels(r),typevar_type,theta);
+				val genType = TRecord(genFreshTRecord(Record.getLabels(r),typevar_type,theta));
 				val theta1 = Substitution.union(theta,TypeHole(tyvar),genType);
 			in matchTypes(genType,pat,gamma,theta1) end
 		
@@ -67,13 +84,13 @@ fun matchTypes(t,pat,gamma,theta) = (case pat of
    expression e_i =ei, and substitution sub_i = result of matchTypes(t,pati) *)
 fun matchTypesList(t,patExprList,gamma,theta) = (case patExprList of 
 
-	  [] => SOME ([],theta)
+	  []  			=> SOME ([],theta)
 	| (pat1,e1)::l1 => (case matchTypes(t,pat1,gamma,theta) of 
 	
-		  NONE => NONE
+		  NONE 				 => NONE
 		| SOME (sub1,theta1) => (case matchTypesList(t,l1,gamma,theta1) of 
 		
-			  NONE => NONE
+			  NONE 						=> NONE
 			| SOME (exprSubList,theta2) => SOME ((e1,sub1)::exprSubList,theta2))));
 	
 (* ----------------------------------------------------------------------------- *)   
@@ -82,14 +99,14 @@ fun matchTypesList(t,patExprList,gamma,theta) = (case patExprList of
 	- Hole means we cannot match only with the current information, so this is an indicator 
 	  to the returning code that the case expression containing the match should
 	  be left as a case hole 
-	- Success means we can match the expression and pattern, and returns the 
+	- Success means we can match the value and pattern, and returns the 
 	  relevant substitutions, as well as the expression associated with the
 	  matching pattern *)
 datatype matchResult = Fail
 					 | Hole of valhole
 					 | Success of e * valSub * typeSub * variableSub;
 					 
-(* Matches an expression and a list of (pattern-expressions), returning the first
+(* Matches a value and a list of (pattern-expressions), returning the first
    such match in the list of patterns 
    Returns matchResult datatype instance
    Match will always return the first such match, and will sometimes incorrectly
@@ -99,60 +116,125 @@ datatype matchResult = Fail
    it will incorrectly match
    This is 'okay', however, since any calls to match from evaluate
    and always preceded by calls to matchTypesList above to check pattern & expression
-   we are case-ing on are first of the correct type *)
+   we are case-ing on are first of the correct type
+   We only match against a value because expressions cannot occur due to contexts &
+   evauation order in the evalaute function *)
    
-fun match(e,patExprList,sigma,theta,gamma) = (case patExprList of 
+fun match(v,patExprList,sigma,theta,gamma) = (case patExprList of 
 
 	  (PWildcard,expr)::_ => Success (expr,sigma,theta,gamma)
 	
 	| (PVar(x),expr)::_ => if Substitution.contains(x,gamma)
 						   then Fail (* x already bound in match *)
-						   else Success (expr,sigma,theta,Substitution.union(gamma,x,e))
+						   else Success (expr,sigma,theta,Substitution.union(gamma,x,Value(v)))
 	
 	 (* real constants cannot occur in patterns, regardless what's left *)
 	| (PVal(R(_)),_)::_ => Fail
 		  
-	| (PVal(N(n1)),expr)::rest => (case e of
+	| (PVal(N(n1)),expr)::rest => (case v of
 	
-		  Value(Concrete(N(n2))) => if n1=n2 
-									then Success (expr,sigma,theta,gamma) 
-									else match(e,rest,sigma,theta,gamma)
+		  Concrete(N(n2)) => if n1=n2 
+							 then Success (expr,sigma,theta,gamma) 
+							 else match(v,rest,sigma,theta,gamma)
 		
-		| Value(VHole(SimpleHole(ValueHole(tyvar)))) => (case unify([THole(TypeHole(tyvar)),Int],theta) of 
+		| VHole(SimpleHole(ValueHole(tyvar))) => (case unify([THole(TypeHole(tyvar)),Int],theta) of 
 		
-			  NONE => Fail
+			  NONE        => Fail
 			| SOME theta1 => Success (expr,Substitution.union(sigma,ValueHole(tyvar),Concrete(N(n1))),theta1,gamma))
 		
-		(* Any other compound value hole *)
-		| Value(VHole(h)) => Hole h
-	
-		(* Expressions cannot occur - will all be values due to contexts & evaluation order
-		   For example, match(3+2,5) cannot be a case
-		   Also, variables will be substituted for *)
+		| VHole(h) => Hole h
+		
 		| _ => Fail)
 		
-	| (PVal(B(b1)),expr)::rest => (case e of
+	| (PVal(B(b1)),expr)::rest => (case v of
 	
-		  Value(Concrete(B(b2))) => if b1=b2 
-									then Success (expr,sigma,theta,gamma) 
-									else match(e,rest,sigma,theta,gamma)
+		  Concrete(B(b2)) => if b1=b2 
+							 then Success (expr,sigma,theta,gamma) 
+							 else match(v,rest,sigma,theta,gamma)
 		
-		| Value(VHole(SimpleHole(ValueHole(tyvar)))) => (case unify([THole(TypeHole(tyvar)),Bool],theta) of 
+		| VHole(SimpleHole(ValueHole(tyvar))) => (case unify([THole(TypeHole(tyvar)),Bool],theta) of 
 		
-			  NONE => Fail
+			  NONE        => Fail
 			| SOME theta1 => Success (expr,Substitution.union(sigma,ValueHole(tyvar),Concrete(B(b1))),theta1,gamma))
 		
-		(* Any other compound value hole *)
-		| Value(VHole(h)) => Hole h
+		| VHole(h) => Hole h
 		  
-		(* Expressions cannot occur - will all be values due to contexts & evaluation order
-		   For example, match(3=2,true) cannot be a case
-		   Also, all variables will be substituted for *)
 		| _ => Fail)
 	
-	| (PRecord(r),expr)::rest => (case e of 
+	| (PVal(EmptyList),expr)::rest => (case v of 
 	
-		  Value(VRecord(r1)) =>
+		  Concrete(EmptyList) => Success(expr,sigma,theta,gamma)
+		  
+		| VList(_) => match(v,rest,sigma,theta,gamma)
+		
+		| VHole(SimpleHole(ValueHole(tyvar))) => (case unify([THole(TypeHole(tyvar)),TList(generateFreshTypeVar(TYPE_VAR,theta))],theta) of 
+		
+			  NONE        => Fail
+			| SOME theta1 => Success(expr,Substitution.union(sigma,ValueHole(tyvar),Concrete(EmptyList)),theta1,gamma))
+			
+		| VHole(h) => Hole h
+		
+		| _ => Fail)
+	
+	| (PCons(pat1,pat2),expr)::rest => (case v of 
+	
+		  Concrete(EmptyList) => match(v,rest,sigma,theta,gamma)
+		
+		(* Associate arbitrary expressions with recursive calls to pat *)
+		| VList(v1::rest1) => (case match(v1,[(pat1,expr)],sigma,theta,gamma) of 
+		
+			  Fail => match(v,rest,sigma,theta,gamma)
+			  
+			(* Even though we return a hole, match rest1 and pat2 to check it doesn't fail
+			   First check rest1 not empty to avoiding introducing VList([]) *)
+			| Hole h => (case rest1 of 
+			
+				  [] => (case match(Concrete(EmptyList),[(pat2,expr)],sigma,theta,gamma) of 
+								
+					  Fail => Fail
+					| _    => Hole (ListHole(VHole(h)::rest1)))
+				  
+				| _ => (case match(VList(rest1),[(pat2,expr)],sigma,theta,gamma) of 
+								
+					  Fail => Fail
+					| _    => Hole (ListHole(VHole(h)::rest1))))
+				
+			| Success(_,sigma1,theta1,gamma1) => (case rest1 of 
+			
+				  (* Avoid introducing empty VList([]) *)
+				  [] => (case match(Concrete(EmptyList),[(pat2,expr)],sigma1,theta1,gamma1) of 
+			
+					  Hole (ListHole(rest)) => Hole (ListHole(v1::rest))
+					| s as Success(_,_,_,_) => s
+					| _                     => match(v,rest,sigma,theta,gamma))
+					
+				| _ => (case match(VList(rest1),[(pat2,expr)],sigma1,theta1,gamma1) of 
+			
+					  Hole (ListHole(rest)) => Hole (ListHole(v1::rest))
+					| s as Success(_,_,_,_) => s
+					| _                     => match(v,rest,sigma,theta,gamma))))
+			
+		| VHole(SimpleHole(ValueHole(ArithTypeVar(_)))) =>  Fail
+		
+		| VHole(SimpleHole(ValueHole(tyvar))) =>
+		
+			let val tyvar_type = case tyvar of TypeVar(_)    => TYPE_VAR
+										| EqualityTypeVar(_) => EQUALITY_TYPE_VAR
+										| ArithTypeVar(_)  	 => ARITH_TYPE_VAR;
+										(* arith cannot occur - matched above *)
+				val genType = TList(generateFreshTypeVar(tyvar_type,theta));
+				val genVal = gen(genType,theta);
+				val theta1 = Substitution.union(theta,TypeHole(tyvar),genType);
+				val sigma1 = Substitution.union(sigma,ValueHole(tyvar),genVal)
+			in match(genVal,patExprList,sigma1,theta1,gamma) end
+		
+		| VHole(h) => Hole h
+		
+		| _ => Fail)
+	
+	| (PRecord(r),expr)::rest => (case v of 
+	
+		  VRecord(r1) =>
 		  
 			let fun matchLists(l1,l2,s,t,g,processed) = (case (l1,l2) of 
 			
@@ -166,13 +248,12 @@ fun match(e,patExprList,sigma,theta,gamma) = (case patExprList of
 					
 						if labv=labp 
 						
-						(* Associate arbitrary 'expr' with pat1 to make it into 
-						   a (pattern-expression) list *)
-						then (case match(Value(v1),[(pat1,expr)],s,t,g) of 
+						(* Associate arbitrary 'expr' with pat1 to make it into a (pattern-expression) list *)
+						then (case match(v1,[(pat1,expr)],s,t,g) of 
 									
 						  (* Stop processing this pattern, and look at the other patterns
 						     using the original sigma,theta,gamma *)
-						  Fail   => match(e,rest,sigma,theta,gamma)
+						  Fail => match(v,rest,sigma,theta,gamma)
 
 						(* Even though we return a hole, keep looking through rest of list
 						   to check none of them fail *)
@@ -196,48 +277,21 @@ fun match(e,patExprList,sigma,theta,gamma) = (case patExprList of
 			
 			in matchLists(Record.sort(r1),Record.sort(r),sigma,theta,gamma,[]) end
 		  
-		| Record(r1) => 
+		| VHole(SimpleHole(ValueHole(ArithTypeVar(_)))) =>  Fail
 		
-			let fun matchLists(l1,l2,s,t,g) = (case (l1,l2) of 
-			
-					  ([],[]) => Success (expr,s,t,g)
-					| ([],_)  => Fail
-					| (_,[])  => Fail
-					| ((labe,e1)::rest1,(labp,pat1)::rest2) => 
-					
-						if labe=labp 
-						
-						then (case match(e1,[(pat1,expr)],s,t,g) of 
-									  
-						  Fail   => match(e,rest,sigma,theta,gamma)
-						  
-						| Hole _ => Fail
-							
-						| Success (_,s1,t1,g1) => (case matchLists(rest1,rest2,s1,t1,g1) of 
-						
-							  s as Success(e2,s2,t2,g2) => s
-							| _ => Fail))
-							
-						else Fail)
-						
-			in matchLists(Record.sort(r1),Record.sort(r),sigma,theta,gamma) end
-		  
-		  
-		| Value(VHole(SimpleHole(ValueHole(ArithTypeVar(_))))) =>  Fail
+		| VHole(SimpleHole(ValueHole(tyvar))) =>
 		
-		| Value(VHole(SimpleHole(ValueHole(tyvar)))) =>
-			let val tyvar_type = case tyvar of 
-					  TypeVar(_)    	 => TYPE_VAR
-					| EqualityTypeVar(_) => EQUALITY_TYPE_VAR
-					| ArithTypeVar(_)  	 => ARITH_TYPE_VAR;
-					(* arith cannot occur - matched above, but here for non-exhaustive warnings *)
-				val genType = genFreshTRecord(Record.getLabels(r),tyvar_type,theta);
+			let val tyvar_type = case tyvar of TypeVar(_)    	 => TYPE_VAR
+											| EqualityTypeVar(_) => EQUALITY_TYPE_VAR
+											| ArithTypeVar(_)  	 => ARITH_TYPE_VAR;
+											(* arith cannot occur - matched above *)
+				val genType = TRecord(genFreshTRecord(Record.getLabels(r),tyvar_type,theta));
 				val genVal = gen(genType,theta);
 				val theta1 = Substitution.union(theta,TypeHole(tyvar),genType);
 				val sigma1 = Substitution.union(sigma,ValueHole(tyvar),genVal)
-			in match(Value(genVal),patExprList,sigma1,theta1,gamma) end
+			in match(genVal,patExprList,sigma1,theta1,gamma) end
 		
-		| Value(VHole(h)) => Hole h
+		| VHole(h) => Hole h
 		
 		| _ => Fail)
 		

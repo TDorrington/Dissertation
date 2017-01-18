@@ -31,22 +31,25 @@ val rec operationWrap = fn oper =>
 	| (VRecord(r1),VRecord(r2)) => (case oper of
 	
 		  BoolOper(EQ) => 
+		  
 		    (* Perform operationWrap recursively on each pair of values for corresponding labels
 			   If all return boolean, then return conjunction of all booleans
-			   Otherwise return as binary op value hole, v[record1 = record2] *)
+			   Otherwise return as binary op value hole, v[record1 = record2] (or stuck) *)
 			let fun iterOperationWrap(l1,l2) = (case (l1,l2) of 
 				
 				  ([],[]) => Expression(Value(Concrete(B(true))))
 				| ([],_)  => Stuck
 				| (_,[])  => Stuck
 				| ((lab1,v1)::rest1,(lab2,v2)::rest2) =>
+				
 					if lab1=lab2
+					
 					then (case (operationWrap oper (v1,v2)) of
 						
 						  Expression(Value(Concrete(B(b1)))) => (case iterOperationWrap(rest1,rest2) of 
-								  Expression(Value(Concrete(B(b2)))) => Expression(Value(Concrete(B(b1 andalso b2))))
- 								| Expression(_) => Expression(Value(VHole(BinaryOpHole(oper,VRecord(r1),VRecord(r2)))))
-								| Stuck => Stuck)
+							  Expression(Value(Concrete(B(b2)))) => Expression(Value(Concrete(B(b1 andalso b2))))
+ 							| Expression(_) => Expression(Value(VHole(BinaryOpHole(oper,VRecord(r1),VRecord(r2)))))
+							| Stuck => Stuck)
 						  
 						(* If doesn't evaluate to boolean, carrying on evaluating the rest of the
 						   equal labels pairs, just in case one of the pairs gets stuck *)
@@ -60,6 +63,40 @@ val rec operationWrap = fn oper =>
 		
 			in iterOperationWrap(Record.sort(r1),Record.sort(r2)) end
 			
+		| _ => Stuck)
+	
+	| (VList(l1),VList(l2)) => (case oper of 
+	
+		  BoolOper(EQ) =>
+		  
+		    (* Perform operationWrap recursively on each pair of corresponding values in list
+			   If all return boolean, then return conjunction of all boleans
+			   Otherwise return as binary op value hole, v[list1 = list2] (or stuck) *)
+			let fun iterOperationWrap(l1,l2) = (case (l1,l2) of 
+				
+				  ([],[]) => Expression(Value(Concrete(B(true))))
+				  
+				(* Unlike records, lists do not have to be the same length, e.g. [1,2] = [1] => false *)
+				| ([],_)  => Expression(Value(Concrete(B(false))))
+				| (_,[])  => Expression(Value(Concrete(B(false))))
+				
+				|(v1::rest1,v2::rest2) => (case (operationWrap oper (v1,v2)) of
+					
+					  Expression(Value(Concrete(B(b1)))) => (case iterOperationWrap(rest1,rest2) of 
+						  Expression(Value(Concrete(B(b2)))) => Expression(Value(Concrete(B(b1 andalso b2))))
+						| Expression(_) => Expression(Value(VHole(BinaryOpHole(oper,VList(l1),VList(l2)))))
+						| Stuck => Stuck)
+						
+					(* If doesn't evaluate to boolean, carrying on evaluating the rest of the
+					   equal labels pairs, just in case one of the pairs gets stuck *)
+					| Expression(_) => (case iterOperationWrap(rest1,rest2) of
+						  Expression(_) => Expression(Value(VHole(BinaryOpHole(oper,VList(l1),VList(l2)))))
+						| Stuck => Stuck)
+						
+					| Stuck => Stuck))
+					
+			in iterOperationWrap(l1,l2) end
+		  
 		| _ => Stuck)
 	
 	| (VHole(hole), v2) => Expression(Value(VHole(BinaryOpHole(oper,VHole(hole),v2))))
@@ -169,7 +206,65 @@ and elabPhraseOperation(v1,v2,sigma,theta,oper) =
 				elabPhraseOperation(v1narrow,v2,sigma2,theta2,oper)
 				
 			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
+		
+	(* For list arguments, can only be operator equal
+	   Recursively call this function on each of the corresponding pairs of values *)
+	| (VList(l1),VList(l2)) => 
+	
+		if oper = BoolOper(EQ)
+		
+		then let fun iterElabEvaluate(l1,l2,sigma,theta) = (case (l1,l2) of 
+		
+			  ([],[]) => Config(Expression(Value(Concrete(B(true)))),sigma,theta)
 			
+			(* Unlike records, lists can be different lengths *)
+			| ([],_)  => Config(Expression(Value(Concrete(B(false)))),sigma,theta)
+			| (_,[])  => Config(Expression(Value(Concrete(B(false)))),sigma,theta)
+	
+			| (v1::rest1,v2::rest2) => (case elabPhraseOperation(v1,v2,sigma,theta,oper) of 
+			
+				  Config(Expression(Value(Concrete(B(b1)))),sigma1,theta1) => (case iterElabEvaluate(rest1,rest2,sigma1,theta1) of 
+				  
+					  Config(Expression(Value(Concrete(B(b2)))),sigma2,theta2) => Config(Expression(Value(Concrete(B(b1 andalso b2)))),sigma2,theta2)
+					  
+					| Config(Expression(_),sigma2,theta2) => Config(Expression(Value(VHole(BinaryOpHole(BoolOper(EQ),
+																										resolveChainSigma(VList(l1),sigma2),
+																										resolveChainSigma(VList(l2),sigma2))))),sigma2,theta2)
+																										
+					| Config(Stuck,sigma2,theta2) => Config(Stuck,sigma2,theta2))
+					
+				| Config(Expression(_),sigma1,theta1) => (case iterElabEvaluate(rest1,rest2,sigma1,theta1) of 
+				
+					  Config(Expression(_),sigma2,theta2) => Config(Expression(Value(VHole(BinaryOpHole(BoolOper(EQ),
+																										resolveChainSigma(VList(l1),sigma2),
+																										resolveChainSigma(VList(l2),sigma2))))),sigma2,theta2)
+					
+					| Config(Stuck,sigma2,theta2) => Config(Stuck,sigma2,theta2))
+					
+				| Config(Stuck,sigma1,theta1) => Config(Stuck,sigma1,theta1)))
+				
+			in iterElabEvaluate(l1,l2,sigma,theta) end
+				
+		else Config(Stuck,sigma,theta)
+	
+	| (VList(_),VHole(_)) => (case typeof(v1,theta) of 
+	
+		  (NONE,_) => Config(Stuck,sigma,theta)
+		| (SOME(listType),theta1) => (case evaluate(narrow(v2,listType,sigma,theta1,[])) of
+			
+			  Config(Expression(Value(v2narrow)),sigma2,theta2) => elabPhraseOperation(v1,v2narrow,sigma2,theta2,oper)
+			  
+			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
+			
+	| (VHole(_),VList(_)) => (case typeof(v2,theta) of 
+	
+		  (NONE,_) => Config(Stuck,sigma,theta)
+		| (SOME(listType),theta1) => (case evaluate(narrow(v1,listType,sigma,theta1,[])) of
+		
+			  Config(Expression(Value(v1narrow)),sigma2,theta2) => elabPhraseOperation(v1narrow,v2,sigma2,theta2,oper)
+			  
+			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
+	
 	| (VHole(_),VHole(_)) =>
 	
 		let val (t,theta1) = (case oper of 
@@ -297,7 +392,37 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 		| (NONE,sigma1,theta1)   => Config(Stuck,sigma1,theta1))
 		
 	end
-		  
+
+(* Takes a lsit of expressions and turns into a value list of values
+   Expressions evaluated in a left-to-right manner, returning list of values *)
+(* (context-list) *)
+|	evaluate (Config(Expression(List(l)),sigma,theta)) =
+
+	let fun iterEvaluate(l,sigma,theta) = (case l of 
+	
+		  [] => (SOME [],sigma,theta)
+		
+		| Value(v)::rest => (case iterEvaluate(rest,sigma,theta) of 
+		
+			  (SOME l,sigma1,theta1) => (SOME (v::l),sigma1,theta1)
+			| (NONE,sigma1,theta1)   => (NONE,sigma1,theta1))
+			
+		| e::rest => (case evaluate(Config(Expression(e),sigma,theta)) of 
+		
+			  Config(Expression(Value(v)),sigma1,theta1) => (case iterEvaluate(rest,sigma1,theta1) of 
+			  
+				  (SOME l,sigma2,theta2) => (SOME (v::l),sigma2,theta2)
+				| (NONE,sigma2,theta2)   => (NONE,sigma2,theta2))
+				
+			| Config(_,sigma1,theta1) => (NONE,sigma1,theta1)))
+			
+	in (case iterEvaluate(l,sigma,theta) of 
+	
+		  (SOME l,sigma1,theta1) => evaluate(Config(Expression(Value(VList(l))),sigma1,theta1))
+		| (NONE,sigma1,theta1)    => Config(Stuck,sigma1,theta1))
+		
+	end
+	
 (* Implements evaluation & type inference rules for if expression with boolean operand a value *)
 (* i.e. implements rules (E-IF-GOOD1), (E-IF-GOOD2), (E-IF-BAD) *)
 |  evaluate (Config(Expression(Condition(Value(v),e1,e2)),sigma,theta)) =
@@ -345,7 +470,7 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 
 		  Config(Expression(Case(v1narrow,patExprList)),sigma1,theta1) => (case evaluate(Config(Expression(v1narrow),sigma1,theta1)) of 
 		  
-			  Config(Expression(v1narrow),sigma1,theta1) => (case match(v1narrow,patExprList,sigma1,theta1,[]) of 
+			  Config(Expression(Value(v1narrow)),sigma1,theta1) => (case match(v1narrow,patExprList,sigma1,theta1,[]) of 
 		  
 				(* E-CASE-BAD1 *)
 				  Fail => Config(Stuck,sigma1,theta1)
