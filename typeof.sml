@@ -517,6 +517,7 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 			  TList(listType) => (case unify([t1,listType],theta2) of 
 			  
 				  NONE 		  => (NONE,theta2)
+				| SOME theta3 => (SOME (resolveChainTheta(t2,theta3)),theta3))
 			  
 			| THole(TypeHole(TypeVar(a))) => 
 			
@@ -527,6 +528,7 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 					| SOME theta3 => (case unify([t2,TList(resolveChainTheta(freshTypeVar,theta3))],theta3) of
 					
 						  NONE 		  => (NONE,theta3)
+						| SOME theta4 => (SOME (TList(resolveChainTheta(freshTypeVar,theta4))),theta4)))
 						
 				end
 			
@@ -539,9 +541,11 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 					| SOME theta3 => (case unify([t2,TList(resolveChainTheta(freshTypeVar,theta3))],theta3) of
 					
 						  NONE 		  => (NONE,theta3)
+						| SOME theta4 => (SOME (TList(resolveChainTheta(freshTypeVar,theta4))),theta4)))
 						
 				end
 			
+			| _ => (NONE,theta1))))
 
 	(* Don't check type of e1 is unifiable to type t: done in narrow *)
 | 	typeofexpr(Let(x,t,_,e2),theta) = typeofexpr(substitute(e2, [(x,Value(gen(t,theta)))]),theta)

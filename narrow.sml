@@ -586,6 +586,7 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 				 val genType = TList(generateFreshTypeVar(freshTypeVar,theta));
 				 val theta1 = Substitution.union(theta,TypeHole(hole),genType)
 				 
+			 in narrowExpr(e,genType,sigma,theta1,gamma) end
 	
 	| (Condition(e1,e2,e3),t) => (case narrowExpr(e1,Bool,sigma,theta,gamma) of 
 	
