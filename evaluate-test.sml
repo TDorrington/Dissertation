@@ -1899,5 +1899,105 @@ prettyPrintConfig(evaluate(Config(Expression(LetRec(
 	App(Variable(Var("x")),
 	    Value(VList([Concrete(N(0)),Concrete(N(2)),Concrete(N(~1))]))))),[],[])));
 (* Length of list *)
+
+val a' = THole(TypeHole(TypeVar("a")));
+val b' = THole(TypeHole(TypeVar("b")));
+
+prettyPrintConfig(evaluate(Config(Expression(LetRec(
+	Var("map"),TFun(TFun(a',b'),TFun(TList(a'),TList(b'))),
+	Fun(Var("f"),TFun(a',b'),
+		Value(Fun(Var("l"),TList(a'),
+			  Case(Variable(Var("l")),
+				[(PVal(EmptyList),Value(Concrete(EmptyList))),
+				 (PCons(PVar(Var("y")),PVar(Var("ys"))),
+				  Cons(App(Variable(Var("f")),Variable(Var("y"))),
+				       App(App(Variable(Var("map")),Variable(Var("f"))),Variable(Var("ys")))))])))),
+	App(App(Variable(Var("map")),
+	        Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x")))))),
+		Value(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(3)),Concrete(N(~1)),Concrete(N(0))]))))),[],[])));
+(* map: [1,4,9,1,0] *)
+
+prettyPrintConfig(evaluate(Config(Expression(LetRec(
+	Var("exists"),TFun(TFun(a',Bool),TFun(TList(a'),Bool)),
+	Fun(Var("p"),TFun(a',Bool),
+		Value(Fun(Var("l"),TList(a'),
+				  Case(Variable(Var("l")),
+					 [(PVal(EmptyList),Value(Concrete(B(false)))),
+					  (PCons(PVar(Var("x")),PVar(Var("xs"))),
+					   Condition(App(Variable(Var("p")),Variable(Var("x"))),
+								 Value(Concrete(B(true))),
+								 App(App(Variable(Var("exists")),Variable(Var("p"))),
+								     Variable(Var("xs")))))])))),
+	App(App(Variable(Var("exists")),
+			Value(Fun(Var("x"),Int,BoolExpr(EQ,Variable(Var("x")),Value(Concrete(N(0))))))),
+		Value(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(0))]))))),[],[])));
+(* exists: true *)
+	
+ prettyPrintConfig(evaluate(Config(Expression(LetRec(
+	Var("filter"),TFun(TFun(a',Bool),TFun(TList(a'),TList(a'))),
+	Fun(Var("p"),TFun(a',Bool),
+		Value(Fun(Var("l"),TList(a'),
+			  Case(Variable(Var("l")),
+				 [(PVal(EmptyList),Value(Concrete(EmptyList))),
+				  (PCons(PVar(Var("x")),PVar(Var("xs"))),
+				   Condition(App(Variable(Var("p")),Variable(Var("x"))),
+							 Cons(Variable(Var("x")),
+								  App(App(Variable(Var("filter")),Variable(Var("p"))),
+									  Variable(Var("xs")))),
+							 App(App(Variable(Var("filter")),Variable(Var("p"))),
+							     Variable(Var("xs")))))])))),
+	App(App(Variable(Var("filter")),
+			Value(Fun(Var("x"),Int,BoolExpr(EQ,Variable(Var("x")),Value(Concrete(N(10))))))),
+		Value(VList([Concrete(N(1)),Concrete(N(10)),Concrete(N(10)),
+					 Concrete(N(5)),Concrete(N(10)),Concrete(N(5))]))))),[],[])));
+(* filter: [10,10,10] *)
+
+ (evaluate(Config(Expression(LetRec(
+	Var("filter"),TFun(TFun(a',Bool),TFun(TList(a'),TList(a'))),
+	Fun(Var("p"),TFun(a',Bool),
+		Value(Fun(Var("l"),TList(a'),
+			  Case(Variable(Var("l")),
+				 [(PVal(EmptyList),Value(Concrete(EmptyList))),
+				  (PCons(PVar(Var("x")),PVar(Var("xs"))),
+				   Condition(App(Variable(Var("p")),Variable(Var("x"))),
+							 Cons(Variable(Var("x")),
+								  App(App(Variable(Var("filter")),Variable(Var("p"))),
+									  Variable(Var("xs")))),
+							  App(App(Variable(Var("filter")),Variable(Var("p"))),
+							      Variable(Var("xs")))))])))),
+	App(App(Variable(Var("filter")),
+			Value(Fun(Var("x"),TList(b'),BoolExpr(EQ,Variable(Var("x")),Value(Concrete(EmptyList)))))),
+		Value(VList([Concrete(EmptyList),
+					 VList([Concrete(N(1)),Concrete(N(2))]),
+					 Concrete(EmptyList),
+					 VList([Concrete(N(5))]),
+					 Concrete(EmptyList)]))))),[],[])));
+(* filter: [ [], [], [] ] *)
+ 
+prettyPrintConfig(evaluate(Config(Expression(LetRec(
+	Var("gen"),TFun(Int,TList(Int)),
+	Fun(Var("x"),Int,
+		Condition(BoolExpr(LESS_EQ,Variable(Var("x")),Value(Concrete(N(0)))),
+				  Value(Concrete(EmptyList)),
+				  Cons(Variable(Var("x")),
+					   App(Variable(Var("gen")),
+						   ArithExpr(SUBTRACT,Variable(Var("x")),Value(Concrete(N(1)))))))),
+	App(Variable(Var("gen")),Value(Concrete(N(10)))))),[],[])));
+(* Generate a list from 1 to number given: [10,9,8,7,6,5,4,3,2,1] *)
+
+prettyPrintConfig(evaluate(Config(Expression(LetRec(
+	Var("gen"),TFun(Int,TFun(TFun(a',b'),TList(b'))),
+	Fun(Var("x"),Int,
+		Value(Fun(Var("f"),TFun(a',b'),	
+		Condition(BoolExpr(LESS_EQ,Variable(Var("x")),Value(Concrete(N(0)))),
+				  Value(Concrete(EmptyList)),
+				  Cons(App(Variable(Var("f")),Variable(Var("x"))),
+					   App(App(Variable(Var("gen")),ArithExpr(SUBTRACT,Variable(Var("x")),Value(Concrete(N(1))))),
+					       Variable(Var("f")))))))),
+	App(App(Variable(Var("gen")),Value(Concrete(N(10)))),
+		Value(Fun(Var("z"),Int,BoolExpr(LESS_EQ,Variable(Var("z")),Value(Concrete(N(5))))))))),[],[])));
+(* Generate a list from 1 to number given, applying a function f given to each number
+   f (n) = n <= 5
+   [0,0,0,0,0,1,1,1,1,1] *)
  
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)

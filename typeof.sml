@@ -251,6 +251,9 @@ fun typeofhole (SimpleHole(ValueHole(tyVar)),theta:typeSub) =
 | 	typeofhole (AppHole(v1,v2),theta) =
 	typeofexpr(App(Value(v1),Value(v2)),theta)
 	
+| 	typeofhole (ConsHole(v1,v2),theta) =
+	typeofexpr(Cons(Value(v1),Value(v2)),theta)
+	
 |	typeofhole (RecordHole(r),theta) =
 	let fun valToERecord(r) = (case r of 
 		  []		    => []
@@ -473,13 +476,10 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 					
 		in (case t1 of
 			
-			  Bool => calculateReturn(theta1)
-				  
-			| THole(TypeHole(TypeVar(a))) => calculateReturn(Substitution.union(theta1,TypeHole(TypeVar(a)),Bool))
-					
+			  Bool 								  => calculateReturn(theta1)
+			| THole(TypeHole(TypeVar(a))) 		  => calculateReturn(Substitution.union(theta1,TypeHole(TypeVar(a)),Bool))
 			| THole(TypeHole(EqualityTypeVar(a))) => calculateReturn(Substitution.union(theta1,TypeHole(EqualityTypeVar(a)),Bool))
-					
-			| _ => (NONE, theta1))
+			| _                                   => (NONE, theta1))
 				
 		end)
 		
@@ -505,6 +505,43 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 | 	typeofexpr(Record(l),theta) = typeofERecord(l,theta)
 
 |	typeofexpr(List(l),theta) = typeofEList(l,theta)
+
+| 	typeofexpr(Cons(e1,e2),theta) = (case typeofexpr(e2,theta) of
+
+	  (NONE,theta1)    => (NONE,theta1)
+	| (SOME t2,theta1) => (case typeofexpr(e1,theta) of 
+	
+		  (NONE,theta2)    => (NONE,theta2)
+		| (SOME t1,theta2) => (case t2 of 
+	
+			  TList(listType) => (case unify([t1,listType],theta2) of 
+			  
+				  NONE 		  => (NONE,theta2)
+			  
+			| THole(TypeHole(TypeVar(a))) => 
+			
+				let val freshTypeVar = generateFreshTypeVar(TYPE_VAR,theta2) 
+				in (case unify([t1,freshTypeVar],theta2) of 
+			
+					  NONE        => (NONE,theta2)
+					| SOME theta3 => (case unify([t2,TList(resolveChainTheta(freshTypeVar,theta3))],theta3) of
+					
+						  NONE 		  => (NONE,theta3)
+						
+				end
+			
+			| THole(TypeHole(EqualityTypeVar(a))) => 
+				
+				let val freshTypeVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta2) 
+				in (case unify([t1,freshTypeVar],theta2) of 
+			
+					  NONE        => (NONE,theta2)
+					| SOME theta3 => (case unify([t2,TList(resolveChainTheta(freshTypeVar,theta3))],theta3) of
+					
+						  NONE 		  => (NONE,theta3)
+						
+				end
+			
 
 	(* Don't check type of e1 is unifiable to type t: done in narrow *)
 | 	typeofexpr(Let(x,t,_,e2),theta) = typeofexpr(substitute(e2, [(x,Value(gen(t,theta)))]),theta)

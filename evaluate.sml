@@ -65,6 +65,21 @@ val rec operationWrap = fn oper =>
 			
 		| _ => Stuck)
 	
+	| (Concrete(EmptyList),Concrete(EmptyList)) => (case oper of 
+	
+		  BoolOper(EQ) => Expression(Value(Concrete(B(true))))
+		| _			   => Stuck)
+	
+	| (Concrete(EmptyList),VList(_)) => (case oper of 
+	
+		  BoolOper(EQ) => Expression(Value(Concrete(B(false))))
+		| _			   => Stuck)
+		
+	| (VList(_),Concrete(EmptyList)) => (case oper of 
+	
+		  BoolOper(EQ) => Expression(Value(Concrete(B(false))))
+		| _			   => Stuck)
+	
 	| (VList(l1),VList(l2)) => (case oper of 
 	
 		  BoolOper(EQ) =>
@@ -82,7 +97,8 @@ val rec operationWrap = fn oper =>
 				
 				|(v1::rest1,v2::rest2) => (case (operationWrap oper (v1,v2)) of
 					
-					  Expression(Value(Concrete(B(b1)))) => (case iterOperationWrap(rest1,rest2) of 
+					  Expression(Value(Concrete(B(b1)))) => (case iterOperationWrap(rest1,rest2) of
+					  
 						  Expression(Value(Concrete(B(b2)))) => Expression(Value(Concrete(B(b1 andalso b2))))
 						| Expression(_) => Expression(Value(VHole(BinaryOpHole(oper,VList(l1),VList(l2)))))
 						| Stuck => Stuck)
@@ -90,6 +106,7 @@ val rec operationWrap = fn oper =>
 					(* If doesn't evaluate to boolean, carrying on evaluating the rest of the
 					   equal labels pairs, just in case one of the pairs gets stuck *)
 					| Expression(_) => (case iterOperationWrap(rest1,rest2) of
+					
 						  Expression(_) => Expression(Value(VHole(BinaryOpHole(oper,VList(l1),VList(l2)))))
 						| Stuck => Stuck)
 						
@@ -192,9 +209,7 @@ and elabPhraseOperation(v1,v2,sigma,theta,oper) =
 		  (NONE,_) => Config(Stuck,sigma,theta)
 		| (SOME(recordType),theta1) => (case evaluate(narrow(v2,recordType,sigma,theta1,[])) of 
 		
-			  Config(Expression(Value(v2narrow)),sigma2,theta2) => 
-				elabPhraseOperation(v1,v2narrow,sigma2,theta2,oper)
-					
+			  Config(Expression(Value(v2narrow)),sigma2,theta2) => elabPhraseOperation(v1,v2narrow,sigma2,theta2,oper)
 			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
 		
 	| (VHole(_),VRecord(_)) => (case typeof(v2,theta) of 
@@ -202,11 +217,43 @@ and elabPhraseOperation(v1,v2,sigma,theta,oper) =
 		  (NONE,_) => Config(Stuck,sigma,theta)
 		| (SOME(recordType),theta1) => (case evaluate(narrow(v1,recordType,sigma,theta1,[])) of 
 			
-			  Config(Expression(Value(v1narrow)),sigma2,theta2) => 
-				elabPhraseOperation(v1narrow,v2,sigma2,theta2,oper)
-				
+			  Config(Expression(Value(v1narrow)),sigma2,theta2) => elabPhraseOperation(v1narrow,v2,sigma2,theta2,oper)
 			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
+	
+	| (Concrete(EmptyList),Concrete(EmptyList)) =>
+	
+		if oper = BoolOper(EQ)
+		then Config(Expression(Value(Concrete(B(true)))),sigma,theta)
+		else Config(Stuck,sigma,theta)
 		
+	| (Concrete(EmptyList),VList(_)) =>
+	
+		if oper = BoolOper(EQ)
+		then Config(Expression(Value(Concrete(B(false)))),sigma,theta)
+		else Config(Stuck,sigma,theta)
+	
+	| (VList(_),Concrete(EmptyList)) =>
+		
+		if oper = BoolOper(EQ)
+		then Config(Expression(Value(Concrete(B(false)))),sigma,theta)
+		else Config(Stuck,sigma,theta)
+		
+	| (Concrete(EmptyList),VHole(_)) => (case typeof(v1,theta) of 
+	
+		  (NONE,_) => Config(Stuck,sigma,theta)
+		| (SOME(listType),theta1) => (case evaluate(narrow(v2,listType,sigma,theta1,[])) of
+			
+			  Config(Expression(Value(v2narrow)),sigma2,theta2) => elabPhraseOperation(v1,v2narrow,sigma2,theta2,oper)
+			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
+
+	| (VHole(_),Concrete(EmptyList)) => (case typeof(v2,theta) of 
+	
+		  (NONE,_) => Config(Stuck,sigma,theta)
+		| (SOME(listType),theta1) => (case evaluate(narrow(v1,listType,sigma,theta1,[])) of
+		
+			  Config(Expression(Value(v1narrow)),sigma2,theta2) => elabPhraseOperation(v1narrow,v2,sigma2,theta2,oper)
+			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
+	
 	(* For list arguments, can only be operator equal
 	   Recursively call this function on each of the corresponding pairs of values *)
 	| (VList(l1),VList(l2)) => 
@@ -253,7 +300,6 @@ and elabPhraseOperation(v1,v2,sigma,theta,oper) =
 		| (SOME(listType),theta1) => (case evaluate(narrow(v2,listType,sigma,theta1,[])) of
 			
 			  Config(Expression(Value(v2narrow)),sigma2,theta2) => elabPhraseOperation(v1,v2narrow,sigma2,theta2,oper)
-			  
 			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
 			
 	| (VHole(_),VList(_)) => (case typeof(v2,theta) of 
@@ -262,7 +308,6 @@ and elabPhraseOperation(v1,v2,sigma,theta,oper) =
 		| (SOME(listType),theta1) => (case evaluate(narrow(v1,listType,sigma,theta1,[])) of
 		
 			  Config(Expression(Value(v1narrow)),sigma2,theta2) => elabPhraseOperation(v1narrow,v2,sigma2,theta2,oper)
-			  
 			| Config(_,sigma2,theta2) => Config(Stuck,sigma,theta)))
 	
 	| (VHole(_),VHole(_)) =>
@@ -393,7 +438,7 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 		
 	end
 
-(* Takes a lsit of expressions and turns into a value list of values
+(* Takes a list of expressions and turns into a value list of values
    Expressions evaluated in a left-to-right manner, returning list of values *)
 (* (context-list) *)
 |	evaluate (Config(Expression(List(l)),sigma,theta)) =
@@ -422,6 +467,38 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 		| (NONE,sigma1,theta1)    => Config(Stuck,sigma1,theta1))
 		
 	end
+	
+(* Implements evaluation * type inference rules for cons of two values *)
+| 	evaluate (Config(Expression(Cons(Value(v1),Value(v2))),sigma,theta)) =
+
+	let val freshVar = generateFreshTypeVar(TYPE_VAR,theta)
+	in (case evaluate(narrow(v2,TList(freshVar),sigma,theta,[])) of 
+	
+		  Config(Expression(Value(v2narrow)),sigma1,theta1) => (case evaluate(narrow(v1,resolveChainTheta(freshVar,theta1),sigma1,theta1,[])) of 
+		  
+			  Config(Expression(Value(v1narrow)),sigma2,theta2) => (case v2narrow of 
+			  
+				  Concrete(EmptyList) => evaluate(Config(Expression(Value(VList([v1narrow]))),sigma2,theta2))
+				| VHole(h)			  => evaluate(Config(Expression(Value(VHole(ConsHole(v1narrow,v2narrow)))),sigma2,theta2))
+				| VList(l)			  => evaluate(Config(Expression(Value(VList(v1narrow::l))),sigma2,theta2))
+				| _					  => Config(Stuck,sigma2,theta2))
+			  
+			| Config(_,sigma2,theta2) => Config(Stuck,sigma2,theta2))
+		  
+		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+		
+	end
+
+| 	evaluate (Config(Expression(Cons(Value(v1),e2)),sigma,theta)) = (case evaluate(Config(Expression(e2),sigma,theta)) of 
+
+	  Config(Expression(Value(v2)),sigma1,theta1) => evaluate(Config(Expression(Cons(Value(v1),Value(v2))),sigma1,theta1))
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
+
+(* (context-cons-1) *)
+|	evaluate (Config(Expression(Cons(e1,e2)),sigma,theta)) = (case evaluate(Config(Expression(e1),sigma,theta)) of 
+	
+	  Config(Expression(Value(v1)),sigma1,theta1) => evaluate(Config(Expression(Cons(Value(v1),e2)),sigma1,theta1))
+	| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 	
 (* Implements evaluation & type inference rules for if expression with boolean operand a value *)
 (* i.e. implements rules (E-IF-GOOD1), (E-IF-GOOD2), (E-IF-BAD) *)
@@ -561,8 +638,7 @@ and evaluate (Config(Expression(Value(v)),s,t)) =
 	
 		  Config(Expression(l as LetRec(x,tfun,Fun(y,t3,e1),e2)),sigma1,theta1) => 
 		  
-			evaluate(Config(Expression(substitute(e2,[(x,Value(Fun(y,t3,LetRec(x,tfun,Fun(y,t3,e1),e1))))])),
-						    sigma1,theta1))
+			evaluate(Config(Expression(substitute(e2,[(x,Value(Fun(y,t3,LetRec(x,tfun,Fun(y,t3,e1),e1))))])),sigma1,theta1))
 			
 		| Config(_,sigma1,theta1) => Config(Stuck,sigma1,theta1))
 

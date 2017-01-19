@@ -59,7 +59,8 @@ and alphaHole(hole,n,vars) = (case hole of
 	| CaseHole(v1,patExprList) => VHole(CaseHole(alphaValue(v1,n,vars),alphaPatExprList(patExprList,n,vars)))
 	| AppHole(v1,v2)           => VHole(AppHole(alphaValue(v1,n,vars),alphaValue(v2,n,vars)))
 	| RecordHole(r)            => VHole(RecordHole(alphaVRecord(r,n,vars)))
-	| ListHole(l)              => VHole(ListHole(alphaVList(l,n,vars))))
+	| ListHole(l)              => VHole(ListHole(alphaVList(l,n,vars)))
+	| ConsHole(v1,v2)		   => VHole(ConsHole(alphaValue(v1,n,vars),alphaValue(v2,n,vars))))
 		
 and alphaExpr(e,n,vars) = (case e of 
 	
@@ -73,4 +74,5 @@ and alphaExpr(e,n,vars) = (case e of
 	| Record(r)                  => Record(alphaERecord(r,n,vars))
 	| Let(x,t,e1,e2)             => Let(alphaVariable(x,n,vars),t,alphaExpr(e1,n,vars),alphaExpr(e2,n,vars))
 	| LetRec(x,t,v1,e2)          => LetRec(alphaVariable(x,n,vars),t,alphaValue(v1,n,vars),alphaExpr(e2,n,vars))
-	| List(l)                    => List(alphaEList(l,n,vars)));
+	| List(l)                    => List(alphaEList(l,n,vars))
+	| Cons(e1,e2)				 => Cons(alphaExpr(e1,n,vars),alphaExpr(e2,n,vars)));

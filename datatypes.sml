@@ -57,6 +57,7 @@ datatype e =
 	| Let of var * t * e * e
 	| LetRec of var * t * v * e
 	| List of e list
+	| Cons of e * e
 
 (* value hole datatype *)
 and valhole = 
@@ -67,8 +68,9 @@ and valhole =
 	| AppHole of v * v
 	| RecordHole of v Record.dictionary    
 	| ListHole of v list
+	| ConsHole of v * v
 	  
-(* concrete values datatype: integers, reals and booleans, or tuples over these *)
+(* concrete values datatype: integers, reals and booleans, and nil list *)
 and concretev =
 	  N of int
 	| B of bool

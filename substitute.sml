@@ -28,7 +28,8 @@ fun substitute(a,[]) = a
 			| CaseHole(v1,patExprList) => VHole(CaseHole(substVal(v1),substPatExprList(patExprList)))
 			| AppHole(v1,v2)           => VHole(AppHole(substVal(v1),substVal(v2)))
 			| RecordHole(r)            => VHole(RecordHole(substVRecord(r)))
-			| ListHole(l)              => VHole(ListHole(substVList(l))))
+			| ListHole(l)              => VHole(ListHole(substVList(l)))
+			| ConsHole(v1,v2)		   => VHole(ConsHole(substVal(v1),substVal(v2))))
 		
 		and substPatExprList(l) = (case l of 
 				   
@@ -63,7 +64,8 @@ fun substitute(a,[]) = a
 			| Condition(e1,e2,e3)        => Condition(substExpr(e1),substExpr(e2),substExpr(e3))
 			| App(e1,e2)                 => App(substExpr(e1),substExpr(e2))
 			| Record(r)                  => Record(substERecord(r))
-			| List(l)                    => List(substEList(l))   
+			| List(l)                    => List(substEList(l))
+			| Cons(e1,e2)				 => Cons(substExpr(e1),substExpr(e2))
 			
 			| Let(x,t,e1,e2) => 
 				(* must be capture avoiding *)

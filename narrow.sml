@@ -252,6 +252,12 @@ fun narrow(v,t,sigma,theta,gamma) = (case (v,t) of
 		| Config(Expression(App(Value(VHole(v1)),Value(v2))),sigma1,theta1) => Config(Expression(Value(VHole(AppHole(VHole(v1),v2)))),sigma1,theta1)
 		| c => c)
 	
+	| (VHole(ConsHole(v1,v2)),t) => (case narrowExpr(Cons(Value(v1),Value(v2)),t,sigma,theta,gamma) of 
+		(* Either, or both, the values in the cons must be a value hole *)
+		  Config(Expression(Cons(Value(v1),Value(VHole(v2)))),sigma1,theta1) => Config(Expression(Value(VHole(ConsHole(v1,VHole(v2))))),sigma1,theta1)
+		| Config(Expression(Cons(Value(VHole(v1)),Value(v2))),sigma1,theta1) => Config(Expression(Value(VHole(ConsHole(VHole(v1),v2)))),sigma1,theta1)
+		| c => c)
+	
 	| (VHole(RecordHole(r)),t) =>
 	
 		  (* Converts record of values to a record of expressions,
@@ -557,6 +563,29 @@ and narrowExpr(e,t,sigma,theta,gamma) = (case (e,t) of
 				 val theta1 = Substitution.union(theta,TypeHole(hole),genType)
 				 
 			 in narrowExpr(e,genType,sigma,theta1,gamma) end
+	
+	| (Cons(e1,e2),TList(listType)) => (case narrowExpr(e1,listType,sigma,theta,gamma) of 
+	
+		  Config(Stuck,_,_) => Config(Stuck,sigma,theta)
+		| Config(Expression(e1narrow),sigma1,theta1) => (case narrowExpr(e2,TList(listType),sigma1,theta1,gamma) of 
+		
+			  Config(Stuck,_,_) => Config(Stuck,sigma,theta)
+			| Config(Expression(e2narrow),sigma2,theta2) => Config(Expression(Cons(e1narrow,e2narrow)),sigma2,theta2)))
+	
+	| (Cons(_,_),THole(TypeHole(ArithTypeVar(_)))) => Config(Stuck,sigma,theta)
+	
+	| (Cons(_,_),THole(TypeHole(hole))) =>
+	
+		if Substitution.contains(TypeHole(hole),theta)
+		then narrowExpr(e,resolveChainTheta(THole(TypeHole(hole)),theta),sigma,theta,gamma)
+		
+		else let val freshTypeVar = case hole of EqualityTypeVar(_) => EQUALITY_TYPE_VAR
+											| TypeVar(_) 		    => TYPE_VAR
+											| ArithTypeVar(_)	    => ARITH_TYPE_VAR;
+										    (* arith should never occur as matches above *)
+				 val genType = TList(generateFreshTypeVar(freshTypeVar,theta));
+				 val theta1 = Substitution.union(theta,TypeHole(hole),genType)
+				 
 	
 	| (Condition(e1,e2,e3),t) => (case narrowExpr(e1,Bool,sigma,theta,gamma) of 
 	

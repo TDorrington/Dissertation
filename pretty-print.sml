@@ -65,7 +65,8 @@ and prettyPrintHole(hole) = (case hole of
 	| AppHole(v1,v2) =>
 		"v[ " ^ prettyPrintValue(v1) ^ " " ^ prettyPrintValue(v2) ^ " ]"
 	| RecordHole(r) => "v[ {" ^ prettyPrintVRecord(r) ^ "} ]"
-	| ListHole(l) => "v[ [" ^ prettyPrintVList(l) ^ "] ]")
+	| ListHole(l) => "v[ [" ^ prettyPrintVList(l) ^ "] ]"
+	| ConsHole(v1,v2) => "v[ " ^ prettyPrintValue(v1) ^ " :: " ^ prettyPrintValue(v2) ^ " ]")
 
 and prettyPrintVRecord([]) = ""
 |	prettyPrintVRecord([(Lab(s),v)]) = s ^ "=" ^ prettyPrintValue(v)
@@ -102,7 +103,8 @@ and prettyPrintExpression(Stuck) = "Stuck"
 							   ^ ") in " ^ prettyPrintExpression(Expression(e2)) ^ " end"
 	| LetRec(Var(s),t,v,e) => "let val rec " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(Value(v)))
 							   ^ ") in " ^ prettyPrintExpression(Expression(e)) ^ " end"
-	| List(l) => "[" ^ prettyPrintEList(l) ^ "]")
+	| List(l) => "[" ^ prettyPrintEList(l) ^ "]"
+	| Cons(e1,e2) => prettyPrintExpression(Expression(e1)) ^ " :: " ^ prettyPrintExpression(Expression(e2)))
 	
 and prettyPrintERecord([]) = ""
 |	prettyPrintERecord([(Lab(s),e)]) = s ^ "=" ^ prettyPrintExpression(Expression(e))

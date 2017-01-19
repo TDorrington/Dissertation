@@ -15,7 +15,8 @@ fun resolveChainSigma(a,sigma:valSub) =
 			| Record(r)				=> Record(resolveERecord(r))
 			| Let(x,t,e1,e2)        => Let(x,t,resolveExpr(e1),resolveExpr(e2))
 			| LetRec(x,t,v1,e2)		=> LetRec(x,t,resolveVal(v1),resolveExpr(e2))
-			| List(l)				=> List(resolveEList(l)))
+			| List(l)				=> List(resolveEList(l))
+			| Cons(e1,e2)			=> Cons(resolveExpr(e1),resolveExpr(e2)))
 	
 		and resolveEList(l) = (case l of
 			
@@ -55,7 +56,8 @@ fun resolveChainSigma(a,sigma:valSub) =
 			| CaseHole(v,patExprList)  => VHole(CaseHole(resolveVal(v),resolvePatExprList(patExprList)))
 			| AppHole(v1,v2)           => VHole(AppHole(resolveVal(v1),resolveVal(v2)))
 			| RecordHole(r)            => VHole(RecordHole(resolveVRecord(r)))
-			| ListHole(l) 			   => VHole(ListHole(resolveVList(l))))
+			| ListHole(l) 			   => VHole(ListHole(resolveVList(l)))
+			| ConsHole(v1,v2)		   => VHole(ConsHole(resolveVal(v1),resolveVal(v2))))
 			
 		and resolveVal(v) = (case v of 
 			
