@@ -27,8 +27,8 @@ fun narrow(v,t,sigma,theta,gamma,cntr) = (case (v,t) of
 		let fun iterativeNarrow(l1,l2,s,t) = (case (l1,l2) of 
 		
 			  ([],[]) => Config(Expression(Record([])),s,t)
-			| ([],_)  => Config(Stuck(cntr),sigma,theta)
-			| (_,[])  => Config(Stuck(cntr),sigma,theta)
+			| ([],_)  => Config(Stuck(cntr),s,t)
+			| (_,[])  => Config(Stuck(cntr),s,t)
 			| ((labv,v1)::rest1,(labt,t1)::rest2) => 
 			
 				if labv=labt 
@@ -38,22 +38,24 @@ fun narrow(v,t,sigma,theta,gamma,cntr) = (case (v,t) of
 					  Config(Expression(v1narrow),s1,t1) => (case iterativeNarrow(rest1,rest2,s1,t1) of 
 					  
 						  Config(Expression(Record(r)),s2,t2) => Config(Expression(Record((labv,v1narrow)::r)),s2,t2)
-						(* c should only be Stuck(i), for some i *)
-						| Config(c,_,_)               		  => Config(c,sigma,theta))
+						| Config(c,s,t)               		  => Config(c,s,t))
 						
-					| Config(Stuck(i),_,_) => Config(Stuck(i),sigma,theta))
+					| Config(Stuck(i),s,t) => Config(Stuck(i),s,t))
 					
-				else Config(Stuck(cntr),sigma,theta))
+				else Config(Stuck(cntr),s,t))
 				
 			(* Converts a record of expressions to a record of values, if possible
 		       All the entries must be of form Value(v), for some value v
 		       If possible, returns record of value, wrapped in SOME
 		       Otherwise not all entries of record are values, and returns NONE *)
 			fun eToValRecord(r) = (case r of 
+			
 			  [] 			       => SOME []
+			  
 			| (lab1,Value(v1))::r1 => (case eToValRecord(r1) of 
 				  NONE   => NONE
 				| SOME l => SOME ((lab1,v1)::l))
+				
 			| _					   => NONE)
 		
 		in (case iterativeNarrow(Record.sort(r1),Record.sort(r2),sigma,theta) of
@@ -89,30 +91,32 @@ fun narrow(v,t,sigma,theta,gamma,cntr) = (case (v,t) of
 			
 			in narrow(v,genType,sigma,theta1,gamma,cntr) end
 	
-	| (VList(l),TList(t)) => 
+	| (VList(l),TList(list_type)) => 
 	
-		let fun iterativeNarrow(l,sigma,theta) = (case l of
+		let fun iterativeNarrow(l,s,t) = (case l of
 			
-				  []       => Config(Expression(List([])),sigma,theta)
-				| v1::rest => (case narrow(v1,t,sigma,theta,gamma,cntr) of 
+				  []       => Config(Expression(List([])),s,t)
+				| v1::rest => (case narrow(v1,list_type,s,t,gamma,cntr) of 
 				
-					 Config(Expression(v1narrow),sigma1,theta1) => (case iterativeNarrow(rest,sigma1,theta1) of 
+					 Config(Expression(v1narrow),s1,t1) => (case iterativeNarrow(rest,s1,t1) of 
 						 
-						  Config(Expression(List(lnarrow)),sigma2,theta2) => Config(Expression(List(v1narrow::lnarrow)),sigma2,theta2)
-						(* c should only be Stuck(i), for some i *)
-						| Config(c,_,_) 							 	  => Config(c,sigma,theta))
+						  Config(Expression(List(lnarrow)),s2,t2) => Config(Expression(List(v1narrow::lnarrow)),s2,t2)
+						| Config(c,s,t) 						  => Config(c,s,t))
 						
-					| Config(Stuck(i),_,_) => Config(Stuck(i),sigma,theta)))
+					| Config(Stuck(i),s,t) => Config(Stuck(i),s,t)))
 					
 			(* Converts a list of expressions to a list of values, if possible
 		       All the entries must be of form Value(v), for some value v
 		       If possible, returns list of values, wrapped in SOME
 		       Otherwise not all entries of list are values, and returns NONE *)
 			fun eToValList(l) = (case l of 
+			
 				  [] 			=> SOME []
+				  
 				| Value(v1)::l1 => (case eToValList(l1) of 
 					  NONE   => NONE
 					| SOME l => SOME (v1::l))
+					
 				| _				=> NONE)
 		
 		in (case iterativeNarrow(l,sigma,theta) of
@@ -167,7 +171,7 @@ fun narrow(v,t,sigma,theta,gamma,cntr) = (case (v,t) of
 				
 			in (case narrowExpr(e,t2,sigma,theta1,gamma1,cntr) of
 				
-				  Config(Stuck(i),_,_) 						=> Config(Stuck(i),sigma,theta)
+				  Config(Stuck(i),sigma1,theta1) 			=> Config(Stuck(i),sigma1,theta1)
 				| Config(Expression(enarrow),sigma1,theta2) => Config(Expression(Value(Fun(x,resolveChainTheta(t,theta2),enarrow))),sigma1,theta2))
 					
 			end)
@@ -194,7 +198,7 @@ fun narrow(v,t,sigma,theta,gamma,cntr) = (case (v,t) of
 		then let val v = resolveChainSigma(v,sigma)
 			 in (case typeofexpr(substitute(Value(v),gamma),theta) of
 				
-				  (NONE,_) => Config(Stuck(cntr),sigma,theta)
+				  (NONE,theta1) => Config(Stuck(cntr),sigma,theta1)
 				  
 				  (* DONT UNIFY [THole(TypeHole(hole)), t, vtype]
 				     No need to add the original un-resolved value hole 
@@ -202,7 +206,7 @@ fun narrow(v,t,sigma,theta,gamma,cntr) = (case (v,t) of
 					 could introduce loops *)
 				| (SOME(vtype),theta1) => (case unify( [t,vtype], theta1) of
 				
-					  NONE 		   => Config(Stuck(cntr),sigma,theta)
+					  NONE 		   => Config(Stuck(cntr),sigma,theta1)
 					| SOME(theta2) => Config(Expression(Value(v)),sigma,theta2)))
 			 end
 			
@@ -291,10 +295,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 	(* e1/e2 must be of type Real (if concrete type given) since /:real*real->real *)
 	| (ArithExpr(DIVIDE,e1,e2),Real) => (case narrowExpr(e1,Real,sigma,theta,gamma,cntr) of
 	
-	      Config(Stuck(i),_,_) => Config(Stuck(i),sigma,theta)
+	      Config(Stuck(i),sigma1,theta1) 			 => Config(Stuck(i),sigma1,theta1)
 		| Config(Expression(e1narrow),sigma1,theta1) => (case narrowExpr(e2,Real,sigma1,theta1,gamma,cntr) of
 			
-		    Config(Stuck(i),_,_) => Config(Stuck(i),sigma,theta)
+		    Config(Stuck(i),sigma2,theta2)			   => Config(Stuck(i),sigma2,theta2)
 		  | Config(Expression(e2narrow),sigma2,theta2) => Config(Expression(ArithExpr(DIVIDE,e1narrow,e2narrow)),sigma2,theta2)))
 	
 	(* can also narrow e1/e2 to a type variable *)
@@ -352,10 +356,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 					
 				in (case narrowExpr(e1,narrowType,sigma,narrowTheta,gamma,cntr) of
 		
-					  Config(Stuck(i),_,_) 						 => Config(Stuck(i),sigma,theta)
+					  Config(Stuck(i),sigma1,theta1) 			 => Config(Stuck(i),sigma1,theta1)
 					| Config(Expression(e1narrow),sigma1,theta1) => (case narrowExpr(e2,narrowType,sigma1,theta1,gamma,cntr) of
 					
-						  Config(Stuck(i),_,_) 						 => Config(Stuck(i),sigma,theta)
+						  Config(Stuck(i),sigma2,theta2) 			 => Config(Stuck(i),sigma2,theta2)
 						| Config(Expression(e2narrow),sigma2,theta2) => Config(Expression(ArithExpr(oper,e1narrow,e2narrow)),sigma2,theta2)))
 				
 				end
@@ -363,10 +367,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 		(* int or real *)
 		| _ => (case narrowExpr(e1,t,sigma,theta,gamma,cntr) of
 		
-				  Config(Stuck(i),_,_) 						 => Config(Stuck(i),sigma,theta)
+				  Config(Stuck(i),sigma1,theta1) 			 => Config(Stuck(i),sigma1,theta1)
 				| Config(Expression(e1narrow),sigma1,theta1) => (case narrowExpr(e2,t,sigma1,theta1,gamma,cntr) of
 				
-					  Config(Stuck(i),_,_) 						 => Config(Stuck(i),sigma,theta)
+					  Config(Stuck(i),sigma2,theta2) 		     => Config(Stuck(i),sigma2,theta2)
 					| Config(Expression(e2narrow),sigma2,theta2) => Config(Expression(ArithExpr(oper,e1narrow,e2narrow)),sigma2,theta2))))
 					
 	(* For op =, t can only be of type Bool *)
@@ -432,10 +436,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 					
 		in (case narrowExpr(e1,narrowType,sigma,theta,gamma,cntr) of
 		
-			  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)
+			  Config(Stuck(i),sigma1,theta1)			 => Config(Stuck(i),sigma1,theta1)
 			| Config(Expression(e1narrow),sigma1,theta1) => (case narrowExpr(e2,narrowType,sigma1,theta1,gamma,cntr) of
 			
-				  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)
+				  Config(Stuck(i),sigma2,theta2)			 => Config(Stuck(i),sigma2,theta2)
 				| Config(Expression(e2narrow),sigma2,theta2) => Config(Expression(BoolExpr(EQ,e1narrow,e2narrow)),sigma2,theta2)))
 		end
 	
@@ -471,10 +475,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 	
 		in (case narrowExpr(e1,narrowType,sigma,theta,gamma,cntr) of
 		
-			  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)
+			  Config(Stuck(i),sigma1,theta1)			 => Config(Stuck(i),sigma1,theta1)
 			| Config(Expression(e1narrow),sigma1,theta1) => (case narrowExpr(e2,narrowType,sigma1,theta1,gamma,cntr) of
 			
-				  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)
+				  Config(Stuck(i),sigma2,theta2)			 => Config(Stuck(i),sigma2,theta2)
 				| Config(Expression(e2narrow),sigma2,theta2) => Config(Expression(BoolExpr(oper,e1narrow,e2narrow)),sigma2,theta2)))
 		end
 		
@@ -495,8 +499,8 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 		let fun iterativeNarrowExpr(l1,l2,s,t) = (case (l1,l2) of 
 		
 			  ([],[]) => Config(Expression(Record([])),s,t)
-			| ([],_)  => Config(Stuck(cntr),sigma,theta)
-			| (_,[])  => Config(Stuck(cntr),sigma,theta)
+			| ([],_)  => Config(Stuck(cntr),s,t)
+			| (_,[])  => Config(Stuck(cntr),s,t)
 			| ((labe,e1)::rest1,(labt,type1)::rest2) =>
 			
 				if labe = labt 
@@ -506,12 +510,11 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 					  Config(Expression(e1narrow),s1,t1) => (case iterativeNarrowExpr(rest1,rest2,s1,t1) of 
 					  
 						  Config(Expression(Record(r)),s2,t2) => Config(Expression(Record((labe,e1narrow)::r)),s2,t2)
-						(* c should only be Stuck(i), for some i *)
-						| Config(c,_,_) 				 	  => Config(c,sigma,theta))
+						| Config(c,s,t) 				 	  => Config(c,s,t))
 						
-					| Config(Stuck(i),_,_) => Config(Stuck(i),sigma,theta))
+					| Config(Stuck(i),s,t) => Config(Stuck(i),s,t))
 				
-				else Config(Stuck(cntr),sigma,theta))
+				else Config(Stuck(cntr),s,t))
 		
 		in iterativeNarrowExpr(Record.sort(r1),Record.sort(r2),sigma,theta) end
 	
@@ -542,10 +545,9 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 					  Config(Expression(e1narrow),s1,t1) => (case iterativeNarrowExpr(rest,s1,t1) of 
 					  
 						  Config(Expression(List(restNarrow)),s2,t2) => Config(Expression(List(e1narrow::restNarrow)),s2,t2)
-						(* c should only be Stuck(i), for some i *)
-						| Config(c,_,_) 						 	 => Config(c,sigma,theta))
+						| Config(c,s,t) 						 	 => Config(c,s,t))
 						
-					| Config(Stuck(i),_,_) => Config(Stuck(i),sigma,theta)))
+					| Config(Stuck(i),s,t) => Config(Stuck(i),s,t)))
 
 		in iterativeNarrowExpr(eList,sigma,theta) end
 		
@@ -568,10 +570,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 	
 	| (Cons(e1,e2),TList(listType)) => (case narrowExpr(e1,listType,sigma,theta,gamma,cntr) of 
 	
-		  Config(Stuck(i),_,_) 						 => Config(Stuck(i),sigma,theta)
+		  Config(Stuck(i),sigma1,theta1) 			 => Config(Stuck(i),sigma1,theta1)
 		| Config(Expression(e1narrow),sigma1,theta1) => (case narrowExpr(e2,TList(listType),sigma1,theta1,gamma,cntr) of 
 		
-			  Config(Stuck(i),_,_) 					     => Config(Stuck(i),sigma,theta)
+			  Config(Stuck(i),sigma2,theta2) 		     => Config(Stuck(i),sigma2,theta2)
 			| Config(Expression(e2narrow),sigma2,theta2) => Config(Expression(Cons(e1narrow,e2narrow)),sigma2,theta2)))
 	
 	| (Cons(_,_),THole(TypeHole(ArithTypeVar(_)))) => Config(Stuck(cntr),sigma,theta)
@@ -592,13 +594,13 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 	
 	| (Condition(e1,e2,e3),t) => (case narrowExpr(e1,Bool,sigma,theta,gamma,cntr) of 
 	
-		  Config(Stuck(i),_,_) 						 => Config(Stuck(i),sigma,theta)
+		  Config(Stuck(i),sigma1,theta1) 			 => Config(Stuck(i),sigma1,theta1)
 		| Config(Expression(e1narrow),sigma1,theta1) => (case narrowExpr(e2,t,sigma1,theta1,gamma,cntr) of
 		
-			  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)
+			  Config(Stuck(i),sigma2,theta2)			 => Config(Stuck(i),sigma2,theta2)
 			| Config(Expression(e2narrow),sigma2,theta2) => (case narrowExpr(e3,t,sigma2,theta2,gamma,cntr) of
 			
-				  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)
+				  Config(Stuck(i),sigma3,theta3)			 => Config(Stuck(i),sigma3,theta3)
 				| Config(Expression(e3narrow),sigma3,theta3) => Config(Expression(Condition(e1narrow,e2narrow,e3narrow)),sigma3,theta3))))
 	
 	| (Variable(x),t) => 
@@ -610,7 +612,7 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 		
 		then (case narrowExpr(Substitution.get(x,gamma),t,sigma,theta,gamma,cntr) of
 			
-			  Config(Stuck(i),_,_)				  => Config(Stuck(i),sigma,theta)
+			  Config(Stuck(i),sigma1,theta1)	  => Config(Stuck(i),sigma1,theta1)
 			| Config(Expression(_),sigma1,theta1) => Config(Expression(Variable(x)),sigma1,theta1))
 		
 		else raise FreeVariable
@@ -708,24 +710,24 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 			   so we can build up the new (pattern,narrowed_expression) pairs list by
 			   copying the pattern (they are in same order, as nothing done to change it) *)
 			   
-			datatype result = Fail of int | Success of (pat * e) list * valSub * typeSub;
+			datatype result = Fail of int | Success of (pat * e) list;
 			
 			fun iterNarrowExpressions(exprSubList,patExprList,sigma,theta) = (case (exprSubList,patExprList) of 
 					
-				  ([],[]) => Success ([],sigma,theta)
+				  ([],[]) => (Success([]),sigma,theta)
 				 
 				(* Ignore old expression *)
 				| ((e1,sub1)::l1,(pat1,_)::l2) => (case narrowExpr(e1,t,sigma,theta,sub1,cntr) of
 				
-					  Config(Stuck(i),_,_) 						 => Fail(i)
+					  Config(Stuck(i),sigma1,theta1) 		 	 => (Fail(i),sigma1,theta1)
 					| Config(Expression(e1narrow),sigma1,theta1) => (case iterNarrowExpressions(l1,l2,sigma1,theta1) of 
 					
-						  Fail(i)					    => Fail(i)
-						| Success (eList,sigma2,theta2) => Success ((pat1,e1narrow)::eList,sigma2,theta2)))
+						  (Fail(i),sigma2,theta2)	    => (Fail(i),sigma2,theta2)
+						| (Success eList,sigma2,theta2) => (Success ((pat1,e1narrow)::eList),sigma2,theta2)))
 						
 				(* Shouldn't occur as narrowed-expression list and original pattern-expression list
 				   will be of same length and match (in terms of correct pattern -> correct expression) *)
-				| _ => Fail(cntr))
+				| _ => (Fail(cntr),sigma,theta))
 					
 			val patExprList = captureAvoiding(patExprList)
 								  
@@ -733,16 +735,16 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 			
 				  Config(Expression(e1narrow),sigma1,theta1) => (case typeofexpr(substitute(e1narrow,gamma),theta1) of 
 				  
-						  (NONE,theta1)		    => Config(Stuck(cntr),sigma,theta)
+						  (NONE,theta1)		    => Config(Stuck(cntr),sigma1,theta1)
 						| (SOME tNarrow,theta1) => (case matchTypesList(tNarrow,patExprList,gamma,theta1) of 
 						
-							  NONE 						=> Config(Stuck(cntr),sigma,theta)
+							  NONE 						=> Config(Stuck(cntr),sigma1,theta1)
 							| SOME (exprSubList,theta2) => (case iterNarrowExpressions(exprSubList,patExprList,sigma1,theta2) of 
 							
-								  Fail(i) 							    => Config(Stuck(i),sigma,theta)
-								| Success (narrowedEList,sigma3,theta3) => Config(Expression(Case(e1narrow,narrowedEList)),sigma3,theta3))))
+								  (Fail(i),sigma3,theta3) 			    => Config(Stuck(i),sigma3,theta3)
+								| (Success narrowedEList,sigma3,theta3) => Config(Expression(Case(e1narrow,narrowedEList)),sigma3,theta3))))
 
-				| _ => Config(Stuck(cntr),sigma,theta))
+				| Config(Stuck(i),sigma1,theta1) => Config(Stuck(i),sigma1,theta1))
 				
 			end
 	
@@ -787,10 +789,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 
 		in (case narrowExpr(e1,narrowE1Type,sigma,theta1,gamma,cntr) of 
 		
-			  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)
+			  Config(Stuck(i),sigma2,theta2)			 => Config(Stuck(i),sigma2,theta2)
 			| Config(Expression(e1narrow),sigma2,theta2) => (case narrowExpr(e2,narrowE2Type,sigma2,theta2,gamma,cntr) of 
 			
-				  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)				
+				  Config(Stuck(i),sigma3,theta3)			 => Config(Stuck(i),sigma3,theta3)				
 				| Config(Expression(e2narrow),sigma3,theta3) => Config(Expression(App(e1narrow,e2narrow)),sigma3,theta3)))
 		
 		end
@@ -807,10 +809,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 		
 		else (case typeofexpr(substitute(e1,gamma),theta) of 
 		
-			  (NONE,_)		    => Config(Stuck(cntr),sigma,theta)
+			  (NONE,theta1)		=> Config(Stuck(cntr),sigma,theta1)
 			| (SOME tE1,theta1) => (case unify([tE1,tX],theta1) of 
 			
-				  NONE 		  => Config(Stuck(cntr),sigma,theta)
+				  NONE 		  => Config(Stuck(cntr),sigma,theta1)
 				| SOME theta2 => 
 				
 					(* To avoid free variable exception, 
@@ -821,10 +823,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 					(* Don't use gamma1 in narrowing of e1 *)
 					in (case narrowExpr(e1,tX,sigma,theta2,gamma,cntr) of 
 					
-						  Config(Stuck(i),_,_)					     => Config(Stuck(i),sigma,theta)
+						  Config(Stuck(i),sigma1,theta1)			 => Config(Stuck(i),sigma1,theta1)
 						| Config(Expression(e1narrow),sigma1,theta1) => (case narrowExpr(e2,t,sigma1,theta1,gamma1,cntr) of 
 					
-							  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)
+							  Config(Stuck(i),sigma2,theta2)			 => Config(Stuck(i),sigma2,theta2)
 							| Config(Expression(e2narrow),sigma1,theta1) => Config(Expression(Let(x,tX,e1narrow,e2narrow)),sigma1,theta1)))
 							
 					end))
@@ -861,10 +863,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 															
 						in (case typeofexpr(substitute(e1,gamma1),theta1) of
 						
-							  (NONE,_) 		    => Config(Stuck(cntr),sigma,theta)
+							  (NONE,theta1) 	=> Config(Stuck(cntr),sigma,theta1)
 							| (SOME tE1,theta2) => (case unify([tE1,t2],theta2) of 
 							
-								  NONE 		  => Config(Stuck(cntr),sigma,theta)
+								  NONE 		  => Config(Stuck(cntr),sigma,theta2)
 								| SOME theta3 => 
 								
 									let (* Get latest values for t1 and t2 *)
@@ -880,10 +882,10 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 										
 									in (case narrowExpr(e1,t2,sigma,theta3,gamma1,cntr) of 
 									
-										  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)
+										  Config(Stuck(i),sigma1,theta1)			 => Config(Stuck(i),sigma1,theta1)
 										| Config(Expression(e1narrow),sigma1,theta1) =>  (case narrowExpr(e2,t,sigma1,theta1,gamma2,cntr) of 
 										
-											  Config(Stuck(i),_,_)						 => Config(Stuck(i),sigma,theta)
+											  Config(Stuck(i),sigma2,theta2)			 => Config(Stuck(i),sigma2,theta2)
 											| Config(Expression(e2narrow),sigma2,theta2) => Config(Expression(LetRec(x,TFun(t1,t2),Fun(y,t1,e1narrow),e2narrow)),sigma2,theta2)))
 									
 									end))
@@ -892,7 +894,7 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 		
 	| (CounterExpr(e1,i),t) => (case narrowExpr(e1,t,sigma,theta,gamma,i) of
 	
-		  Config(Stuck(j),_,_)						 => Config(Stuck(j),sigma,theta)
+		  Config(Stuck(j),sigma1,theta1)			 => Config(Stuck(j),sigma1,theta1)
 		| Config(Expression(e1narrow),sigma1,theta1) => Config(Expression(CounterExpr(e1narrow,i)),sigma1,theta1))
 		
 	| _ => Config(Stuck(cntr),sigma,theta))
