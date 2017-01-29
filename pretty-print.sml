@@ -83,7 +83,7 @@ and prettyPrintValue(Concrete(cv)) = prettyPrintConcreteVal(cv)
 |	prettyPrintValue(VRecord(r)) = "{" ^ prettyPrintVRecord(r) ^ "}"
 |	prettyPrintValue(VList(l)) = "[" ^ prettyPrintVList(l) ^"]"
 		
-and prettyPrintExpression(Stuck) = "Stuck"
+and prettyPrintExpression(Stuck(i)) = "Stuck at " ^ Int.toString(i)
 | 	prettyPrintExpression(Expression(e)) = (case e of 
 	
 	  Value(v) => prettyPrintValue(v)
@@ -104,7 +104,8 @@ and prettyPrintExpression(Stuck) = "Stuck"
 	| LetRec(Var(s),t,v,e) => "let val rec " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(Value(v)))
 							   ^ ") in " ^ prettyPrintExpression(Expression(e)) ^ " end"
 	| List(l) => "[" ^ prettyPrintEList(l) ^ "]"
-	| Cons(e1,e2) => prettyPrintExpression(Expression(e1)) ^ " :: " ^ prettyPrintExpression(Expression(e2)))
+	| Cons(e1,e2) => prettyPrintExpression(Expression(e1)) ^ " :: " ^ prettyPrintExpression(Expression(e2))
+	| CounterExpr(e,i) => "( " ^ prettyPrintExpression(Expression(e)) ^ ", " ^ Int.toString(i) ^ " )")
 	
 and prettyPrintERecord([]) = ""
 |	prettyPrintERecord([(Lab(s),e)]) = s ^ "=" ^ prettyPrintExpression(Expression(e))

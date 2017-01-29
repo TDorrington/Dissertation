@@ -16,7 +16,8 @@ fun resolveChainSigma(a,sigma:valSub) =
 			| Let(x,t,e1,e2)        => Let(x,t,resolveExpr(e1),resolveExpr(e2))
 			| LetRec(x,t,v1,e2)		=> LetRec(x,t,resolveVal(v1),resolveExpr(e2))
 			| List(l)				=> List(resolveEList(l))
-			| Cons(e1,e2)			=> Cons(resolveExpr(e1),resolveExpr(e2)))
+			| Cons(e1,e2)			=> Cons(resolveExpr(e1),resolveExpr(e2))
+			| CounterExpr(e1,i)		=> CounterExpr(resolveExpr(e1),i))
 	
 		and resolveEList(l) = (case l of
 			
@@ -30,7 +31,6 @@ fun resolveChainSigma(a,sigma:valSub) =
 	
 		and resolvePatExprList(l) = (case l of 
 		
-			(* no need to resolve pattern, only the expression *)
 			  [] 			=> []
 			| (pat1,e1)::l1 => (pat1,resolveExpr(e1))::resolvePatExprList(l1))
 	

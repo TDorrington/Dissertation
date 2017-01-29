@@ -31,9 +31,10 @@ fun fv ([]) = []
 			| App(e1,e2)           => union(fvExpr(e1),fvExpr(e2))
 			| Record(r)            => fvERecord(r)
 			| Let(x,_,e1,e2)       => union(remove(fvExpr(e2),[x]),fvExpr(e1))
-			| LetRec(x,_,v,e2)     => union(remove(fvExpr(e2),[x]),remove(fvVal(v),[x])) (* y binds in e1; x binds in (fn y:T => e1) and in e2 *)
+			| LetRec(x,_,v,e2)     => union(remove(fvExpr(e2),[x]),remove(fvVal(v),[x]))
 			| List(l)              => fvEList(l)
-			| Cons(e1,e2)		   => union(fvExpr(e1),fvExpr(e2)))
+			| Cons(e1,e2)		   => union(fvExpr(e1),fvExpr(e2))
+			| CounterExpr(e1,i)	   => fvExpr(e1))
 		
 		and fvPatExprList(l) = (case l of 
 		

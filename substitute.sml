@@ -66,6 +66,7 @@ fun substitute(a,[]) = a
 			| Record(r)                  => Record(substERecord(r))
 			| List(l)                    => List(substEList(l))
 			| Cons(e1,e2)				 => Cons(substExpr(e1),substExpr(e2))
+			| CounterExpr(e1,i)			 => CounterExpr(substExpr(e1),i)
 			
 			| Let(x,t,e1,e2) => 
 				(* must be capture avoiding *)

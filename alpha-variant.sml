@@ -11,7 +11,7 @@ fun alphaVariable(Var(s),n,vars) =
 fun alphaPat(pat,n,vars) = 
 
 	let fun alphaPRecord(r) = (case r of 
-		  [] 			  => r
+		  [] 			  => []
 		| (lab1,pat1)::r1 => (lab1,alphaPat(pat1,n,vars))::alphaPRecord(r1))
 
 	in (case pat of 
@@ -46,8 +46,7 @@ and alphaERecord(r,n,vars) = (case r of
 	  [] 			=> []
 	| (lab1,e1)::r1 => (lab1,alphaExpr(e1,n,vars))::alphaERecord(r1,n,vars))
 	
-and alphaPatExprList(l,n,vars) = (case l of 
-			   
+and alphaPatExprList(l,n,vars) = (case l of  
 	  [] 			=> []
 	| (pat1,e1)::l1 => (alphaPat(pat1,n,vars),alphaExpr(e1,n,vars))::alphaPatExprList(l1,n,vars))
 	
@@ -75,4 +74,5 @@ and alphaExpr(e,n,vars) = (case e of
 	| Let(x,t,e1,e2)             => Let(alphaVariable(x,n,vars),t,alphaExpr(e1,n,vars),alphaExpr(e2,n,vars))
 	| LetRec(x,t,v1,e2)          => LetRec(alphaVariable(x,n,vars),t,alphaValue(v1,n,vars),alphaExpr(e2,n,vars))
 	| List(l)                    => List(alphaEList(l,n,vars))
-	| Cons(e1,e2)				 => Cons(alphaExpr(e1,n,vars),alphaExpr(e2,n,vars)));
+	| Cons(e1,e2)				 => Cons(alphaExpr(e1,n,vars),alphaExpr(e2,n,vars))
+	| CounterExpr(e1,i)			 => CounterExpr(alphaExpr(e1,n,vars),i));

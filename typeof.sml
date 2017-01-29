@@ -270,16 +270,15 @@ and typeofVRecord (r,theta) = (case r of
 	(* calculate type of a value record (i.e. a list of (label,value) pairs)
 	   in left-to-right manner *)
 	   
-	  [] => (SOME (TRecord([])),theta)
+	  [] 			=> (SOME (TRecord([])),theta)
 	| (lab1,v1)::r1 => (case typeof(v1,theta) of
 		
-			  (NONE,theta1) => (NONE,theta1)
+			  (NONE,theta1)    => (NONE,theta1)
 			| (SOME t1,theta1) => (case typeofVRecord(r1,theta1) of 
 			
 				  (* get latest type substitution for t1, after calculating type of rest of record *)
 				  (SOME (TRecord(tList)),theta2) => (SOME (TRecord((lab1,resolveChainTheta(t1,theta2))::tList)),theta2)
-					
-				| (_,theta2) => (NONE,theta2))))
+				| (_,theta2) 				     => (NONE,theta2))))
 			
 (* To calculate the type of a list of values,
 	(i)  Generate a list of all the types of the values, i.e. [1,2,true] -> [int,int,bool]
@@ -294,15 +293,15 @@ and typeofVList (l,theta) =
 		  []     => (SOME [],theta)
 		| v1::l1 => (case typeof(v1,theta) of 
 		
-			  (NONE,theta1) => (NONE,theta1)
+			  (NONE,theta1)	   => (NONE,theta1)
 			| (SOME t1,theta1) => (case getTypesList(l1,theta1) of
 				
-				  (NONE,theta2) => (NONE,theta2)
+				  (NONE,theta2) 	  => (NONE,theta2)
 				| (SOME tList,theta2) => (SOME (t1::tList),theta2))))
 				
 	in (case getTypesList(l,theta) of
 	
-		  (NONE,theta1) => (NONE,theta1)
+		  (NONE,theta1) 		 => (NONE,theta1)
 		| (SOME typeList,theta1) => 
 		
 			if allElementsEqual(typeList)
@@ -320,17 +319,17 @@ and typeofVList (l,theta) =
 	 
 and typeof (v,theta) = (case v of
 
-	  Concrete(N(_)) => (SOME Int,theta)
-	| Concrete(B(_)) => (SOME Bool,theta)
-    | Concrete(R(_)) => (SOME Real,theta)
+	  Concrete(N(_)) 	  => (SOME Int,theta)
+	| Concrete(B(_)) 	  => (SOME Bool,theta)
+    | Concrete(R(_)) 	  => (SOME Real,theta)
 	| Concrete(EmptyList) => (SOME (TList(generateFreshTypeVar(TYPE_VAR,theta))),theta)
-	| VHole(h)   => typeofhole(h,theta)
-	| VList(l)   => typeofVList(l,theta)
-	| VRecord(r) => typeofVRecord(r,theta)
+	| VHole(h)  		  => typeofhole(h,theta)
+	| VList(l)   		  => typeofVList(l,theta)
+	| VRecord(r) 		  => typeofVRecord(r,theta)
 	
 	| Fun(x,t1,e) => (case typeofexpr(substitute(e, [(x,Value(gen(t1,theta)))]),theta) of
 	
-		  (NONE,theta1) => (NONE,theta1)
+		  (NONE,theta1)     => (NONE,theta1)
 		  (* get the latest type substitution for t1, after calculating t2 *)
 		| (SOME(t2),theta1) => (SOME (TFun(resolveChainTheta(t1,theta1),t2)),theta1)))
 		
@@ -338,16 +337,15 @@ and typeofERecord (r,theta) = (case r of
 	(* calculate type of an expression record (i.e. a list of (label,expression) pairs)
 	   in left-to-right manner *)
 	   
-	  [] => (SOME (TRecord([])),theta)
+	  [] 		    => (SOME (TRecord([])),theta)
 	| (lab1,e1)::r1 => (case typeofexpr(e1,theta) of
 		
-			  (NONE,theta1) => (NONE,theta1)
+			  (NONE,theta1)    => (NONE,theta1)
 			| (SOME t1,theta1) => (case typeofERecord(r1,theta1) of 
 			
 				  (* get latest type substitution for t1, after calculating type of rest of record *)
-				  (SOME (TRecord(tList)),theta2) => (SOME (TRecord((lab1,resolveChainTheta(t1,theta2))::tList)),theta2)
-					
-				| (_,theta2) => (NONE,theta2))))
+				  (SOME (TRecord(tList)),theta2) => (SOME (TRecord((lab1,resolveChainTheta(t1,theta2))::tList)),theta2)	
+				| (_,theta2) 				     => (NONE,theta2))))
 				
 (* To calculate the type of a list of expressions,
 	(i)  Generate the list of all the types of the values, 
@@ -363,15 +361,15 @@ and typeofEList (l,theta) =
 		  []     => (SOME [],theta)
 		| e1::l1 => (case typeofexpr(e1,theta) of 
 		
-			  (NONE,theta1) => (NONE,theta1)
+			  (NONE,theta1)    => (NONE,theta1)
 			| (SOME t1,theta1) => (case getTypesList(l1,theta1) of
 				
-				  (NONE,theta2) => (NONE,theta2)
+				  (NONE,theta2)       => (NONE,theta2)
 				| (SOME tList,theta2) => (SOME (t1::tList),theta2))))
 				
 	in (case getTypesList(l,theta) of
 	
-		  (NONE,theta1) => (NONE,theta1)
+		  (NONE,theta1) 		 => (NONE,theta1)
 		| (SOME typeList,theta1) => 
 		
 			if allElementsEqual(typeList)
@@ -390,18 +388,18 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 
 | 	typeofexpr(ArithExpr(oper,e1,e2),theta) = (case typeofexpr(e1,theta) of
 	  
-	  (NONE,theta1) => (NONE,theta1)
+	  (NONE,theta1)    => (NONE,theta1)
 	| (SOME t1,theta1) => (case typeofexpr(e2,theta1) of
 		  
-		  (NONE,theta2) => (NONE,theta2)
+		  (NONE,theta2)    => (NONE,theta2)
 		| (SOME t2,theta2) => typeOp(ArithOper(oper),t1,t2,theta2)))
 				
 |	typeofexpr(BoolExpr(oper,e1,e2),theta) = (case typeofexpr(e1,theta) of 
 	
-	  (NONE,theta1) => (NONE,theta1)
+	  (NONE,theta1)     => (NONE,theta1)
 	| (SOME(t1),theta1) => (case typeofexpr(e2,theta1) of
 		
-		  (NONE,theta2) => (NONE,theta2)
+		  (NONE,theta2)	    => (NONE,theta2)
 		| (SOME(t2),theta2) => typeOp(BoolOper(oper),t1,t2,theta2)))
 
 (* For 'case e of pat1=>e1 | pat2 => e2 | ... | patn=>en'
@@ -414,10 +412,11 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 	c.f. if-then-else expression about not restricting too early *)
 |	typeofexpr(c as Case(e1,patExprList),theta) = (case typeofexpr(e1,theta) of 
 		
-		  (NONE,theta1) => (NONE,theta1)
+		  (NONE,theta1)   => (NONE,theta1)
 		| (SOME t,theta1) => (case matchTypesList(t,patExprList,[],theta1) of 
 		  
 			  NONE => (NONE,theta1)
+			  
 			| SOME (exprSubList,theta2) => 
 			
 				(* function to transform expression-substitution pairs
@@ -425,19 +424,19 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 				   after performing the relevant substitution *)
 				let fun iterCalcExprType(l,theta) = (case l of 
 				
-					  [] => (SOME([]),theta)
+					  [] 			   => (SOME([]),theta)
 					| (expr1,sub1)::l1 => (case typeofexpr(substitute(expr1,sub1),theta) of 
 					
-						  (NONE,theta1) => (NONE,theta1)
+						  (NONE,theta1)   => (NONE,theta1)
 						| (SOME t,theta1) => (case iterCalcExprType(l1,theta1) of 
 						
-							  (NONE,theta2) => (NONE,theta2)
+							  (NONE,theta2)          => (NONE,theta2)
 							| (SOME typeList,theta2) => (SOME (t::typeList),theta2))))
 						
 				in (case iterCalcExprType(exprSubList,theta2) of 
 				
 					(* If any of expressions fail to type, return original theta *)
-					  (NONE,theta3) => (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta2)
+					  (NONE,theta3) => (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta)
 					  
 					| (SOME typeList,theta3) => 
 						
@@ -450,36 +449,34 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 											 | t::tRest => (SOME t,theta3))
 											 
 						(* if we fail to match all types to the exact same type,
-						   return original theta after matching type & pattern *)
-						else (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta2))
+						   return original theta *)
+						else (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta))
 						
 				end))
 			
 |	typeofexpr(Condition(e1,e2,e3),theta) = (case typeofexpr(e1,theta) of 
 	
-	  (NONE,theta1) => (NONE,theta1)
+	  (NONE,theta1)     => (NONE,theta1)
 	| (SOME(t1),theta1) => 
 		
 		let fun calculateReturn(theta1) = (case typeofexpr(e2,theta1) of
 		(* In the cases where we failed to type the two sub expressions to the exact
 		   same type, just return the original type substitution map passed in *)
 			
-			  (NONE,theta2) => (SOME (generateFreshTypeVar(TYPE_VAR,theta2)),theta1)
+			  (NONE,theta2)     => (SOME (generateFreshTypeVar(TYPE_VAR,theta2)),theta1)
 			| (SOME(t2),theta2) => (case typeofexpr(e3,theta2) of
 				
-				  (NONE,theta3) => (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta1)
-				| (SOME(t3),theta3) => 
-						
-					if (t2=t3) 
-					then (SOME t2,theta3)
-					else (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta1)))
+				  (NONE,theta3)     => (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta1)
+				| (SOME(t3),theta3) => if (t2=t3) 
+									   then (SOME t2,theta3)
+									   else (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta1)))
 					
 		in (case t1 of
 			
 			  Bool 								  => calculateReturn(theta1)
 			| THole(TypeHole(TypeVar(a))) 		  => calculateReturn(Substitution.union(theta1,TypeHole(TypeVar(a)),Bool))
 			| THole(TypeHole(EqualityTypeVar(a))) => calculateReturn(Substitution.union(theta1,TypeHole(EqualityTypeVar(a)),Bool))
-			| _                                   => (NONE, theta1))
+			| _                                   => (NONE,theta1))
 				
 		end)
 		
@@ -489,14 +486,14 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 			
 	| (SOME (THole(TypeHole(TypeVar(a)))),theta1) => (case typeofexpr(e2,theta1) of 
 		
-		  (NONE,theta2) => (NONE,theta2)
-			  
+		  (NONE,theta2)    => (NONE,theta2)
+		  
 		| (SOME tC,theta2) => 
 		
 			let val freshType = generateFreshTypeVar(TYPE_VAR,theta2)
 			in (case unify([THole(TypeHole(TypeVar(a))),TFun(tC,freshType)],theta2) of 
 			
-				  NONE => (NONE,theta2)
+				  NONE        => (NONE,theta2)
 				| SOME theta3 => (SOME freshType,theta3))
 			end)
 		
@@ -509,14 +506,14 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 | 	typeofexpr(Cons(e1,e2),theta) = (case typeofexpr(e2,theta) of
 
 	  (NONE,theta1)    => (NONE,theta1)
-	| (SOME t2,theta1) => (case typeofexpr(e1,theta) of 
+	| (SOME t2,theta1) => (case typeofexpr(e1,theta1) of 
 	
 		  (NONE,theta2)    => (NONE,theta2)
 		| (SOME t1,theta2) => (case t2 of 
 	
 			  TList(listType) => (case unify([t1,listType],theta2) of 
 			  
-				  NONE 		  => (NONE,theta2)
+				  NONE 		  => (SOME (generateFreshTypeVar(TYPE_VAR,theta2)),theta)
 				| SOME theta3 => (SOME (resolveChainTheta(t2,theta3)),theta3))
 			  
 			| THole(TypeHole(TypeVar(a))) => 
@@ -524,10 +521,10 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 				let val freshTypeVar = generateFreshTypeVar(TYPE_VAR,theta2) 
 				in (case unify([t1,freshTypeVar],theta2) of 
 			
-					  NONE        => (NONE,theta2)
+					  NONE        => (SOME (generateFreshTypeVar(TYPE_VAR,theta2)),theta)
 					| SOME theta3 => (case unify([t2,TList(resolveChainTheta(freshTypeVar,theta3))],theta3) of
 					
-						  NONE 		  => (NONE,theta3)
+						  NONE 		  => (SOME (generateFreshTypeVar(TYPE_VAR,theta2)),theta)
 						| SOME theta4 => (SOME (TList(resolveChainTheta(freshTypeVar,theta4))),theta4)))
 						
 				end
@@ -537,16 +534,18 @@ and typeofexpr(Value(v),theta) = typeof(v,theta)
 				let val freshTypeVar = generateFreshTypeVar(EQUALITY_TYPE_VAR,theta2) 
 				in (case unify([t1,freshTypeVar],theta2) of 
 			
-					  NONE        => (NONE,theta2)
+					  NONE        => (SOME (generateFreshTypeVar(TYPE_VAR,theta2)),theta)
 					| SOME theta3 => (case unify([t2,TList(resolveChainTheta(freshTypeVar,theta3))],theta3) of
 					
-						  NONE 		  => (NONE,theta3)
+						  NONE 		  => (SOME (generateFreshTypeVar(TYPE_VAR,theta3)),theta)
 						| SOME theta4 => (SOME (TList(resolveChainTheta(freshTypeVar,theta4))),theta4)))
 						
 				end
 			
 			| _ => (NONE,theta1))))
 
+|	typeofexpr(CounterExpr(e1,_),theta) = typeofexpr(e1,theta)
+			
 	(* Don't check type of e1 is unifiable to type t: done in narrow *)
 | 	typeofexpr(Let(x,t,_,e2),theta) = typeofexpr(substitute(e2, [(x,Value(gen(t,theta)))]),theta)
 

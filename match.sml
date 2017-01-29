@@ -43,7 +43,6 @@ fun matchTypes(t,pat,gamma,theta) = (case pat of
 			| _ => NONE))
 	
 	| PRecord(r) => (case t of 
-		(* Same idea as typeof code *)
 		
 		  TRecord(r1) =>
 			let fun matchLists(l,gamma,theta) = (case l of 
@@ -118,7 +117,7 @@ datatype matchResult = Fail
    and always preceded by calls to matchTypesList above to check pattern & expression
    we are case-ing on are first of the correct type
    We only match against a value because expressions cannot occur due to contexts &
-   evauation order in the evalaute function *)
+   evaluation order in the evaluate function *)
    
 fun match(v,patExprList,sigma,theta,gamma) = (case patExprList of 
 

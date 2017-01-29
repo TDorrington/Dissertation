@@ -58,7 +58,8 @@ datatype e =
 	| LetRec of var * t * v * e
 	| List of e list
 	| Cons of e * e
-
+	| CounterExpr of e * int
+	
 (* value hole datatype *)
 and valhole = 
 	  SimpleHole of simpleValueHole
@@ -94,7 +95,7 @@ and pat =
 	| PCons of pat * pat;				(* cons pattern x::l *)
 		
 (* possibly stuck expression datatype *)
-datatype expression = Stuck | Expression of e; 
+datatype expression = Stuck of int | Expression of e; 
 
 (* substitution datatypes *)
 type valSub  = (simpleValueHole,  v) Substitution.map; (* sigma: simple value holes -> values *)
