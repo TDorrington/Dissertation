@@ -8,8 +8,14 @@ fun findWitness(f) =
 	
 	in (case evaluate(Config(Expression(topLevelApp),[],[]),0) of 
 	
-		  Config(Stuck(i),sigma,theta) => Value(gen(THole(TypeHole(TypeVar("a"))),theta))
-		| Config(Expression(e),_,_)    => e)
+		  Config(Stuck(i),sigma,theta) => 
+			"Witness value: "    ^ prettyPrintExpression(Expression(Value(gen(THole(TypeHole(TypeVar("a"))),theta)))) ^ "\n" ^
+			"Stuck expression: " ^ (case getExpression(topLevelApp,i) of 
+				  NONE    => " "
+				| SOME(s) => s)
+			
+		| Config(Expression(e),_,_) => 
+			"Result :" ^ prettyPrintExpression(Expression(e)))
 		
 	end;
 

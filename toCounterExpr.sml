@@ -71,3 +71,91 @@ fun toCounterExpr(expr) =
 			
 	in cntrExpr(expr) end;
 			 
+fun getExpression(expr,n) = 
+
+	let fun orSome(s1,s2) = (case (s1,s2) of 
+	
+			  (SOME(_),_) => s1
+			| (_,SOME(_)) => s2
+			| (_,_)		  => NONE)
+	
+		fun getExpr(e) = (case e of 
+	
+			  Value(v) 				=> getValue(v)
+			| Variable(_) 			=> NONE
+			| ArithExpr(oper,e1,e2) => orSome(getExpr(e1),getExpr(e2))
+			| BoolExpr(oper,e1,e2)  => orSome(getExpr(e1),getExpr(e2))
+			| Case(e1,patExprList)  => orSome(getExpr(e1),getPatExprList(patExprList))
+			| Condition(e1,e2,e3)   => orSome(getExpr(e1),orSome(getExpr(e2),getExpr(e3)))
+			| App(e1,e2)			=> orSome(getExpr(e1),getExpr(e2))
+			| Record(r)				=> getERecord(r)
+			| Let(x,t,e1,e2)		=> orSome(getExpr(e1),getExpr(e2))
+			| LetRec(x,t,v1,e2)		=> orSome(getValue(v1),getExpr(e2))
+			| List(exprList)		=> getEList(exprList)
+			| Cons(e1,e2)			=> orSome(getExpr(e1),getExpr(e2))
+			| CounterExpr(e,i)		=> if n=i 
+									   then SOME (prettyPrintExpression(Expression(e)))
+									   else getExpr(e))
+									   
+		and getValue(v) = (case v of 
+		
+			  Concrete(_) => NONE
+			| Fun(x,t,e)  => getExpr(e)
+			| VHole(h)    => getHole(h)
+			| VRecord(r)  => getVRecord(r)
+			| VList(l)    => getVList(l))
+			
+		and getHole(h) = (case h of 
+		
+			  SimpleHole(_)			   => NONE
+			| BinaryOpHole(oper,v1,v2) => orSome(getValue(v1),getValue(v2))
+			| ConditionHole(v1,e1,e2)  => orSome(getValue(v1),orSome(getExpr(e1),getExpr(e2)))
+			| CaseHole(v1,patExprList) => orSome(getValue(v1),getPatExprList(patExprList))
+			| AppHole(v1,v2)		   => orSome(getValue(v1),getValue(v2))
+			| RecordHole(r)			   => getVRecord(r)
+			| ListHole(l)			   => getVList(l)
+			| ConsHole(v1,v2)	       => orSome(getValue(v1),getValue(v2)))
+			
+		and getVList(l) = (case l of 
+		
+			  [] 	 => NONE
+			| v1::l1 => (case getValue(v1) of 
+			
+				  NONE    => getVList(l1)
+				| SOME(s) => SOME(s)))
+				
+		and getEList(l) = (case l of 
+		
+			  []	 => NONE
+			| e1::l1 => (case getExpr(e1) of 
+			
+				  NONE    => getEList(l1)
+				| SOME(s) => SOME(s)))
+				
+		and getVRecord(r) = (case r of 
+		
+			  []	     => NONE
+			| (_,v1)::r1 => (case getValue(v1) of 
+			
+				  NONE    => getVRecord(r1)
+				| SOME(s) => SOME(s)))
+				
+		and getERecord(r) = (case r of 
+		
+			  []		 => NONE
+			| (_,e1)::r1 => (case getExpr(e1) of 
+			
+				  NONE    => getERecord(r1)
+				| SOME(s) => SOME(s)))
+				
+		and getPatExprList(l) = (case l of 
+		
+			  []         => NONE
+			| (_,e1)::l1 => (case getExpr(e1) of 
+			
+				  NONE    => getPatExprList(l1)
+				| SOME(s) => SOME(s)))
+				
+		in getExpr(expr) end;
+		
+			
