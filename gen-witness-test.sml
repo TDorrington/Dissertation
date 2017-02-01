@@ -66,10 +66,12 @@ findWitness(Value(Fun(Var("x"),Int,Condition(Variable(Var("x")),Value(Concrete(N
 findWitness(Value(Fun(Var("x"),Real,Condition(Value(Concrete(B(true))),Value(Concrete(N(1))),Variable(Var("x"))))));
 (* v['a] -> 1.0 *)
    
-findWitness(Value(Fun(Var("x"),TRecord([(Lab("a"),Int),(Lab("b"),Real)]),
+findWitness(Value(Fun(Var("x"),TRecord([(Lab("a"),THole(TypeHole(TypeVar("b")))),(Lab("b"),Real)]),
 	Case(Variable(Var("x")),
   [(PRecord([(Lab("a"),PVal(N(1))),(Lab("b"),PVar(Var("x")))]),
 	List([Variable(Var("x")),Value(Concrete(N(1)))]))]))));
 (* {a=1,b=1.0} *)
+  
+case x of {a=1,b=x} -> [x,1]
    
 (* use "C:/Users/Thomas/Documents/GitHub/Dissertation/include-all.sml"; *)
