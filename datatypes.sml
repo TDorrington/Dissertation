@@ -59,7 +59,7 @@ datatype e =
 	| List of e list
 	| Cons of e * e
 	| CounterExpr of e * int
-	
+	 
 (* value hole datatype *)
 and valhole = 
 	  SimpleHole of simpleValueHole
