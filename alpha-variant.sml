@@ -7,7 +7,7 @@ fun alphaVariable(Var(s),n,vars) =
 	if element(vars,Var(s)) 
 	then Var(s^Int.toString(n))
 	else Var(s)
-   
+    
 fun alphaPat(pat,n,vars) = 
 
 	let fun alphaPRecord(r) = (case r of 
