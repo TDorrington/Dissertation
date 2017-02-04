@@ -835,7 +835,7 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 	   (ii)  unify type of e2 (after substituting with gamma, and arbitrary mappings for x and y) with t2
 	   (iii) narrow e1 to be (latest value) of type t2
 	   (iv)  narrow e2 to be type t *)
-	| (LetRec(x,TFun(t1,t2),Fun(y,t3,e1),e2),t) =>
+	| (LetRec(x,TFun(t1,t2),Value(Fun(y,t3,e1)),e2),t) =>
 	
 		(* Make sure x part capture avoiding: x binds in e2 and (fn y:t3=>e1) *)
 		if (element(Substitution.domain(gamma),x) orelse element(fv(Substitution.range(gamma)),x))
@@ -846,7 +846,7 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 			  if (element(Substitution.domain(gamma),y) orelse element(fv(Substitution.range(gamma)),y))
 			  
 			  (* Only alpha-variant the function value, not variable 'x' or expression 'e2': only x binds in e2, not y *)
-			  then narrowExpr(LetRec(x,TFun(t1,t2),alphaValue(Fun(y,t3,e1),getCounterAndUpdate(),[y]),e2),t,sigma,theta,gamma,cntr)
+			  then narrowExpr(LetRec(x,TFun(t1,t2),Value(alphaValue(Fun(y,t3,e1),getCounterAndUpdate(),[y])),e2),t,sigma,theta,gamma,cntr)
 			  
 			  else (case unify([t1,t3],theta) of 
 			 
@@ -886,7 +886,7 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 										| Config(Expression(e1narrow),sigma1,theta1) =>  (case narrowExpr(e2,t,sigma1,theta1,gamma2,cntr) of 
 										
 											  Config(Stuck(i),sigma2,theta2)			 => Config(Stuck(i),sigma2,theta2)
-											| Config(Expression(e2narrow),sigma2,theta2) => Config(Expression(LetRec(x,TFun(t1,t2),Fun(y,t1,e1narrow),e2narrow)),sigma2,theta2)))
+											| Config(Expression(e2narrow),sigma2,theta2) => Config(Expression(LetRec(x,TFun(t1,t2),Value(Fun(y,t1,e1narrow)),e2narrow)),sigma2,theta2)))
 									
 									end))
 									

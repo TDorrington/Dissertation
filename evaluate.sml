@@ -609,7 +609,7 @@ and evaluate (Config(Expression(Value(v)),s,t),_) = Config(Expression(Value(reso
 	
 (* Implements evaluation & type inference rules for let-rec expressions *)
 (* i.e. implements rules (E-LET-REC-GOOD) and (E-LET-REC-BAD) *)
-|	evaluate (Config(Expression(l as LetRec(x,TFun(t1,t2),Fun(y,t3,e1),e2)),sigma,theta),cntr) = 
+|	evaluate (Config(Expression(l as LetRec(x,TFun(t1,t2),Value(Fun(y,t3,e1)),e2)),sigma,theta),cntr) = 
 
 	(* Narrow whole expression to some general type variable, similarly to case expression
 	   This will, for example, check types t1 and t3 unify, or that e1 is of type t2, etc. *)
@@ -620,9 +620,9 @@ and evaluate (Config(Expression(Value(v)),s,t),_) = Config(Expression(Value(reso
 	(case narrowExpr(l,generateFreshTypeVar(TYPE_VAR,theta),sigma,theta,[],cntr) of 
 	
 		(* (E-LET-REC-GOOD) *)
-		  Config(Expression(l as LetRec(x,tfun,Fun(y,t3,e1),e2)),sigma1,theta1) => 
+		  Config(Expression(l as LetRec(x,tfun,Value(Fun(y,t3,e1)),e2)),sigma1,theta1) => 
 		  
-			evaluate(Config(Expression(substitute(e2,[(x,Value(Fun(y,t3,LetRec(x,tfun,Fun(y,t3,e1),e1))))])),sigma1,theta1),cntr)
+			evaluate(Config(Expression(substitute(e2,[(x,Value(Fun(y,t3,LetRec(x,tfun,Value(Fun(y,t3,e1)),e1))))])),sigma1,theta1),cntr)
 		
 		(* (E-LET-REC-BAD) *)
 		| Config(c,sigma1,theta1) => Config(c,sigma1,theta1))

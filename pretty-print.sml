@@ -101,8 +101,8 @@ and prettyPrintExpression(Stuck(i)) = "Stuck at " ^ Int.toString(i)
 	| Record(r) => "{" ^ prettyPrintERecord(r) ^ "}"
 	| Let(Var(s),t,e1,e2) => "let val " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(e1))
 							   ^ ") in " ^ prettyPrintExpression(Expression(e2)) ^ " end"
-	| LetRec(Var(s),t,v,e) => "let val rec " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(Value(v)))
-							   ^ ") in " ^ prettyPrintExpression(Expression(e)) ^ " end"
+	| LetRec(Var(s),t,e1,e2) => "let val rec " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(e1))
+							   ^ ") in " ^ prettyPrintExpression(Expression(e2)) ^ " end"
 	| List(l) => "[" ^ prettyPrintEList(l) ^ "]"
 	| Cons(e1,e2) => prettyPrintExpression(Expression(e1)) ^ " :: " ^ prettyPrintExpression(Expression(e2))
 	| CounterExpr(e,i) => "( " ^ prettyPrintExpression(Expression(e)) ^ ", " ^ Int.toString(i) ^ " )")

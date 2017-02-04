@@ -78,12 +78,12 @@ fun substitute(a,[]) = a
 				(* Otherwise substitute in expression e1 and e2 *)
 				else Let(x,t,substExpr(e1),substExpr(e2))
 				
-			| LetRec(x,t,v1,e2) =>
+			| LetRec(x,t,e1,e2) =>
 				(* Must be (x part) capture avoiding: y binds in e1; x binds in both (fn y:T=>e1) and in e2 *)
 				if (element(Substitution.domain(gamma),x) orelse element(fv(Substitution.range(gamma)),x))
 				then substExpr(alphaExpr(e,getCounterAndUpdate(),[x]))
-				(* Making sure the y part is capture avoiding is done in substVal(v1) *)
-				else LetRec(x,t,substVal(v1),substExpr(e2)))
+				(* Making sure the y part is capture avoiding is done in substExpr(e1) *)
+				else LetRec(x,t,substExpr(e1),substExpr(e2)))
 				
 	and substVariable(x) = if Substitution.contains(x,gamma)
 						   then Substitution.get(x,gamma)

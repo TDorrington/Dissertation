@@ -46,6 +46,7 @@ datatype simpleValueHole = ValueHole of typeVar;
 	  
 (* non-stuck expression datatype *)
 datatype e =
+
 	  Value of v
 	| Variable of var 
 	| ArithExpr of arithOper * e * e     
@@ -55,7 +56,7 @@ datatype e =
 	| App of e * e
 	| Record of e Record.dictionary	
 	| Let of var * t * e * e
-	| LetRec of var * t * v * e
+	| LetRec of var * t * e * e
 	| List of e list
 	| Cons of e * e
 	| CounterExpr of e * int

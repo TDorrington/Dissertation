@@ -1816,28 +1816,28 @@ prettyPrintConfig(evaluate(Config(Expression(Case(
  
 (evaluate(Config(Expression(LetRec(
 Var("x"),TFun(Int,Int),
-Fun(Var("y"),Int,Condition(BoolExpr(LESS_EQ,Variable(Var("y")),Value(Concrete(N(1)))),
+Value(Fun(Var("y"),Int,Condition(BoolExpr(LESS_EQ,Variable(Var("y")),Value(Concrete(N(1)))),
 						   Value(Concrete(N(1))),
 						   ArithExpr(PLUS,App(Variable(Var("x")),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(1))))),
-										  App(Variable(Var("x")),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(2)))))))),
+										  App(Variable(Var("x")),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(2))))))))),
 App(Variable(Var("x")),Value(Concrete(N(11)))))),[],[]),0));
 (* let val rec x:(int->int) = (fn y:int => if y<=1 then 1 else x(y-1)+x(y-2)) in (x 11) end 
    i.e. 11th fibonacci number => 144 *)
    
 (evaluate(Config(Expression(LetRec(
 Var("x"),TFun(Int,Int),
-Fun(Var("y"),Int,Condition(BoolExpr(LESS_EQ,Variable(Var("y")),Value(Concrete(N(0)))),
+Value(Fun(Var("y"),Int,Condition(BoolExpr(LESS_EQ,Variable(Var("y")),Value(Concrete(N(0)))),
 						   Value(Concrete(N(1))),
 						   ArithExpr(TIMES,Variable(Var("y")),
-										   App(Variable(Var("x")),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(1)))))))),
+										   App(Variable(Var("x")),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(1))))))))),
 App(Variable(Var("x")),Value(Concrete(N(10)))))),[],[]),0));
 (* let val rec x:(int->int) = (fn y:int => if y<=0 then 1 else y*(x (y-1)) in (x 10) end
    i.e. factorial of 10 => 3628800 *)
-   
-(* Takes a long time 
+
+(* Takes a long time to compute    
 (evaluate(Config(Expression(LetRec(
 Var("z"),TFun(TRecord([(Lab("x"),Int),(Lab("y"),Int)]),Int),
-Fun(Var("x"),TRecord([(Lab("x"),Int),(Lab("y"),Int)]),
+Value(Fun(Var("x"),TRecord([(Lab("x"),Int),(Lab("y"),Int)]),
     Case(Variable(Var("x")),
 	    [(PRecord([(Lab("x"),PVar(Var("x"))),(Lab("y"),PVar(Var("y")))]),
 		  Condition(BoolExpr(EQ,Variable(Var("x")),Value(Concrete(N(0)))),
@@ -1846,7 +1846,7 @@ Fun(Var("x"),TRecord([(Lab("x"),Int),(Lab("y"),Int)]),
 							  App(Variable(Var("z")),Record([(Lab("x"),ArithExpr(SUBTRACT,Variable(Var("x")),Value(Concrete(N(1))))),(Lab("y"),Value(Concrete(N(1))))])),
 							  App(Variable(Var("z")),Record([(Lab("x"),ArithExpr(SUBTRACT,Variable(Var("x")),Value(Concrete(N(1))))),
 															 (Lab("y"),App(Variable(Var("z")),Record([(Lab("x"),Variable(Var("x"))),
-																									  (Lab("y"),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(1)))))])))])))))])),
+																									  (Lab("y"),ArithExpr(SUBTRACT,Variable(Var("y")),Value(Concrete(N(1)))))])))])))))]))),
 App(Variable(Var("z")),Record([(Lab("x"),Value(Concrete(N(3)))),(Lab("y"),Value(Concrete(N(3))))])))),[],[]),0));
 *)
 (* ackermann(3,3) => 61 *)
@@ -1891,11 +1891,11 @@ prettyPrintConfig(evaluate(Config(Expression(Case(
 
 prettyPrintConfig(evaluate(Config(Expression(LetRec(
 	Var("x"),TFun(TList(THole(TypeHole(TypeVar("a")))),Int),
-	Fun(Var("l"),TList(THole(TypeHole(TypeVar("a")))),
+	Value(Fun(Var("l"),TList(THole(TypeHole(TypeVar("a")))),
 		Case(Variable(Var("l")),
 		  [(PVal(EmptyList),Value(Concrete(N(0)))),
 		   (PCons(PWildcard,PVar(Var("rest"))),
-		    ArithExpr(PLUS,Value(Concrete(N(1))),App(Variable(Var("x")),Variable(Var("rest")))))])),
+		    ArithExpr(PLUS,Value(Concrete(N(1))),App(Variable(Var("x")),Variable(Var("rest")))))]))),
 	App(Variable(Var("x")),
 	    Value(VList([Concrete(N(0)),Concrete(N(2)),Concrete(N(~1))]))))),[],[]),0));
 (* Length of list *)
@@ -1905,13 +1905,13 @@ val b' = THole(TypeHole(TypeVar("b")));
 
 prettyPrintConfig(evaluate(Config(Expression(LetRec(
 	Var("map"),TFun(TFun(a',b'),TFun(TList(a'),TList(b'))),
-	Fun(Var("f"),TFun(a',b'),
+	Value(Fun(Var("f"),TFun(a',b'),
 		Value(Fun(Var("l"),TList(a'),
 			  Case(Variable(Var("l")),
 				[(PVal(EmptyList),Value(Concrete(EmptyList))),
 				 (PCons(PVar(Var("y")),PVar(Var("ys"))),
 				  Cons(App(Variable(Var("f")),Variable(Var("y"))),
-				       App(App(Variable(Var("map")),Variable(Var("f"))),Variable(Var("ys")))))])))),
+				       App(App(Variable(Var("map")),Variable(Var("f"))),Variable(Var("ys")))))]))))),
 	App(App(Variable(Var("map")),
 	        Value(Fun(Var("x"),Int,ArithExpr(TIMES,Variable(Var("x")),Variable(Var("x")))))),
 		Value(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(3)),Concrete(N(~1)),Concrete(N(0))]))))),[],[]),0));
@@ -1919,7 +1919,7 @@ prettyPrintConfig(evaluate(Config(Expression(LetRec(
 
 prettyPrintConfig(evaluate(Config(Expression(LetRec(
 	Var("exists"),TFun(TFun(a',Bool),TFun(TList(a'),Bool)),
-	Fun(Var("p"),TFun(a',Bool),
+	Value(Fun(Var("p"),TFun(a',Bool),
 		Value(Fun(Var("l"),TList(a'),
 				  Case(Variable(Var("l")),
 					 [(PVal(EmptyList),Value(Concrete(B(false)))),
@@ -1927,7 +1927,7 @@ prettyPrintConfig(evaluate(Config(Expression(LetRec(
 					   Condition(App(Variable(Var("p")),Variable(Var("x"))),
 								 Value(Concrete(B(true))),
 								 App(App(Variable(Var("exists")),Variable(Var("p"))),
-								     Variable(Var("xs")))))])))),
+								     Variable(Var("xs")))))]))))),
 	App(App(Variable(Var("exists")),
 			Value(Fun(Var("x"),Int,BoolExpr(EQ,Variable(Var("x")),Value(Concrete(N(0))))))),
 		Value(VList([Concrete(N(1)),Concrete(N(2)),Concrete(N(0))]))))),[],[]),0));
@@ -1935,7 +1935,7 @@ prettyPrintConfig(evaluate(Config(Expression(LetRec(
 	
  prettyPrintConfig(evaluate(Config(Expression(LetRec(
 	Var("filter"),TFun(TFun(a',Bool),TFun(TList(a'),TList(a'))),
-	Fun(Var("p"),TFun(a',Bool),
+	Value(Fun(Var("p"),TFun(a',Bool),
 		Value(Fun(Var("l"),TList(a'),
 			  Case(Variable(Var("l")),
 				 [(PVal(EmptyList),Value(Concrete(EmptyList))),
@@ -1945,7 +1945,7 @@ prettyPrintConfig(evaluate(Config(Expression(LetRec(
 								  App(App(Variable(Var("filter")),Variable(Var("p"))),
 									  Variable(Var("xs")))),
 							 App(App(Variable(Var("filter")),Variable(Var("p"))),
-							     Variable(Var("xs")))))])))),
+							     Variable(Var("xs")))))]))))),
 	App(App(Variable(Var("filter")),
 			Value(Fun(Var("x"),Int,BoolExpr(EQ,Variable(Var("x")),Value(Concrete(N(10))))))),
 		Value(VList([Concrete(N(1)),Concrete(N(10)),Concrete(N(10)),
@@ -1954,7 +1954,7 @@ prettyPrintConfig(evaluate(Config(Expression(LetRec(
 
  (evaluate(Config(Expression(LetRec(
 	Var("filter"),TFun(TFun(a',Bool),TFun(TList(a'),TList(a'))),
-	Fun(Var("p"),TFun(a',Bool),
+	Value(Fun(Var("p"),TFun(a',Bool),
 		Value(Fun(Var("l"),TList(a'),
 			  Case(Variable(Var("l")),
 				 [(PVal(EmptyList),Value(Concrete(EmptyList))),
@@ -1964,7 +1964,7 @@ prettyPrintConfig(evaluate(Config(Expression(LetRec(
 								  App(App(Variable(Var("filter")),Variable(Var("p"))),
 									  Variable(Var("xs")))),
 							  App(App(Variable(Var("filter")),Variable(Var("p"))),
-							      Variable(Var("xs")))))])))),
+							      Variable(Var("xs")))))]))))),
 	App(App(Variable(Var("filter")),
 			Value(Fun(Var("x"),TList(b'),BoolExpr(EQ,Variable(Var("x")),Value(Concrete(EmptyList)))))),
 		Value(VList([Concrete(EmptyList),
@@ -1976,24 +1976,24 @@ prettyPrintConfig(evaluate(Config(Expression(LetRec(
  
 prettyPrintConfig(evaluate(Config(Expression(LetRec(
 	Var("gen"),TFun(Int,TList(Int)),
-	Fun(Var("x"),Int,
+	Value(Fun(Var("x"),Int,
 		Condition(BoolExpr(LESS_EQ,Variable(Var("x")),Value(Concrete(N(0)))),
 				  Value(Concrete(EmptyList)),
 				  Cons(Variable(Var("x")),
 					   App(Variable(Var("gen")),
-						   ArithExpr(SUBTRACT,Variable(Var("x")),Value(Concrete(N(1)))))))),
+						   ArithExpr(SUBTRACT,Variable(Var("x")),Value(Concrete(N(1))))))))),
 	App(Variable(Var("gen")),Value(Concrete(N(10)))))),[],[]),0));
 (* Generate a list from 1 to number given: [10,9,8,7,6,5,4,3,2,1] *)
 
 prettyPrintConfig(evaluate(Config(Expression(LetRec(
 	Var("gen"),TFun(Int,TFun(TFun(a',b'),TList(b'))),
-	Fun(Var("x"),Int,
+	Value(Fun(Var("x"),Int,
 		Value(Fun(Var("f"),TFun(a',b'),	
 		Condition(BoolExpr(LESS_EQ,Variable(Var("x")),Value(Concrete(N(0)))),
 				  Value(Concrete(EmptyList)),
 				  Cons(App(Variable(Var("f")),Variable(Var("x"))),
 					   App(App(Variable(Var("gen")),ArithExpr(SUBTRACT,Variable(Var("x")),Value(Concrete(N(1))))),
-					       Variable(Var("f")))))))),
+					       Variable(Var("f"))))))))),
 	App(App(Variable(Var("gen")),Value(Concrete(N(10)))),
 		Value(Fun(Var("z"),Int,BoolExpr(LESS_EQ,Variable(Var("z")),Value(Concrete(N(5))))))))),[],[]),0));
 (* Generate a list from 1 to number given, applying a function f given to each number
