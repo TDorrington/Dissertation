@@ -53,6 +53,13 @@ local
 		| Value(VRecord(_))			 => (Value(VList([Concrete(B(true))])),n)
 		| Value(VList(l))			 => (Value(VRecord(listtoVRecord(l,0))),n)
 		
+		(* Get a lable gauranteed not to already be in the record's label set, say l,
+		   and add {l=[]} to record *)
+		| Value(VRecord(r)) => 
+			let val freshLabel = getFreshLabel(Record.getLabels(r));
+				val fuzzR = (freshLabel,Concrete(EmptyList))::r;
+			in (Value(VRecord(fuzzR)),n) end
+		
 		| Value(Fun(x,t,e1)) => (case fuzzType(t) of 
 		
 			  SOME fuzzT => (Value(Fun(x,fuzzT,e1)),n)

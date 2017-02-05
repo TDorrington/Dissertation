@@ -40,21 +40,28 @@ findWitness(Value(Fun(Var("x"),THole(TypeHole(TypeVar("b"))),
 		
 (* -------------------------------------------- FUZZ TESTING ------------------------------------- *)
 
-fun prettyPrintFuzz(e) = (case e of 
+fun prettyPrintFuzz(e,n) = (case fuzzExpr(e,n) of 
 
 	  SOME (e,i) => prettyPrintExpression(Expression(e)) ^ "\n " ^ Int.toString(i)
 	| NONE       => "FAIL");
 
 
-prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(N(1)))),1)); 		(* 1 => 2.0 *)
-prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(R(1.0)))),1)); 	(* 1.0 => false *)
-prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(B(true)))),1));	(* true => 2 *)
-prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(EmptyList))),1));	(* [] => fn x:int => 1.0 *)
+prettyPrintFuzz(toCounterExpr(Value(Concrete(N(1)))),1); 		(* 1 => 2.0 *)
+prettyPrintFuzz(toCounterExpr(Value(Concrete(R(1.0)))),1); 		(* 1.0 => false *)
+prettyPrintFuzz(toCounterExpr(Value(Concrete(B(true)))),1);		(* true => 2 *)
+prettyPrintFuzz(toCounterExpr(Value(Concrete(EmptyList))),1);	(* [] => fn x:int => 1.0 *)
 
-prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(N(1)))),0)); 		(* FAIL *)
-prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(R(1.0)))),2)); 	(* FAIL *)
-prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(B(true)))),3));	(* FAIL *)
-prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(EmptyList))),4));	(* FAIL *)
+prettyPrintFuzz(toCounterExpr(Value(Concrete(N(1)))),0); 		(* FAIL *)
+prettyPrintFuzz(toCounterExpr(Value(Concrete(R(1.0)))),2); 		(* FAIL *)
+prettyPrintFuzz(toCounterExpr(Value(Concrete(B(true)))),3);		(* FAIL *)
+prettyPrintFuzz(toCounterExpr(Value(Concrete(EmptyList))),4);	(* FAIL *)
+
+(* --- (fn x:int => ((1,[1]) * (3,[2]), [3]), [4]) --- *)
+
+prettyPrintFuzz(toCounterExpr(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Value(Concrete(N(1))),Value(Concrete(N(3))))))),1); (* fn x:int => 2.0 * 3 *)
+prettyPrintFuzz(toCounterExpr(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Value(Concrete(N(1))),Value(Concrete(N(3))))))),2); (* fn x:int => 1 * 2.0 *)
+prettyPrintFuzz(toCounterExpr(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Value(Concrete(N(1))),Value(Concrete(N(3))))))),3); (* fn x:int => 1::3    *)
+prettyPrintFuzz(toCounterExpr(Value(Fun(Var("x"),Int,ArithExpr(TIMES,Value(Concrete(N(1))),Value(Concrete(N(3))))))),4); (* fn x:real => 1 * 3  *)
 
 
 
