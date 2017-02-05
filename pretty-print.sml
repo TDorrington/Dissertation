@@ -105,7 +105,7 @@ and prettyPrintExpression(Stuck(i)) = "Stuck at " ^ Int.toString(i)
 							   ^ ") in " ^ prettyPrintExpression(Expression(e2)) ^ " end"
 	| List(l) => "[" ^ prettyPrintEList(l) ^ "]"
 	| Cons(e1,e2) => prettyPrintExpression(Expression(e1)) ^ " :: " ^ prettyPrintExpression(Expression(e2))
-	| CounterExpr(e,i) => "( " ^ prettyPrintExpression(Expression(e)) ^ ", " ^ Int.toString(i) ^ " )")
+	| CounterExpr(e,i) => "( " ^ prettyPrintExpression(Expression(e)) ^ ", [" ^ Int.toString(i) ^ "] )")
 	
 and prettyPrintERecord([]) = ""
 |	prettyPrintERecord([(Lab(s),e)]) = s ^ "=" ^ prettyPrintExpression(Expression(e))

@@ -39,7 +39,7 @@ fun toCounterExpr(expr) =
 		
 			  SimpleHole(_)			   => h
 			| BinaryOpHole(oper,v1,v2) => BinaryOpHole(oper,cntrValue(v1),cntrValue(v2))
-			| ConditionHole(v1,e1,e2)  => ConditionHole(cntrVa+lue(v1),cntrExpr(e1),cntrExpr(e2))
+			| ConditionHole(v1,e1,e2)  => ConditionHole(cntrValue(v1),cntrExpr(e1),cntrExpr(e2))
 			| CaseHole(v1,patExprList) => CaseHole(cntrValue(v1),cntrPatExprList(patExprList))
 			| AppHole(v1,v2)		   => AppHole(cntrValue(v1),cntrValue(v2))
 			| RecordHole(r)			   => RecordHole(cntrVRecord(r))

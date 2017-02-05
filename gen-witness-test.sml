@@ -1,4 +1,6 @@
- findWitness(Value(Fun(Var("x"),Int,ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("x"))))));
+(* ------------------------------------------ GEN WITNESS TESTING ----------------------------------- *)
+
+findWitness(Value(Fun(Var("x"),Int,ArithExpr(DIVIDE,Variable(Var("x")),Variable(Var("x"))))));
 (* 1 *)
 	
 findWitness(Value(Fun(Var("x"),Int,Condition(Variable(Var("x")),Value(Concrete(N(1))),Value(Concrete(N(2)))))));
@@ -35,5 +37,25 @@ findWitness(Value(Fun(Var("x"),THole(TypeHole(TypeVar("b"))),
 	   [(PRecord([(Lab("1"),PVar(Var("f"))),(Lab("2"),PCons(PVar(Var("a")),PWildcard))]),
 		 App(Variable(Var("f")),ArithExpr(TIMES,Variable(Var("a")),Value(Concrete(B(true))))))]))));
 (* {1=fn x:'''a32 => v['22], 2=[v['''a32]]} *)
-			
+		
+(* -------------------------------------------- FUZZ TESTING ------------------------------------- *)
+
+fun prettyPrintFuzz(e) = (case e of 
+
+	  SOME (e,i) => prettyPrintExpression(Expression(e)) ^ "\n " ^ Int.toString(i)
+	| NONE       => "FAIL");
+
+
+prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(N(1)))),1)); 		(* 1 => 2.0 *)
+prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(R(1.0)))),1)); 	(* 1.0 => false *)
+prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(B(true)))),1));	(* true => 2 *)
+prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(EmptyList))),1));	(* [] => fn x:int => 1.0 *)
+
+prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(N(1)))),0)); 		(* FAIL *)
+prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(R(1.0)))),2)); 	(* FAIL *)
+prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(B(true)))),3));	(* FAIL *)
+prettyPrintFuzz(fuzzExpr(toCounterExpr(Value(Concrete(EmptyList))),4));	(* FAIL *)
+
+
+
 (* use "C:/Users/Tom/Documents/GitHub/Dissertation/include-all.sml"; *)
