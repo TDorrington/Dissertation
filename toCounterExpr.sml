@@ -1,3 +1,5 @@
+(* Function to uniquely number each sub expression by wrapping each in a CounterExpr datatype, which has an associated number
+   Begin counting at 1, and end counting with the maximum number being associated with the most top-level CounterExpr wrapper *)
 fun toCounterExpr(expr) =
 
 	let
@@ -72,3 +74,76 @@ fun toCounterExpr(expr) =
 			| (lab1,v1)::r1 => (lab1,cntrValue(v1))::cntrVRecord(r1))
 			
 	in cntrExpr(expr) end;
+	
+(* Function to drop all counter expression wrapper datatypes (ignoring unique sub-expression numbers),
+   for pretty printing and testing purposes *)
+fun dropCounterExpr(expr) = 
+
+	let fun dropExpr(e) = (case e of 
+		
+			  Value(v) 				=> Value(dropValue(v))
+			| Variable(_) 			=> e
+			| ArithExpr(oper,e1,e2) => ArithExpr(oper,dropExpr(e1),dropExpr(e2))
+			| BoolExpr(oper,e1,e2)  => BoolExpr(oper,dropExpr(e1),dropExpr(e2))
+			| Case(e,patExprList)   => Case(dropExpr(e),dropPatExprList(patExprList))
+			| Condition(e1,e2,e3)   => Condition(dropExpr(e1),dropExpr(e2),dropExpr(e3))
+			| App(e1,e2)			=> App(dropExpr(e1),dropExpr(e2))
+			| Record(r)				=> Record(dropERecord(r))
+			| Let(x,t,e1,e2)		=> Let(x,t,dropExpr(e1),dropExpr(e2))
+			| LetRec(x,t,e1,e2)		=> LetRec(x,t,dropExpr(e1),dropExpr(e2))
+			| List(l)				=> List(dropEList(l))
+			| Cons(e1,e2)			=> Cons(dropExpr(e1),dropExpr(e2))
+			| CounterExpr(e,_)		=> dropExpr(e))
+		
+		and dropValue(v) = (case v of 
+		
+			  Concrete(_) => v
+			| Fun(x,t,e)  => Fun(x,t,dropExpr(e))
+			| VHole(h)    => VHole(dropHole(h))
+			| VRecord(r)  => VRecord(dropVRecord(r))
+			| VList(l)    => VList(dropVList(l)))
+			
+		and dropHole(h) = (case h of 
+		
+			  SimpleHole(_)			   => h
+			| BinaryOpHole(oper,v1,v2) => BinaryOpHole(oper,dropValue(v1),dropValue(v2))
+			| ConditionHole(v1,e1,e2)  => ConditionHole(dropValue(v1),dropExpr(e1),dropExpr(e2))
+			| CaseHole(v1,patExprList) => CaseHole(dropValue(v1),dropPatExprList(patExprList))
+			| AppHole(v1,v2)		   => AppHole(dropValue(v1),dropValue(v2))
+			| RecordHole(r)			   => RecordHole(dropVRecord(r))
+			| ListHole(l)			   => ListHole(dropVList(l))
+			| ConsHole(v1,v2)	       => ConsHole(dropValue(v1),dropValue(v2)))
+			
+		and dropEList(l) = (case l of 
+		
+			  []	 => []
+			| e1::l1 => dropExpr(e1)::dropEList(l1))
+			
+		and dropVList(l) = (case l of 
+			
+			  []	 => []
+			| v1::l1 => dropValue(v1)::dropVList(l1))
+			
+		and dropPatExprList(l) = (case l of 
+			
+			  []			=> []
+			| (pat1,e1)::l1 => (pat1,dropExpr(e1))::dropPatExprList(l1))
+			
+		and dropERecord(r) = (case r of 
+		
+			  [] 			=> []
+			| (lab1,e1)::r1 => (lab1,dropExpr(e1))::dropERecord(r1))
+			
+		and dropVRecord(r) = (case r of 
+		
+			  [] 			=> []
+			| (lab1,v1)::r1 => (lab1,dropValue(v1))::dropVRecord(r1))
+			
+	in dropExpr(expr) end;
+	
+(* Function to take a list of expressions, and drops the CounterExpr datatype from each one *)
+fun iterDropCounterExpr(l) = (case l of 
+
+	  []           => []
+	| (e1,i)::rest => (dropCounterExpr(e1),i)::iterDropCounterExpr(rest));
+	

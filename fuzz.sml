@@ -3,6 +3,14 @@ exception ValueHole;
 
 local 
 
+(* EXTRAS:
+	- recurse on subexpressions
+	- arithexpr: switch *,-,+ <=> /, OR switch to bool expression, for arbitrary bool operator
+	- case: change patterns
+	- app: put in function of different arg/return type
+	- cons: change types of e1 e2
+*)
+
 (*  Returns a type different to that of the argument, if it is possible
     We cannot fuzz a type hole, since it could be any type, and hence are unable 
     to generate a different type: we cannot check if it is different till run time *)
@@ -14,30 +22,7 @@ local
 		| TFun(_,_)  => SOME (TRecord([(Lab("a"),Int)]))
 		| TRecord(_) => SOME (TFun(Int,TList(Bool)))
 		| TList(_)   => SOME (Bool)
-		| THole(_)   => NONE);
-			
-(*  Takes a list of labels, generated from an existing record, and returns a new fresh label
-    such that the label does not occur in the labels set given *)
-	fun getFreshLabel(labels) = 
-	
-		let val freshLabel = Lab("a" ^ Int.toString(getCounterAndUpdate()))
-	
-		in if element(labels,freshLabel) 
-		   then getFreshLabel(labels)
-		   else freshLabel
-		end;
-		
-(*  Takes a list of expressions, [e0,e1,...,en],
-    and converts to a record, by appending a unique label to each expression, {a0=e0,...,an=en} *)
-	fun listToERecord(l,n) = (case l of 
-			
-	  []       => []
-	| e1::rest => (Lab("a"^Int.toString(n)),e1)::listToERecord(rest,n+1));
-		
-	fun listtoVRecord(l,n) = (case l of 
-	
-	  [] 	   => []
-	| v1::rest => (Lab("a"^Int.toString(n)),v1)::listtoVRecord(rest,n+1));
+		| THole(_)   => NONE); 
 		
 (*  Takes the sub expression we wish to fuzz, and returns a pair containing
     the fuzzed sub expression, and the number of the expression actually changed
@@ -49,16 +34,24 @@ local
 		  Value(Concrete(N(_)))      => (Value(Concrete(R(2.0))),n)
 		| Value(Concrete(R(_)))      => (Value(Concrete(B(false))),n)
 		| Value(Concrete(B(_)))      => (Value(Concrete(N(2))),n)
-		| Value(Concrete(EmptyList)) => (Value(Fun(Var("x"),Int,Value(Concrete(R(1.0))))),n)
-		| Value(VRecord(_))			 => (Value(VList([Concrete(B(true))])),n)
-		| Value(VList(l))			 => (Value(VRecord(listtoVRecord(l,0))),n)
+		| Value(Concrete(EmptyList)) => (Value(VRecord([])),n)
 		
-		(* Get a lable gauranteed not to already be in the record's label set, say l,
-		   and add {l=[]} to record *)
-		| Value(VRecord(r)) => 
-			let val freshLabel = getFreshLabel(Record.getLabels(r));
-				val fuzzR = (freshLabel,Concrete(EmptyList))::r;
-			in (Value(VRecord(fuzzR)),n) end
+		(* Convert list to a record, keeping the same expressions, and generating unique lables i.e.
+		   [v0,v1,...,vn] -> {a0=v0,...,a1=vn} *)
+		| Value(VList(l)) => 
+		
+			let fun listtoVRecord(l,i) = (case l of 
+				
+				  []	   => []
+				| v1::rest => (Lab("a"^Int.toString(i)),v1)::listtoVRecord(rest,i+1))
+		
+			in (Value(VRecord(listtoVRecord(l,0))),n) end
+		
+		(* If we can, remove a (label,value) pair *)
+		| Value(VRecord(entry::rest)) => (Value(VRecord(rest)),n)
+		
+		(* If no (label,value) pairs in record, convert to an empty list *)
+		| Value(VRecord([])) => (Value(Concrete(EmptyList)),n)
 		
 		| Value(Fun(x,t,e1)) => (case fuzzType(t) of 
 		
@@ -84,16 +77,22 @@ local
 
 		| App(e1,e2)		   => (ArithExpr(PLUS,e1,e2),n)
 		
-		(* Get a label that is gauranteed not to already be in the record's label set, say l, 
-		   and add {l=fn x:bool list => 1} to record *)
-		| Record(r) => 
-			let val freshLabel = getFreshLabel(Record.getLabels(r));
-				val fuzzR = (freshLabel,Value(Fun(Var("x"),TList(Bool),Value(Concrete(N(1))))))::r;
-			in (Record(fuzzR),n) end
+		(* If we can, remove a (label,expression) pair *)
+		| Record(entry::rest)  => (Record(rest),n)
+		
+		(* If no (label,expression) pairs in recor, convert to an empty list *)
+		| Record([])		   => (Value(Concrete(EmptyList)),n)
 		
 		(* Convert list to a record, keeping the same expressions, and generating unique labels i.e.
 		   [e0,e1,...,en] -> {a0=e0,a1=e1,...,an=en} *)
-		| List(l) => (Record(listToERecord(l,0)),n) 
+		| List(l) => 
+		
+			let fun listToERecord(l,i) = (case l of 
+			
+				  []       => []
+				| e1::rest => (Lab("a"^Int.toString(i)),e1)::listToERecord(rest,i+1))
+	
+		in (Record(listToERecord(l,0)),n) end
 		
 		| Let(x,t,e1,e2) => (case fuzzType(t) of 
 		
@@ -310,20 +309,35 @@ end;
 
 (* Takes an expression (assuming that all datatypes are wrapped in counterExpr),
    and returns a list of fuzzed expressions, paired with the expression number changed
-   Listed comprised of calling (single) fuzzExpr on each counterExpr number *)
-(*fun fuzz(expr) = 
+   Listed comprised of calling (single) fuzzExpr on each counterExpr number
+   List may contain duplicates since calling fuzz on an expression for a given number may actually fuzz
+   a different expression number (if fuzzing expression recurses to a sub expression) *)
+fun fuzz(expr) = 
 
-	let fun getNumOfExpr =
+	(* Maximum number of times we can uniquely call fuzz is one for each number of sub-expressions in the whole expression, i.e. one 
+	   for each time CounterExpr occurs
+	   By the way toCounterExpr works, the numbers associated with the CounterExpr datatypes starts at 1, and ends with its highest in the top-most 
+	   CounterExpr datatype wrapper, i.e. 
+	   CounterExpr(...rest-of-sub-expressions...,maxNo) *)
+	let val maxNoExpr = (case expr of 
 	
-		fun iterFuzz(e) = (case e of 
+			  CounterExpr(_,i) => SOME i
+			| _ 			   => NONE);
 		
-			  
-*)
-(* 
-Generate lists of possible fuzzed expressions:
-	- recurse on subexpressions
-	- arithexpr: switch *,-,+ <=> /, OR switch to bool expression, for arbitrary bool operator
-	- case: change patterns
-	- app: put in function of different arg/return type
-	- cons: change types of e1 e2
-*)
+		fun iterFuzz(n) = (case n of 
+		
+			  0 => SOME []
+			| _ => (case fuzzExpr(expr,n) of
+			
+					  NONE       => NONE
+					| SOME (e,i) => (case iterFuzz(n-1) of 
+					  
+						  NONE   => NONE
+					    | SOME l => SOME ((e,i)::l))))
+						
+	in (case maxNoExpr of 
+	
+		  SOME i => iterFuzz(i)
+		| NONE   => NONE)
+		
+	end; 
