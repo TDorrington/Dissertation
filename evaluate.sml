@@ -495,22 +495,37 @@ and evaluate (Config(Expression(Value(v)),s,t),_) = Config(Expression(Value(reso
 	
 (* Implements evaluation & type inference rules for if expression with boolean operand a value *)
 (* i.e. implements rules (E-IF-GOOD1), (E-IF-GOOD2), (E-IF-BAD) *)
-|  evaluate (Config(Expression(Condition(Value(v),e1,e2)),sigma,theta),cntr) = (case evaluate(narrow(v,Bool,sigma,theta,[],cntr),cntr) of 
-	
-	  Config(Expression(Value(Concrete(B(b)))),sigma1,theta1) =>
-	
-		if b 
-			 (* rule E-IF-GOOD1 *)
-			 then evaluate(Config(Expression(e1),sigma1,theta1),cntr)
-			
-			 (* rule E-IF-GOOD2 *)
-			 else evaluate(Config(Expression(e2),sigma1,theta1),cntr)
-	
-	(* rule E-IF-HOLE *)
-	| Config(Expression(Value(newV)),sigma1,theta1) => evaluate(Config(Expression(Value(VHole(ConditionHole(newV,e1,e2)))),sigma1,theta1),cntr)
+|  evaluate (Config(Expression(e as Condition(Value(v),e1,e2)),sigma,theta),cntr) = 
 
-	(* rule E-IF-BAD *)
-	| Config(c,sigma1,theta1) => Config(c,sigma1,theta1))
+	(* Narrow whole expression to some fresh general type variable
+	   Not only does this nrrow the value we are conditioning on to a boolean,
+	   But it also ensures the two branches can be narrowed to the same type 
+	   Dont evaluate the resulting narrowed expression, only evalaute the value part we are case-ing on to get back a Boolean
+	   (Otherwise infinite loops) *)
+	   
+	(case narrowExpr(e,generateFreshTypeVar(TYPE_VAR,theta),sigma,theta,[],cntr) of 
+	
+		  Config(Expression(Condition(v1narrow,e1,e2)),sigma1,theta1) => (case evaluate(Config(Expression(v1narrow),sigma1,theta1),cntr) of 
+	
+			  Config(Expression(Value(Concrete(B(b)))),sigma1,theta1) =>
+			
+				if b 
+					 (* rule E-IF-GOOD1 *)
+					 then evaluate(Config(Expression(e1),sigma1,theta1),cntr)
+					
+					 (* rule E-IF-GOOD2 *)
+					 else evaluate(Config(Expression(e2),sigma1,theta1),cntr)
+			
+			(* rule E-IF-HOLE *)
+			| Config(Expression(Value(newV)),sigma1,theta1) => 
+			
+				evaluate(Config(Expression(Value(VHole(ConditionHole(newV,e1,e2)))),sigma1,theta1),cntr)
+
+			(* rule E-IF-BAD1 *)
+			| Config(c,sigma1,theta1) => Config(c,sigma1,theta1))
+			
+		(* rule E-IF-BAD2 *)
+		| Config(c,sigma1,theta1) => Config(c,sigma1,theta1))
 			
 (* (context-if): boolean argument a general expression ---------  *)		
 |  evaluate (Config(Expression(Condition(e1,e2,e3)),sigma,theta),cntr) = (case evaluate(Config(Expression(e1),sigma,theta),cntr) of 
@@ -626,5 +641,10 @@ and evaluate (Config(Expression(Value(v)),s,t),_) = Config(Expression(Value(reso
 		
 		(* (E-LET-REC-BAD) *)
 		| Config(c,sigma1,theta1) => Config(c,sigma1,theta1))
-		
+	
+(* Drop CounterExpr part on function which binds to x *)
+|	evaluate (Config(Expression(LetRec(x,tFun,CounterExpr(e1,_),e2)),sigma,theta),cntr) = 
+
+		evaluate(Config(Expression(LetRec(x,tFun,e1,e2)),sigma,theta),cntr)
+	
 | 	evaluate (Config(Expression(LetRec(_,_,_,_)),sigma,theta),cntr) = Config(Stuck(cntr),sigma,theta);		

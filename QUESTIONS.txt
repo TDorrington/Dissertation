@@ -1,0 +1,5 @@
+Questions:
+
+	- What about f v['a], where f not originally a value, e.g.
+	  (if ... then ... else ...) v['a],
+	  where the condition fails before we even get to any type unification of 'a 

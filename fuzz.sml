@@ -1,5 +1,5 @@
 (* Thrown if we attempt to fuzz a value hole - this case should never occur in our top-level expressions *)
-exception ValueHole;
+exception ValueHoleExn;
 
 local 
 
@@ -60,7 +60,7 @@ local
 							in (Value(Fun(x,t,fuzzE1)),i) end)
 		 
 		(* Value holes should not occur in programs - raise exception *)
-		| Value(VHole(_)) 	   => raise ValueHole
+		| Value(VHole(_)) 	   => raise ValueHoleExn
 		
 		(* TODO: For now, fuzz to any random value *)
 		| Variable(x)		   => (Value(Concrete(N(3))),n)
@@ -138,7 +138,7 @@ in fun fuzzExpr(e,n) = (case e of
 		| NONE			  => NONE)
 		
 	(* Value holes shouldn't occur in programs *)
-	| Value(VHole(_)) => raise ValueHole
+	| Value(VHole(_)) => raise ValueHoleExn
 		
 	| Value(VRecord(r)) => 
 	

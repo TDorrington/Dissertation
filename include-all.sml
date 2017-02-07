@@ -24,7 +24,8 @@ use "C:/Users/Tom/Documents/GitHub/Dissertation/fuzz.sml";
 (* use "C:/Users/Tom/Documents/GitHub/Dissertation/match-test.sml";       *)
 (* use "C:/Users/Tom/Documents/GitHub/Dissertation/narrow-test.sml";      *)
 (* use "C:/Users/Tom/Documents/GitHub/Dissertation/evaluate-test.sml";    *)
-   use "C:/Users/Tom/Documents/GitHub/Dissertation/fuzz-test.sml"; 
+(* use "C:/Users/Tom/Documents/GitHub/Dissertation/fuzz-test.sml"; 		  *)
+   use "C:/Users/Tom/Documents/GitHub/Dissertation/gen-witness-test.sml"; 	  
  
 (* use "C:/Users/Tom/Documents/GitHub/Dissertation/include-all.sml"; *)
 

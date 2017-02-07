@@ -891,6 +891,16 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 									end))
 									
 							end)
+
+	(* Drop the counter part associated with the function bound to x to recursively call narrow,
+	   before packaging it back up again *)
+	| (LetRec(x,tFun,CounterExpr(e1,i),e2),t) => (case narrowExpr(LetRec(x,tFun,e1,e2),t,sigma,theta,gamma,cntr) of 
+	
+		  Config(Expression(LetRec(x,tFun,e1narrow,e2narrow)),sigma1,theta1) => 
+		  
+				Config(Expression(LetRec(x,tFun,CounterExpr(e1narrow,i),e2narrow)),sigma1,theta1)
+				
+		| Config(c,sigma1,theta1) => Config(c,sigma1,theta1))
 		
 	| (CounterExpr(e1,i),t) => (case narrowExpr(e1,t,sigma,theta,gamma,i) of
 	
