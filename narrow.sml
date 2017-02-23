@@ -345,9 +345,9 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 						| (SOME t2,theta2) => (case (t1,t2) of
 						
 							  (Int,_)  => Int
+							| (Real,_) => Real
 							| (_,Int)  => Int
 							| (_,Real) => Real
-							| (Real,_) => Real
 							| _		   => t)));
 							
 						val narrowTheta = if t = narrowType 

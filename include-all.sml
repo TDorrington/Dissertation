@@ -19,19 +19,14 @@ use "C:/Users/Tom/Documents/GitHub/Dissertation/toCounterExpr.sml";
 use "C:/Users/Tom/Documents/GitHub/Dissertation/gen-witness.sml";
 use "C:/Users/Tom/Documents/GitHub/Dissertation/fuzz.sml"; 
 
-(* use "C:/Users/Tom/Documents/GitHub/Dissertation/basic-test.sml";       *)
-(* use "C:/Users/Tom/Documents/GitHub/Dissertation/typeof-test.sml";      *) 
-(* use "C:/Users/Tom/Documents/GitHub/Dissertation/match-test.sml";       *)
-(* use "C:/Users/Tom/Documents/GitHub/Dissertation/narrow-test.sml";      *)
-(* use "C:/Users/Tom/Documents/GitHub/Dissertation/evaluate-test.sml";    *)
-(* use "C:/Users/Tom/Documents/GitHub/Dissertation/fuzz-test.sml"; 		  *)
-   use "C:/Users/Tom/Documents/GitHub/Dissertation/gen-witness-test.sml"; 	  
+(* use "C:/Users/Tom/Documents/GitHub/Dissertation/basic-test.sml";        *)
+(* use "C:/Users/Tom/Documents/GitHub/Dissertation/typeof-test.sml";       *) 
+(* use "C:/Users/Tom/Documents/GitHub/Dissertation/match-test.sml";        *)
+(* use "C:/Users/Tom/Documents/GitHub/Dissertation/narrow-test.sml";       *)
+(* use "C:/Users/Tom/Documents/GitHub/Dissertation/evaluate-test.sml";     *)
+(* use "C:/Users/Tom/Documents/GitHub/Dissertation/fuzz-test.sml"; 		   *)
+(* use "C:/Users/Tom/Documents/GitHub/Dissertation/gen-witness-test.sml";  *)
+   use "C:/Users/Tom/Documents/GitHub/Dissertation/fuzz-witness-test.sml"; 
  
 (* use "C:/Users/Tom/Documents/GitHub/Dissertation/include-all.sml"; *)
-
-(* 
-   2) generate witnesses 
-   3) good correct programs
-	  fuzzing
-*)
 
