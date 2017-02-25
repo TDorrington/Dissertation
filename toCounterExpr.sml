@@ -144,6 +144,6 @@ fun dropCounterExpr(expr) =
 (* Function to take a list of expressions, and drops the CounterExpr datatype from each one *)
 fun iterDropCounterExpr(l) = (case l of 
 
-	  []           => []
-	| (e1,i)::rest => (dropCounterExpr(e1),i)::iterDropCounterExpr(rest));
+	  []                  => []
+	| (e1,i,errors)::rest => (dropCounterExpr(e1),i,errors)::iterDropCounterExpr(rest));
 	

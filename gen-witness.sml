@@ -11,10 +11,10 @@ fun findWitness(f) =
 	
 		  Config(Stuck(i),_,theta) => 
 			"Witness: "    ^ prettyPrintExpression(Expression(Value(gen(THole(TypeHole(TypeVar("a"))),theta))))
-			^ ", at expression " ^ Int.toString(i)
+			^ ",stuck at expression " ^ Int.toString(i)
 			
 		| Config(Expression(e),_,theta) => 
-			"Result :" ^ prettyPrintExpression(Expression(e)) ^ ", with witness: " ^
+			"Result: " ^ prettyPrintExpression(Expression(e)) ^ ", with witness: " ^
 			 prettyPrintExpression(Expression(Value(gen(THole(TypeHole(TypeVar("a"))),theta)))))
 		
 	end;
@@ -30,7 +30,7 @@ fun prettyPrintIntList(l) = (case l of
 fun findWitnessList(l) = (case l of 
  
 	  []          => []
-	| (e,l)::rest => (findWitness(e) ^ "; expressions changed were [" ^ prettyPrintIntList(l) ^ "]")::findWitnessList(rest));
+	| (e,i,l)::rest => (findWitness(e) ^ "; expression changed was " ^ Int.toString(i) ^ "; expressions impacted were [" ^ prettyPrintIntList(l) ^ "]")::findWitnessList(rest));
 
 (* --- Pretty printer --- *)	
 fun prettyPrintFindWitnessList(l) = (case l of 
