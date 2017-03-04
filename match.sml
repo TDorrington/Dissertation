@@ -91,7 +91,7 @@ fun matchTypesList(t,patExprList,gamma,theta) = (case patExprList of
 		
 			  NONE 						=> NONE
 			| SOME (exprSubList,theta2) => SOME ((e1,sub1)::exprSubList,theta2))));
-	
+			
 (* ----------------------------------------------------------------------------- *)   
 (* Datatype returned from match function 
 	- Fail means we could not match, e.g. match(3,4)
@@ -296,4 +296,3 @@ fun match(v,patExprList,sigma,theta,gamma) = (case patExprList of
 		
 	(* No more pattern-expressions to check *)
 	| _ => Fail);
-		

@@ -57,5 +57,9 @@ findWitness(Value(Fun(Var("x"),THole(TypeHole(TypeVar("b"))),
 	    Value(Fun(Var("y"),Bool,Cons(Variable(Var("x")),Value(Concrete(EmptyList)))))))));
 (* fn x:'b => (x 1) (fn y:bool => x::[])
    Witness: fn x:int => v['a44] (occurs check) *)
-		
+  
+prettyPrintExpression(Expression(toCounterExpr(App(Value(Fun(Var("x"),Int,Case(Variable(Var("x")),
+[(PVal(N(0)),Value(Concrete(B(true)))),
+ (PWildcard,Value(Concrete(B(false))))]))),Value(Concrete(N(1)))))));
+	
 (* use "C:/Users/Tom/Documents/GitHub/Dissertation/include-all.sml"; *)

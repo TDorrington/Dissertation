@@ -647,4 +647,4 @@ and evaluate (Config(Expression(Value(v)),s,t),_) = Config(Expression(Value(reso
 
 		evaluate(Config(Expression(LetRec(x,tFun,e1,e2)),sigma,theta),cntr)
 	
-| 	evaluate (Config(Expression(LetRec(_,_,_,_)),sigma,theta),cntr) = Config(Stuck(cntr),sigma,theta);		
+| 	evaluate (Config(Expression(LetRec(_,_,_,_)),sigma,theta),cntr) = Config(Stuck(cntr),sigma,theta);

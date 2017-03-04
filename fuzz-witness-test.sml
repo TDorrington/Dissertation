@@ -234,4 +234,12 @@
 	   [ Witness: v['a]], 
 	   [ Witness: v['a] ] *)	
 
+val test = (Value(Fun(Var("l"),THole(TypeHole(TypeVar("b"))),Condition(
+	BoolExpr(EQ,Variable(Var("l")),Value(Concrete(EmptyList))),
+	Value(Concrete(B(true))),
+	Value(Concrete(N(4)))))));
+	
+findWitness(test);
+	   				   
+	 
 (* use "C:/Users/Tom/Documents/GitHub/Dissertation/include-all.sml"; *)
