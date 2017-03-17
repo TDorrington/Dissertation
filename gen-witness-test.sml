@@ -48,18 +48,31 @@ findWitness(Value(Fun(Var("x"),THole(TypeHole(TypeVar("b"))),
 			
 findWitness(Value(Fun(Var("x"),THole(TypeHole(TypeVar("b"))),
 	App(App(Variable(Var("x")),Value(Concrete(N(1)))),
-	    Value(Fun(Var("y"),Bool,Cons(Variable(Var("y")),Value(VList([Concrete(N(2))])))))))));
-(* fn x:'b => (x 1) (fn y:bool => y::[2])
-   Witness: fn x:int => fn x:(bool->bool list) => v['a37] *)
-   
-findWitness(Value(Fun(Var("x"),THole(TypeHole(TypeVar("b"))),
-	App(App(Variable(Var("x")),Value(Concrete(N(1)))),
 	    Value(Fun(Var("y"),Bool,Cons(Variable(Var("x")),Value(Concrete(EmptyList)))))))));
 (* fn x:'b => (x 1) (fn y:bool => x::[])
    Witness: fn x:int => v['a44] (occurs check) *)
   
-prettyPrintExpression(Expression(toCounterExpr(App(Value(Fun(Var("x"),Int,Case(Variable(Var("x")),
-[(PVal(N(0)),Value(Concrete(B(true)))),
- (PWildcard,Value(Concrete(B(false))))]))),Value(Concrete(N(1)))))));
+findWitness(Value(Fun(Var("x"),THole(TypeHole(TypeVar("b"))),Value(Fun(Var("y"),Real,Cons(Variable(Var("x")),Variable(Var("y"))))))));
+(* fn x:'b => fn y: real => x::y
+   Witness: v['a145] 1.0 *)
+	
+findWitness(Value(Fun(Var("x"),Int,Value(Fun(Var("y"),Real,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("y"))))))));
+(* fn x:int => fn y:real => x+y
+   Witness: 1 1.0 *)
+	
+findWitness(Value(Fun(Var("x"),Int,Value(Fun(Var("y"),Int,Value(Fun(Var("z"),Int,Value(Fun(Var("t"),Real,
+			ArithExpr(TIMES,ArithExpr(PLUS,Variable(Var("x")),Variable(Var("z"))),
+							ArithExpr(SUBTRACT,Variable(Var("y")),Variable(Var("t")))))))))))));
+(* fn x:int => fn y:int => fn z:int => fn t:real => (x+z)*(y-t)
+   Witness: 1 1 1 1.0 *)
+	
+(* -------- *)
+(* In error *)
+
+findWitness(Value(Fun(Var("x"),THole(TypeHole(TypeVar("b"))),
+	App(App(Variable(Var("x")),Value(Concrete(N(1)))),
+	    Value(Fun(Var("y"),Bool,Cons(Variable(Var("y")),Value(VList([Concrete(N(2))])))))))));
+(* (fn x:'b => (x 1) (fn y:bool => y::[2])) v['a]
+   Witness: fn x:int => fn x:(bool->bool list) => v['a37] *)
 	
 (* use "C:/Users/Tom/Documents/GitHub/Dissertation/include-all.sml"; *)

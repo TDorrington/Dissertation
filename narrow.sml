@@ -152,29 +152,16 @@ fun narrow(v,t,sigma,theta,gamma,cntr) = (case (v,t) of
 			
 			in narrow(v,genType,sigma,theta1,gamma,cntr) end
 	
-	| (Fun(x,t,e),TFun(t1,t2)) =>
-
-		(* perform capture avoiding substitution *)
-		if (element(Substitution.domain(gamma),x) orelse element(fv(Substitution.range(gamma)),x))
-
-		then narrow(alphaValue(v,getCounterAndUpdate(),[x]),TFun(t1,t2),sigma,theta,gamma,cntr)
+	| (Fun(x,t,e),TFun(t1,_)) =>
 		
-		else (case unify([t,t1],theta) of 
+		(* Perform "lazy" narrowing. Only check we can unify argument types.
+		   Narrowing e to t2 is done in evaluate, *after* we have done the substitution.
+		   We want to be as un-restrictive as we can *)
+	
+		(case unify([t,t1],theta) of 
 		
 		  NONE        => Config(Stuck(cntr),sigma,theta)
-		| SOME theta1 => 
-				
-			(* to avoid free variable exception, 
-			   add to gamma an arbitrary mapping for variable x, using gen
-			   instead of substituting *)
-			let val gamma1 = Substitution.union(gamma,x,Value(gen(resolveChainTheta(t,theta1),theta1)))
-				
-			in (case narrowExpr(e,t2,sigma,theta1,gamma1,cntr) of
-				
-				  Config(Stuck(i),sigma1,theta1) 			=> Config(Stuck(i),sigma1,theta1)
-				| Config(Expression(enarrow),sigma1,theta2) => Config(Expression(Value(Fun(x,resolveChainTheta(t,theta2),enarrow))),sigma1,theta2))
-					
-			end)
+		| SOME theta1 => Config(Expression(Value(Fun(x,resolveChainTheta(t,theta1),e))),sigma,theta1))
 				
 	| (Fun(_,t1,_),THole(TypeHole(TypeVar(a)))) =>
 	

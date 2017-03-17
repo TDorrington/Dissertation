@@ -1,9 +1,0 @@
-Questions:
-
-	- What about f v['a], where f not originally a value, e.g.
-	  (if ... then ... else ...) v['a],
-	  where the condition fails before we even get to any type unification of 'a 
-	  This also applies to LetRec(x,t,e1,e2) when e1 cannot be narrowed to type t (since we try to do this before e2)
-	  
-	- fn x:t1 => fn y:t2 => ...
-	  Use the saturate algorithm? Extension

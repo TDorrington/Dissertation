@@ -584,7 +584,21 @@ and evaluate (Config(Expression(Value(v)),s,t),_) = Config(Expression(Value(reso
 		in (case evaluate(narrow(v1,narrowType,sigma,theta1,[],cntr),cntr) of
 				
 			  (* Rule E-APP-GOOD *)
-			  Config(Expression(Value(Fun(x,t,e))),sigma2,theta2) => evaluate(Config(Expression(substitute(e,[(x,Value(v2))])),sigma2,theta2),cntr)
+			  Config(Expression(Value(Fun(x,t,e))),sigma2,theta2) => 
+				
+				(* Due to 'lazy' narrowing, need to narrow e to be some fresh type variable 
+				   We only ever narrow a function value to type t->'a, for some type t 
+				  (which is taken into account for, c.f. unification),
+				   and fresh 'a. We take into account that fresh 'a now *)
+				   
+				  let val subE = substitute(e,[(x,Value(v2))])
+					  
+				  in (case evaluate(narrowExpr(subE,freshType,sigma2,theta2,[],cntr),cntr) of
+				  
+					  Config(Stuck(i),sigma3,theta3) => Config(Stuck(i),sigma3,theta3)
+					| config 						 => evaluate(config,cntr))
+					
+				  end
 					
 			(* Rule E-APP-HOLE *)
 			| Config(Expression(Value(v1narrow)),sigma2,theta2) => evaluate(Config(Expression(Value(VHole(AppHole(v1narrow,v2)))),sigma2,theta2),cntr)

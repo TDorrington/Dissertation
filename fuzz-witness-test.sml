@@ -33,14 +33,14 @@
 	(* ( fn x:'b => (case (x,[1]) of {a=y, b=z} -> ( (3,[2]) + ( (y,[3]) * (z,[4]), [5]), [6]), [7]), [8]) *)
 	   
 	prettyPrintFindWitnessList(findWitnessList(fuzzArithExpr));
-	(* [ Witness: v['a],stuck at expression 1; expression changed was 1; expressions impacted were [8, 7, 1]],
-	   [ Witness: v['a],stuck at expression 1; expression changed was 1; expressions impacted were [8, 7, 1]],
-	   [ Witness: {a=v['a7], b=v['a8]},stuck at expression 5; expression changed was 6; expressions impacted were [7, 2, 5, 6]],
-	   [ Witness: {a=v['a13], b=v['a14]},stuck at expression 5; expression changed was 5; expressions impacted were [2, 6, 3, 4, 5]],
-	   [ Witness: {a=1, b=v['a22]},stuck at expression 4; expression changed was 4; expressions impacted were [3, 5, 4]],
-	   [ Witness: {a=v['a27], b=v['a28]},stuck at expression 3; expression changed was 3; expressions impacted were [4, 5, 3]],
-	   [ Result: 3.0, with witness: {a=1.0, b=1.0}; expression changed was 2; expressions impacted were [5, 6, 2]],
-	   [ Witness: v['a],stuck at expression 1; expression changed was 1; expressions impacted were [7, 1] ] *)
+	(* [ Witness: v['a0],stuck at expression 1; expression changed was 1; expressions impacted were [8, 7, 1]],
+  	   [ Witness: v['a9],stuck at expression 1; expression changed was 1; expressions impacted were [8, 7, 1]], 
+	   [ Witness: {a=v['a26], b=v['a27]},stuck at expression 5; expression changed was 6; expressions impacted were [7, 2, 5, 6]],
+	   [ Witness: {a=v['a41], b=v['a42]},stuck at expression 5; expression changed was 5; expressions impacted were [2, 6, 3, 4, 5]],
+	   [ Witness: {a=1, b=v['a57]},stuck at expression 4; expression changed was 4; expressions impacted were [3, 5, 4]],
+	   [ Witness: {a=v['a69], b=v['a70]},stuck at expression 3; expression changed was 3; expressions impacted were [4, 5, 3]], 
+	   [ Result: 3.0, with witness: v['a]; expression changed was 2; expressions impacted were [5, 6, 2]], 
+	   [ Witness: v['a97],stuck at expression 1; expression changed was 1; expressions impacted were [7, 1] ] *)
 
 (* --- Case & Lists example --- *)
 
@@ -66,13 +66,13 @@
 	(* (fn x:'b => (case (x,[1]) of [ ] -> (true,[2]) | _::_ -> (false,[3]) | _ -> (false,[4]), [5]), [6]) *)
 	
 	prettyPrintFindWitnessList(findWitnessList(fuzzListExpr));
-	(* [ Witness: v['a],stuck at expression 1; expression changed was 1; expressions impacted were [6, 5, 1]],
-	   [ Witness: v['a],stuck at expression 1; expression changed was 1; expressions impacted were [6, 5, 1]],
- 	   [ Witness: [v['a54]],stuck at expression 4; expression changed was 4; expressions impacted were [5, 3, 2, 4]],
-	   [ Witness: [v['a59]],stuck at expression 3; expression changed was 3; expressions impacted were [5, 2, 4, 3]],
-	   [ Witness: [v['a64]],stuck at expression 3; expression changed was 2; expressions impacted were [5, 3, 4, 2]],
- 	   [ Witness: v['a],stuck at expression 1; expression changed was 1; expressions impacted were [5, 1] ] *)
-
+	(* [ Witness: v['a106],stuck at expression 1; expression changed was 1; expressions impacted were [6, 5, 1]],
+	   [ Witness: v['a111],stuck at expression 1; expression changed was 1; expressions impacted were [6, 5, 1]],
+	   [ Witness: [v['a126]],stuck at expression 4; expression changed was 4; expressions impacted were [5, 3, 2, 4]],
+	   [ Witness: [v['a137]],stuck at expression 3; expression changed was 3; expressions impacted were [5, 2, 4, 3]],
+	   [ Witness: [v['a148]],stuck at expression 3; expression changed was 2; expressions impacted were [5, 3, 4, 2]],
+	   [ Witness: v['a149],stuck at expression 1; expression changed was 1; expressions impacted were [5, 1] ] *)
+	   
 (* --- Lists example --- *)
 
 	val listExpr = Value(Fun(Var("x"),THole(TypeHole(TypeVar("b"))),Case(Variable(Var("x")),
@@ -88,7 +88,6 @@
 					 (Var("z"),THole(TypeHole(TypeVar("c"))))];
 						 
 	val SOME(fuzzListExpr) = fuzz(toCounterExpr(listExpr),var_types);
-	prettyPrintFuzzList(toCounterExpr(listExpr),var_types);
 	(* [fn x:'b => case true of {a=y, b=true} -> [y, y] | {a=z, b=false} -> [z] | _ -> [ ]],
    	   [fn x:'b => case true of {a=y, b=true} -> [y, y] | {a=z, b=false} -> [z] | _ -> [ ]],
 	   [fn x:'b => case x of {a=y, b=true} -> [y, y] | {a=z, b=false} -> [z] | _ -> {}],
@@ -103,15 +102,12 @@
 	(* (fn x:'b => (case (x, [1]) of {a=y, b=true} -> ( [(y,[2]), (y,[3])],[4]) | {a=z, b=false} -> ([(z,[5])], [6]) | _ -> ([ ],[7]), [8]), [9]) *)
 	
 	prettyPrintFindWitnessList(findWitnessList(fuzzListExpr));
- (* [ Witness: v['a],stuck at expression 1; expression changed was 1; expressions impacted were [9, 8, 1]],
-    [ Witness: v['a],stuck at expression 1; expression changed was 1; expressions impacted were [9, 8, 1]],
-	[ Witness: {a=v['a78], b=true},stuck at expression 7; expression changed was 7; expressions impacted were [8, 6, 4, 7]],
-	[ Witness: {a=v['a84], b=true},stuck at expression 6; expression changed was 6; expressions impacted were [8, 4, 7, 6]],
-	[ Witness: {a=v['a90], b=true},stuck at expression 5; expression changed was 5; expressions impacted were [6, 5]],
-	[ Witness: {a=v['a96], b=true},stuck at expression 6; expression changed was 4; expressions impacted were [8, 6, 7, 4]],
-	[ Witness: {a=v['a103], b=true},stuck at expression 3; expression changed was 3; expressions impacted were [4, 2, 3]],
-	[ Witness: {a=v['a105], b=true},stuck at expression 3; expression changed was 2; expressions impacted were [4, 3, 2]],
-    [ Witness: v['a],stuck at expression 1; expression changed was 1; expressions impacted were [8, 1] ] *)
+ (* [ Witness: v['a106],stuck at expression 1; expression changed was 1; expressions impacted were [6, 5, 1]],
+	[ Witness: v['a111],stuck at expression 1; expression changed was 1; expressions impacted were [6, 5, 1]],
+	[ Witness: [v['a126]],stuck at expression 4; expression changed was 4; expressions impacted were [5, 3, 2, 4]],
+	[ Witness: [v['a137]],stuck at expression 3; expression changed was 3; expressions impacted were [5, 2, 4, 3]],
+	[ Witness: [v['a148]],stuck at expression 3; expression changed was 2; expressions impacted were [5, 3, 4, 2]],
+	[ Witness: v['a149],stuck at expression 1; expression changed was 1; expressions impacted were [5, 1] ] *)
 	
 (* --- Simple function application example --- *)
 
@@ -120,7 +116,6 @@
 	val var_types = [(Var("x"),Int)];
 	
 	val SOME(fuzzFunExpr) = fuzz(toCounterExpr(funExpr),var_types);
-	prettyPrintFuzzList(toCounterExpr(funExpr),var_types);
 	(* [fn x:real => x*2],
 	   [fn x:int => x::2],
 	   [fn x:int => x*2.0],
@@ -134,7 +129,7 @@
 	   [ Witness: 1,stuck at expression 2; expression changed was 3; expressions impacted were [4, 1, 2, 3]],
 	   [ Witness: 1,stuck at expression 2; expression changed was 2; expressions impacted were [1, 3, 2]],
 	   [ Witness: 1,stuck at expression 2; expression changed was 1; expressions impacted were [2, 3, 1] ] *)
-
+	
 (* --- Filter example --- *) 
 
 	val c' = THole(TypeHole(TypeVar("c")));	
@@ -202,44 +197,33 @@
 	   [fn list:'b => let val rec filter:(('c -> bool) -> ('c list -> 'c list)) = (fn p:('c -> bool) => fn l:'c list => case filter of [ ] -> [ ] | x::xs -> if (p) (x) then  x :: ((filter) (p)) (xs) else ((filter) (p)) (xs)) in ((filter) (fn y:int => y = 10)) (list) end] *)
    
 	prettyPrintFindWitnessList(findWitnessList(fuzzFilterExpr));
-	(* [ Witness: v['a]], 
-	   [ Witness: v['a]], 
-	   [ Witness: v['a]], 
-	   [ Witness: v['a]], 
-	   [ Witness: v['a]], 
-	   [ Witness: [1.0]], 
-	   [ Witness: [1]], 
-	   [ Witness: [1]], 
-	   [ Witness: [1]],
-	   [ Witness: fn x:(int->bool) => v['a226]],
-	   [ Witness: v['a]], 
-	   [ Witness: v['a]], 
-	   [ Witness: v['a]], 
-	   [ Witness: v['a]], 
-	   [ Witness: v['a]], 
-	   [ Witness: v['a]], 
-	   [ Witness: v['a]], 
-	   [ Witness: fn x:int => true], 
-	   [ Witness: fn x:(int->bool) => fn x:int list => [1]],
-	   [ Witness: v['a]], 
-	   [ Witness: v['a]],
-	   [ Witness: v['a]],
-	   [ Witness: v['a]], 
-	   [ Witness: fn x:int => true],
-	   [ Witness: fn x:(int->bool) => fn x:int list => [1]], 
-	   [ Witness: 1],
-	   [ Witness: v['a]], 
-	   [ Witness: 1],
-	   [ Witness: fn x:int => true],
-	   [ Witness: v['a]], 
-	   [ Witness: v['a] ] *)	
-
-val test = (Value(Fun(Var("l"),THole(TypeHole(TypeVar("b"))),Condition(
-	BoolExpr(EQ,Variable(Var("l")),Value(Concrete(EmptyList))),
-	Value(Concrete(B(true))),
-	Value(Concrete(N(4)))))));
-	
-findWitness(test);
-	   				   
+	(* [ Witness: v['a279],stuck at expression 30; expression changed was 30; expressions impacted were [31, 30]], 
+	   [ Witness: v['a282],stuck at expression 30; expression changed was 30; expressions impacted were [31, 30]],
+	   [ Witness: v['''a391],stuck at expression 29; expression changed was 29; expressions impacted were [30, 27, 28, 29]],
+	   [ Witness: v['a432],stuck at expression 28; expression changed was 28; expressions impacted were [27, 29, 28]],
+	   [ Witness: v['a473],stuck at expression 27; expression changed was 27; expressions impacted were [28, 29, 22, 26, 27]],
+	   [ Witness: [1.0],stuck at expression 27; expression changed was 26; expressions impacted were [22, 27, 26]],
+	   [ Witness: [1],stuck at expression 27; expression changed was 25; expressions impacted were [26, 23, 24, 25]],
+	   [ Witness: [1],stuck at expression 27; expression changed was 24; expressions impacted were [23, 25, 24]],
+	   [ Witness: [1],stuck at expression 27; expression changed was 23; expressions impacted were [24, 25, 23]],
+	   [ Witness: fn x:(int -> bool) => v['a855],stuck at expression 22; expression changed was 22; expressions impacted were [26, 27, 22]],
+	   [ Witness: v['a863],stuck at expression 30; expression changed was 21; expressions impacted were [30, 21]],
+	   [ Witness: v['a866],stuck at expression 30; expression changed was 20; expressions impacted were [21, 20]],
+	   [ Witness: v['a871],stuck at expression 30; expression changed was 1; expressions impacted were [20, 19, 1]],
+	   [ Witness: [1],stuck at expression 5; expression changed was 5; expressions impacted were [19, 2, 18, 3, 4, 5]],
+	   [ Witness: [1],stuck at expression 17; expression changed was 17; expressions impacted were [12, 18, 15, 16, 17]],
+	   [ Witness: [1],stuck at expression 16; expression changed was 16; expressions impacted were [15, 17, 16]],
+	   [ Witness: [1],stuck at expression 15; expression changed was 15; expressions impacted were [16, 17, 13, 14, 15]],
+	   [ Witness: [1],stuck at expression 14; expression changed was 14; expressions impacted were [13, 15, 14]], 
+	   [ Witness: [1],stuck at expression 13; expression changed was 13; expressions impacted were [14, 15, 13]], 
+	   [ Witness: [1],stuck at expression 12; expression changed was 12; expressions impacted were [17, 18, 6, 11, 12]],
+	   [ Witness: [1],stuck at expression 11; expression changed was 11; expressions impacted were [6, 12, 9, 10, 11]], 
+	   [ Witness: [1],stuck at expression 10; expression changed was 10; expressions impacted were [9, 11, 10]],
+	   [ Witness: [1],stuck at expression 9; expression changed was 9; expressions impacted were [10, 11, 7, 8, 9]],
+	   [ Witness: [1],stuck at expression 8; expression changed was 8; expressions impacted were [7, 9, 8]], 
+	   [ Witness: [1],stuck at expression 7; expression changed was 7; expressions impacted were [8, 9, 7]], 
+	   [ Result: [ ], with witness: v['a]; expression changed was 6; expressions impacted were [11, 12, 6]], 
+	   [ Witness: [1],stuck at expression 5; expression changed was 5; expressions impacted were [18, 3, 4, 5]],
+	   [ Witness: [1],stuck at expression 4; expression changed was 4; expressions impacted were [3, 5, 4]] *)   				   
 	 
 (* use "C:/Users/Tom/Documents/GitHub/Dissertation/include-all.sml"; *)

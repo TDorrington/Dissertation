@@ -1,0 +1,17 @@
+Dissertation Notes
+- introudction: dissertation on microcosm; what it is, why was it a good thing to have done. Re-use papers arguments
+  about why this is a good way to help students debug type errors. Summary of what I did and how i evalauted it.
+  Talk about no user study because paper did that. Short summary of how it worked it.
+  
+- preparation: add something about papers & books I read (fuzzing too). Built on Milton. Software engineering.
+  Waterfall bollocks.
+  
+- implementation: high level view. For each individual piece, put what was hard. Find hard things I've done
+  Move fuzzer implementation here
+  
+- evaluation: no user study and why.
+  Graphs: group tests (tests on lists, big tests, small tests)
+  Tests run vs tests spotted correctly
+  To evaluate fuzzers, drop fuzzed expressions into existing ML type system
+  
+- conclusion: what i've learned, what went well, and what didnt go well, and what id do in the future
