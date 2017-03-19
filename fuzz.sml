@@ -1,10 +1,6 @@
 (* Thrown if we attempt to fuzz a value hole - this case should never occur in our top-level expressions *)
 exception ValueHoleExn;
 
-(* Thrown if input expression not in the correct format, 
-   i.e. all expressions should be wrapped in a CounterExpr datatype *)
-exception CounterExpression;
-
 local 
 
 (*  Returns a type different to that of the argument if possible
@@ -44,8 +40,10 @@ local
 		- a list of numbers, representing the expressions that might now
 		  get stuck due to the change (container expressions & sometimes daughters)
 		  takes an evironment, which contains the variables currently in scope,
-	and a list of variables->types (hand-generated) *)
-	fun fuzzSingleExpr(e,n,var_types,environment) = (case e of 
+	and a list of variables->types (hand-generated)
+	Takes top-level expression we are fuzzing so it can find all occurences of
+	of the variable fuzzed to and add those expression numbers to the impacted expressions *)
+	fun fuzzSingleExpr(e,n,var_types,environment,top_level_expr) = (case e of 
 	
 		(* For values, switch to a value of another type *)
 		  Value(Concrete(N(_)))      => (Value(Concrete(R(2.0))),n,[n])
@@ -73,8 +71,8 @@ local
 		(* Add function container number if we recurse *)
 		| Value(Fun(x,t,e1)) => (case fuzzType(t) of 
 		
-			  SOME fuzzT => (Value(Fun(x,fuzzT,e1)),n,[n])
-			| NONE 		 => let val (fuzzE1,i,l) = fuzzSingleExpr(e1,n,var_types,x::environment)
+			  SOME fuzzT => (Value(Fun(x,fuzzT,e1)),n,n::getVariableExpressions(top_level_expr,x))
+			| NONE 		 => let val (fuzzE1,i,l) = fuzzSingleExpr(e1,n,var_types,x::environment,top_level_expr)
 							in (Value(Fun(x,t,fuzzE1)),i,n::l) end)
 		 
 		(* Value holes should not occur in programs - raise exception *)
@@ -84,7 +82,7 @@ local
 		   If no such variable, fuzz to a value of a different type than the variable *)
 		| Variable(x) => (case getDifferentVariable(x,getVarType(x,var_types),var_types,environment) of 
 		
-			  SOME y => (Variable(y),n,[n])
+			  SOME y => (Variable(y),n,n::getVariableExpressions(top_level_expr,y))
 		
 			| NONE   => (case fuzzType(getVarType(x,var_types)) of 
 			  
@@ -104,10 +102,10 @@ local
 		
 		| BoolExpr(_,_,_) => raise CounterExpression
 		
-		| Case(e1,patExprList) => let val (fuzzE1,i,l) = fuzzSingleExpr(e1,n,var_types,environment)
+		| Case(e1,patExprList) => let val (fuzzE1,i,l) = fuzzSingleExpr(e1,n,var_types,environment,top_level_expr)
 								  in (Case(fuzzE1,patExprList),i,n::l) end
 		
-		| Condition(e1,e2,e3)  => let val (fuzzE1,i,l) = fuzzSingleExpr(e1,n,var_types,environment)
+		| Condition(e1,e2,e3)  => let val (fuzzE1,i,l) = fuzzSingleExpr(e1,n,var_types,environment,top_level_expr)
 								  in (Condition(fuzzE1,e2,e3),i,n::l) end
 
 		(* Add daughters *)
@@ -135,20 +133,20 @@ local
 		| Let(x,t,e1,e2) => (case fuzzType(t) of 
 		
 			  SOME fuzzT => (Let(x,fuzzT,e1,e2),n,[n])
-			| NONE       => let val (fuzzE1,i,l) = fuzzSingleExpr(e1,n,var_types,environment)
+			| NONE       => let val (fuzzE1,i,l) = fuzzSingleExpr(e1,n,var_types,environment,top_level_expr)
 						    in (Let(x,t,fuzzE1,e2),i,n::l) end)
 				
 		| LetRec(x,t,e1,e2) => (case fuzzType(t) of 
 		
 			  SOME fuzzT => (LetRec(x,fuzzT,e1,e2),n,[n])
-			| NONE 	     => let val (fuzzE2,i,l) = fuzzSingleExpr(e2,n,var_types,x::environment)
+			| NONE 	     => let val (fuzzE2,i,l) = fuzzSingleExpr(e2,n,var_types,x::environment,top_level_expr)
 							in (LetRec(x,t,e1,fuzzE2),i,n::l) end)
 					
 		| Cons(e1 as CounterExpr(_,j1),e2 as CounterExpr(_,j2)) => (BoolExpr(EQ,e1,e2),n,[j1,j2,n])
 		
 		| Cons(_,_) => raise CounterExpression
 			
-		| CounterExpr(e,i) => let val (fuzzE,j,l) = fuzzSingleExpr(e,i,var_types,environment)
+		| CounterExpr(e,i) => let val (fuzzE,j,l) = fuzzSingleExpr(e,i,var_types,environment,top_level_expr)
 						      in (CounterExpr(fuzzE,i),j,l) end);
 							  
 (* Takes the whole top-level expression, and the number of the sub expression we wish to fuzz
@@ -160,12 +158,12 @@ local
    In each sub-call, 'siblings' contains the container number and siblings numbers for the immediate expression higher in the tree
    in the event that the sub-expression is the one we are trying to change so we can add to list of impacted expressions
    This avoids adding all continers & siblings from root of tree, as on each recursive call to fuzzExpr we replace with the latest siblings *)
-in fun fuzzExpr(e,n,siblings,var_types,environment) = (case e of 
+in fun fuzzExpr(e,n,siblings,var_types,environment,top_level_expr) = (case e of 
 	
 	  CounterExpr(e,container) => 
 	  
 		if container = n 
-		then let val (fuzzE,j,l) = fuzzSingleExpr(e,n,var_types,environment) in SOME (CounterExpr(fuzzE,container),j,append(siblings,l)) end
+		then let val (fuzzE,j,l) = fuzzSingleExpr(e,n,var_types,environment,top_level_expr) in SOME (CounterExpr(fuzzE,container),j,append(siblings,l)) end
 		else (case e of
 	
 			  Value(v) => 
@@ -174,7 +172,7 @@ in fun fuzzExpr(e,n,siblings,var_types,environment) = (case e of
 	
 					  Concrete(_) => NONE
 			
-					| Fun(x,t,e1) => (case fuzzExpr(e1,n,[container],var_types,x::environment) of 
+					| Fun(x,t,e1) => (case fuzzExpr(e1,n,[container],var_types,x::environment,top_level_expr) of 
 			
 						  SOME (fuzzE1,i,l) => SOME (Fun(x,t,fuzzE1),i,l)
 						| NONE			    => NONE)
@@ -231,27 +229,27 @@ in fun fuzzExpr(e,n,siblings,var_types,environment) = (case e of
 			
 			| Variable(_) => NONE
 			
-			| ArithExpr(oper,e1 as CounterExpr(_,j1),e2 as CounterExpr(_,j2)) => (case fuzzExpr(e1,n,[j2,container],var_types,environment) of 
+			| ArithExpr(oper,e1 as CounterExpr(_,j1),e2 as CounterExpr(_,j2)) => (case fuzzExpr(e1,n,[j2,container],var_types,environment,top_level_expr) of 
 				
 				  SOME (fuzzE1,i,l) => SOME (CounterExpr(ArithExpr(oper,fuzzE1,e2),container),i,l)
-				| NONE			    => (case fuzzExpr(e2,n,[j1,container],var_types,environment) of 
+				| NONE			    => (case fuzzExpr(e2,n,[j1,container],var_types,environment,top_level_expr) of 
 				
 					  SOME (fuzzE2,i,l) => SOME (CounterExpr(ArithExpr(oper,e1,fuzzE2),container),i,l)
 					| NONE			    => NONE))
 				
 			| ArithExpr(_,_,_) => raise CounterExpression
 				
-			| BoolExpr(oper,e1 as CounterExpr(_,j1),e2 as CounterExpr(_,j2)) => (case fuzzExpr(e1,n,[j2,container],var_types,environment) of 	
+			| BoolExpr(oper,e1 as CounterExpr(_,j1),e2 as CounterExpr(_,j2)) => (case fuzzExpr(e1,n,[j2,container],var_types,environment,top_level_expr) of 	
 			
 				  SOME (fuzzE1,i,l) => SOME (CounterExpr(BoolExpr(oper,fuzzE1,e2),container),i,l)
-				| NONE			    => (case fuzzExpr(e2,n,[j1,container],var_types,environment) of 
+				| NONE			    => (case fuzzExpr(e2,n,[j1,container],var_types,environment,top_level_expr) of 
 				
 					  SOME (fuzzE2,i,l) => SOME (CounterExpr(BoolExpr(oper,e1,fuzzE2),container),i,l)
 					| NONE			    => NONE))
 					
 			| BoolExpr(_,_,_) => raise CounterExpression
 					
-			| Case(e,patExprList) => (case fuzzExpr(e,n,[container],var_types,environment) of 
+			| Case(e,patExprList) => (case fuzzExpr(e,n,[container],var_types,environment,top_level_expr) of 
 			
 				  SOME (fuzzE,i,l) => SOME (CounterExpr(Case(fuzzE,patExprList),container),i,l)
 				| NONE 			   => 
@@ -270,7 +268,7 @@ in fun fuzzExpr(e,n,siblings,var_types,environment) = (case e of
 						fun iterPatExprList(l,extras) = (case l of 
 					
 						  [] 		         				  => NONE
-						| (pat1,e1 as CounterExpr(_,j))::rest => (case fuzzExpr(e1,n,container::append(extras,getSiblingNumbers(rest)),var_types,append(fvPat(pat1),environment)) of 
+						| (pat1,e1 as CounterExpr(_,j))::rest => (case fuzzExpr(e1,n,container::append(extras,getSiblingNumbers(rest)),var_types,append(fvPat(pat1),environment),top_level_expr) of 
 						
 							  SOME (fuzzE1,i,errors) => SOME ((pat1,fuzzE1)::rest,i,errors)
 							| NONE 			         => (case iterPatExprList(rest,j::extras) of 
@@ -287,23 +285,23 @@ in fun fuzzExpr(e,n,siblings,var_types,environment) = (case e of
 						
 					end)
 			
-			| Condition(e1,e2 as CounterExpr(_,j2),e3 as CounterExpr(_,j3)) => (case fuzzExpr(e1,n,[container],var_types,environment) of 
+			| Condition(e1,e2 as CounterExpr(_,j2),e3 as CounterExpr(_,j3)) => (case fuzzExpr(e1,n,[container],var_types,environment,top_level_expr) of 
 			
 				  SOME (fuzzE1,i,l) => SOME (CounterExpr(Condition(fuzzE1,e2,e3),container),i,l)
-				| NONE 			    => (case fuzzExpr(e2,n,[j3,container],var_types,environment) of 
+				| NONE 			    => (case fuzzExpr(e2,n,[j3,container],var_types,environment,top_level_expr) of 
 				
 					  SOME (fuzzE2,i,l) => SOME (CounterExpr(Condition(e1,fuzzE2,e3),container),i,l)
-					| NONE 			    => (case fuzzExpr(e3,n,[j2,container],var_types,environment) of 
+					| NONE 			    => (case fuzzExpr(e3,n,[j2,container],var_types,environment,top_level_expr) of 
 					
 						  SOME (fuzzE3,i,l) => SOME (CounterExpr(Condition(e1,e2,fuzzE3),container),i,l)
 						| NONE 			    => NONE)))
 						
 			| Condition(_,_,_) => raise CounterExpression
 			
-			| App(e1 as CounterExpr(_,j1),e2 as CounterExpr(_,j2)) => (case fuzzExpr(e1,n,[j2,container],var_types,environment) of 
+			| App(e1 as CounterExpr(_,j1),e2 as CounterExpr(_,j2)) => (case fuzzExpr(e1,n,[j2,container],var_types,environment,top_level_expr) of 
 			
 				  SOME (fuzzE1,i,l) => SOME (CounterExpr(App(fuzzE1,e2),container),i,l)
-				| NONE 			    => (case fuzzExpr(e2,n,[j1,container],var_types,environment) of 
+				| NONE 			    => (case fuzzExpr(e2,n,[j1,container],var_types,environment,top_level_expr) of 
 				
 					  SOME (fuzzE2,i,l) => SOME (CounterExpr(App(e1,fuzzE2),container),i,l)
 					| NONE 			    => NONE))
@@ -322,7 +320,7 @@ in fun fuzzExpr(e,n,siblings,var_types,environment) = (case e of
 					fun iterERecord(r,extras) = (case r of 
 						
 						  []      		  				      => NONE
-						| (lab1,e1 as CounterExpr(_,j))::rest => (case fuzzExpr(e1,n,container::append(extras,getSiblingNumbers(rest)),var_types,environment) of 
+						| (lab1,e1 as CounterExpr(_,j))::rest => (case fuzzExpr(e1,n,container::append(extras,getSiblingNumbers(rest)),var_types,environment,top_level_expr) of 
 							
 							  SOME (fuzzE1,i,errors) => SOME ((lab1,fuzzE1)::rest,i,errors)
 							| NONE 			         => (case iterERecord(rest,j::extras) of 
@@ -339,18 +337,18 @@ in fun fuzzExpr(e,n,siblings,var_types,environment) = (case e of
 					
 				end
 			
-			| Let(x,t,e1,e2) => (case fuzzExpr(e1,n,[container],var_types,environment) of 
+			| Let(x,t,e1,e2) => (case fuzzExpr(e1,n,[container],var_types,environment,top_level_expr) of 
 			
 				  SOME (fuzzE1,i,l) => SOME (CounterExpr(Let(x,t,fuzzE1,e2),container),i,l)
-				| NONE			    => (case fuzzExpr(e2,n,[container],var_types,x::environment) of 
+				| NONE			    => (case fuzzExpr(e2,n,[container],var_types,x::environment,top_level_expr) of 
 				
 					  SOME (fuzzE2,i,l) => SOME (CounterExpr(Let(x,t,e1,fuzzE2),container),i,l)
 					| NONE			    => NONE))
 					
-			| LetRec(x,t,e1,e2) => (case fuzzExpr(e1,n,[container],var_types,x::environment) of 
+			| LetRec(x,t,e1,e2) => (case fuzzExpr(e1,n,[container],var_types,x::environment,top_level_expr) of 
 			
 				  SOME (fuzzE1,i,l) => SOME (CounterExpr(LetRec(x,t,fuzzE1,e2),container),i,l)
-				| NONE			    => (case fuzzExpr(e2,n,[container],var_types,x::environment) of 
+				| NONE			    => (case fuzzExpr(e2,n,[container],var_types,x::environment,top_level_expr) of 
 			
 					  SOME (fuzzE2,i,l) => SOME (CounterExpr(LetRec(x,t,e1,fuzzE2),container),i,l)
 					| NONE 			    => NONE))
@@ -366,7 +364,7 @@ in fun fuzzExpr(e,n,siblings,var_types,environment) = (case e of
 					fun iterEList(l,extras) = (case l of 
 				
 						  []	   => NONE
-						| (e1 as CounterExpr(_,j))::rest => (case fuzzExpr(e1,n,container::append(extras,getSiblingNumbers(rest)),var_types,environment) of 
+						| (e1 as CounterExpr(_,j))::rest => (case fuzzExpr(e1,n,container::append(extras,getSiblingNumbers(rest)),var_types,environment,top_level_expr) of 
 						
 							  SOME (fuzzE1,i,errors) => SOME (fuzzE1::rest,i,errors)
 							| NONE 			         => (case iterEList(rest,j::extras) of 
@@ -384,16 +382,19 @@ in fun fuzzExpr(e,n,siblings,var_types,environment) = (case e of
 				end
 			
 			(* Add container and sibling number *)
-			| Cons(e1 as CounterExpr(_,j1),e2 as CounterExpr(_,j2)) => (case fuzzExpr(e1,n,[j2,container],var_types,environment) of 
+			| Cons(e1 as CounterExpr(_,j1),e2 as CounterExpr(_,j2)) => (case fuzzExpr(e1,n,[j2,container],var_types,environment,top_level_expr) of 
 				
 				  SOME (fuzzE1,i,l) => SOME (CounterExpr(Cons(fuzzE1,e2),container),i,l)
-				| NONE 			    => (case fuzzExpr(e2,n,[j1,container],var_types,environment) of 
+				| NONE 			    => (case fuzzExpr(e2,n,[j1,container],var_types,environment,top_level_expr) of 
 					
 					  SOME (fuzzE2,i,l) => SOME (CounterExpr(Cons(e1,fuzzE2),container),i,l) 
 					| NONE			    => NONE))
 					
-			| Cons(_,_) => raise CounterExpression)
+			| Cons(_,_) => raise CounterExpression
 		
+		
+			| _ => raise CounterExpression)
+			
 	| _ => raise CounterExpression)
 	
 end;
@@ -416,7 +417,7 @@ fun fuzz(expr,var_types) =
 		fun iterFuzz(n) = (case n of 
 		
 			  0 => SOME []
-			| _ => (case fuzzExpr(expr,n,[],var_types,[]) of
+			| _ => (case fuzzExpr(expr,n,[],var_types,[],expr) of
 			
 					  NONE              => NONE
 					| SOME (e,i,errors) => (case iterFuzz(n-1) of 

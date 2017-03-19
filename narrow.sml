@@ -879,6 +879,20 @@ and narrowExpr(e,t,sigma,theta,gamma,cntr) = (case (e,t) of
 									
 							end)
 
+	| (LetRec(x,THole(TypeHole(TypeVar(a))),v as Value(Fun(y,t3,e1)),e2),t) =>
+	
+		if Substitution.contains(TypeHole(TypeVar(a)),theta)
+		then narrowExpr(e,resolveChainTheta(THole(TypeHole(TypeVar(a))),theta),sigma,theta,gamma,cntr)
+		
+		else let val freshType1 = generateFreshTypeVar(TYPE_VAR,theta);
+				 val freshType2 = generateFreshTypeVar(TYPE_VAR,theta)
+				 
+			in (case unify([THole(TypeHole(TypeVar(a))),TFun(freshType1,freshType2)],theta) of 
+				
+				  NONE        => Config(Stuck(cntr),sigma,theta)
+				| SOME theta1 => narrowExpr(LetRec(x,TFun(freshType1,freshType2),v,e2),t,sigma,theta1,gamma,cntr))
+			end
+							
 	(* Drop the counter part associated with the function bound to x to recursively call narrow,
 	   before packaging it back up again *)
 	| (LetRec(x,tFun,CounterExpr(e1,i),e2),t) => (case narrowExpr(LetRec(x,tFun,e1,e2),t,sigma,theta,gamma,cntr) of 

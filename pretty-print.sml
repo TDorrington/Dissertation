@@ -48,9 +48,9 @@ and prettyPrintPattern(PVar(Var(s))) = s
 |	prettyPrintPattern(PCons(pat1,pat2)) = prettyPrintPattern(pat1) ^ "::" ^ prettyPrintPattern(pat2);
 
 fun prettyPrintPatExprList([]) = " " (* Should never occur *)
-|	prettyPrintPatExprList([(pat1,e1)]) = prettyPrintPattern(pat1) ^ " -> " ^ prettyPrintExpression(Expression(e1))
+|	prettyPrintPatExprList([(pat1,e1)]) = prettyPrintPattern(pat1) ^ " => " ^ prettyPrintExpression(Expression(e1))
 |	prettyPrintPatExprList((pat1,e1)::l1) = 
-	prettyPrintPattern(pat1) ^ " -> " ^ prettyPrintExpression(Expression(e1)) ^ " | " ^ prettyPrintPatExprList(l1)
+	prettyPrintPattern(pat1) ^ " => " ^ prettyPrintExpression(Expression(e1)) ^ " | " ^ prettyPrintPatExprList(l1)
 
 and prettyPrintHole(hole) = (case hole of 
 
@@ -78,7 +78,11 @@ and prettyPrintVList([]) = ""
 |	prettyPrintVList(v1::rest) = prettyPrintValue(v1) ^ ", " ^ prettyPrintVList(rest)
 	
 and prettyPrintValue(Concrete(cv)) = prettyPrintConcreteVal(cv)
-|	prettyPrintValue(Fun(Var(s),t,e)) = "fn " ^ s ^ ":" ^ prettyPrintType(t) ^ " => " ^ prettyPrintExpression(Expression(e))
+|	prettyPrintValue(Fun(Var(s),t,e)) = (case t of 
+
+	  THole(_) => "fn " ^ s ^ " => " ^ prettyPrintExpression(Expression(e))
+	| _ 	   => "fn " ^ s ^ ":" ^ prettyPrintType(t) ^ " => " ^ prettyPrintExpression(Expression(e)))
+	
 |	prettyPrintValue(VHole(hole)) = prettyPrintHole(hole)
 |	prettyPrintValue(VRecord(r)) = "{" ^ prettyPrintVRecord(r) ^ "}"
 |	prettyPrintValue(VList(l)) = "[" ^ prettyPrintVList(l) ^"]"
@@ -88,23 +92,33 @@ and prettyPrintExpression(Stuck(i)) = "Stuck at " ^ Int.toString(i)
 	
 	  Value(v) => prettyPrintValue(v)
 	| Variable(Var(s)) => s
-	| ArithExpr(oper,e1,e2) => prettyPrintExpression(Expression(e1)) ^ getOperString(ArithOper(oper)) ^ 
-							   prettyPrintExpression(Expression(e2))
-	| BoolExpr(oper,e1,e2) =>  prettyPrintExpression(Expression(e1)) ^ getOperString(BoolOper(oper))  ^ 
-							   prettyPrintExpression(Expression(e2))
+	| ArithExpr(oper,e1,e2) => "(" ^ prettyPrintExpression(Expression(e1)) ^ ")" ^ getOperString(ArithOper(oper)) ^ "(" ^
+							   prettyPrintExpression(Expression(e2)) ^ ")"
+	| BoolExpr(oper,e1,e2) =>  "(" ^ prettyPrintExpression(Expression(e1)) ^ ")" ^ getOperString(BoolOper(oper))  ^ "(" ^
+							   prettyPrintExpression(Expression(e2)) ^ ")"
 	| Case(e1,patExprList) => 
-		"case " ^ prettyPrintExpression(Expression(e1)) ^ " of " ^ prettyPrintPatExprList(patExprList)
+		"case (" ^ prettyPrintExpression(Expression(e1)) ^ ") of " ^ prettyPrintPatExprList(patExprList)
 	| Condition(e1,e2,e3) => 
-		"if " ^ prettyPrintExpression(Expression(e1)) ^ " then  " ^ prettyPrintExpression(Expression(e2)) ^ " else " ^
-		prettyPrintExpression(Expression(e3))
+		"if (" ^ prettyPrintExpression(Expression(e1)) ^ ") then  (" ^ prettyPrintExpression(Expression(e2)) ^ ") else (" ^
+		prettyPrintExpression(Expression(e3)) ^ ")"
 	| App(e1,e2) => "(" ^ prettyPrintExpression(Expression(e1)) ^ ") (" ^ prettyPrintExpression(Expression(e2)) ^ ")"
 	| Record(r) => "{" ^ prettyPrintERecord(r) ^ "}"
-	| Let(Var(s),t,e1,e2) => "let val " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(e1))
-							   ^ ") in " ^ prettyPrintExpression(Expression(e2)) ^ " end"
-	| LetRec(Var(s),t,e1,e2) => "let val rec " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(e1))
-							   ^ ") in " ^ prettyPrintExpression(Expression(e2)) ^ " end"
+	| Let(Var(s),t,e1,e2) => (case t of 
+	
+		  THole(_) => "let val " ^ s ^ " = (" ^ prettyPrintExpression(Expression(e1)) ^") in (" ^ prettyPrintExpression(Expression(e2))
+								 ^ ") end"
+		| _ 	   => "let val " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(e1))
+							     ^ ") in (" ^ prettyPrintExpression(Expression(e2)) ^ ") end")
+								 
+	| LetRec(Var(s),t,e1,e2) => (case t of 
+	
+		  THole(_) => "let val rec " ^ s ^ " = (" ^ prettyPrintExpression(Expression(e1)) ^ ") in (" 
+									 ^ prettyPrintExpression(Expression(e2)) ^ ") end"
+		
+		| _        => "let val rec " ^ s ^ ":" ^ prettyPrintType(t) ^ " = (" ^ prettyPrintExpression(Expression(e1))
+							   ^ ") in (" ^ prettyPrintExpression(Expression(e2)) ^ ") end")
 	| List(l) => "[" ^ prettyPrintEList(l) ^ "]"
-	| Cons(e1,e2) => prettyPrintExpression(Expression(e1)) ^ " :: " ^ prettyPrintExpression(Expression(e2))
+	| Cons(e1,e2) => "(" ^ prettyPrintExpression(Expression(e1)) ^ ") :: (" ^ prettyPrintExpression(Expression(e2)) ^ ")"
 	| CounterExpr(e,i) => "( " ^ prettyPrintExpression(Expression(e)) ^ ", [" ^ Int.toString(i) ^ "] )")
 	
 and prettyPrintERecord([]) = ""

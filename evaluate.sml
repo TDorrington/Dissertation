@@ -638,7 +638,7 @@ and evaluate (Config(Expression(Value(v)),s,t),_) = Config(Expression(Value(reso
 	
 (* Implements evaluation & type inference rules for let-rec expressions *)
 (* i.e. implements rules (E-LET-REC-GOOD) and (E-LET-REC-BAD) *)
-|	evaluate (Config(Expression(l as LetRec(x,TFun(t1,t2),Value(Fun(y,t3,e1)),e2)),sigma,theta),cntr) = 
+|	evaluate (Config(Expression(l as LetRec(_,_,Value(Fun(_,_,_)),_)),sigma,theta),cntr) = 
 
 	(* Narrow whole expression to some general type variable, similarly to case expression
 	   This will, for example, check types t1 and t3 unify, or that e1 is of type t2, etc. *)

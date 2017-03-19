@@ -36,8 +36,7 @@ fun findWitness(f) =
 			"Witness: "    ^ printWitnessList(l,theta) ^ ",stuck at expression " ^ Int.toString(i)
 			
 		| Config(Expression(e),_,theta) => 
-			"Result: " ^ prettyPrintExpression(Expression(e)) ^ ", with witness: " ^
-			 prettyPrintExpression(Expression(Value(gen(THole(TypeHole(TypeVar("a"))),theta)))))
+			"Result: " ^ prettyPrintExpression(Expression(e)) ^ ", with witness: " ^ printWitnessList(l,theta))
 		
 	end;
 
